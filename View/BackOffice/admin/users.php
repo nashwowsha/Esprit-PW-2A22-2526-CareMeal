@@ -1,0 +1,107 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Gestion des utilisateurs CareMeal ÃƒÂ¯Ã‚Â¿Ã‚Â½ Liste, filtre, actions.">
+  <title>Gestion Utilisateurs ÃƒÂ¯Ã‚Â¿Ã‚Â½ CareMeal Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><img src="../assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
+        <div class="sidebar-brand">Care<span>Meal</span></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Administration</div>
+          <a href="dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
+          <a href="users.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
+          <a href="partners.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+          <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-sliders"></i></span> Preferences</a>
+                      <a href="events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ãƒâ€°vÃƒÂ©nements</a>
+            <a href="logs.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activitÃƒÂ©</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
+            <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
+          </div>
+          <button class="sidebar-logout" data-action="logout" title="DÃƒÂ©connexion"><i class="fa-solid fa-door-open"></i></button>
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+          <div class="page-title"><h2>Gestion Utilisateurs</h2><p id="users-count">0 utilisateurs</p></div>
+        </div>
+        <div class="header-right">
+          <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Toolbar -->
+        <div class="toolbar animate-fade-in-up">
+          <div class="toolbar-left">
+            <div class="search-bar">
+              <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="text" id="user-search" placeholder="Rechercher un utilisateur...">
+            </div>
+            <div class="filter-group">
+              <button class="filter-btn active" data-filter="all" onclick="Admin.filterUsers('all')">Tous</button>
+              <button class="filter-btn" data-filter="students" onclick="Admin.filterUsers('students')"><i class="fa-solid fa-graduation-cap"></i> ÃƒÂ¯Ã‚Â¿Ã‚Â½0tudiants</button>
+              <button class="filter-btn" data-filter="partners" onclick="Admin.filterUsers('partners')"><i class="fa-solid fa-store"></i> Partenaires</button>
+              <button class="filter-btn" data-filter="active" onclick="Admin.filterUsers('active')"><i class="fa-solid fa-check"></i> Actifs</button>
+              <button class="filter-btn" data-filter="pending" onclick="Admin.filterUsers('pending')"><i class="fa-solid fa-hourglass-half"></i> En attente</button>
+              <button class="filter-btn" data-filter="banned" onclick="Admin.filterUsers('banned')"><i class="fa-solid fa-ban"></i> Bannis</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="card animate-fade-in-up stagger-1">
+          <div class="table-container">
+            <table class="data-table" id="users-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>RÃƒÂ´le</th>
+                  <th>Statut</th>
+                  <th>Inscrit le</th>
+                  <th>ActivitÃƒÂ©</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/admin.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', () => Admin.initUsers());</script>
+</body>
+</html>
+
+
+
+
