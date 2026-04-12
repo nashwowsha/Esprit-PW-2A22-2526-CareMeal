@@ -1,0 +1,659 @@
+<?php
+// Ce fichier est rendu par OfferController::index()
+// Variables disponibles : $offers, $categories, $counts, $active, $expired, $flash
+$flash  = $flash  ?? null;
+$errors = $_SESSION['errors'] ?? [];
+$old    = $_SESSION['old']    ?? [];
+unset($_SESSION['errors'], $_SESSION['old']);
+
+// Aide : afficher une valeur en sécurité
+function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mes Offres — CareMeal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/caremeal/css/main.css">
+  <link rel="stylesheet" href="/caremeal/css/components.css">
+  <link rel="stylesheet" href="/caremeal/css/dashboard.css">
+  <style>
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.75); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--color-dark-card); border-radius: 16px;
+      width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+      border: 1px solid var(--color-dark-border);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; border-bottom: 1px solid var(--color-dark-border);
+    }
+    .modal-header h3 { margin: 0; font-size: 1.1rem; color: var(--color-white); }
+    .modal-body  { padding: 24px; }
+    .modal-footer {
+      padding: 16px 24px; border-top: 1px solid var(--color-dark-border);
+      display: flex; gap: 12px; justify-content: flex-end;
+    }
+    .modal-close { background: none; border: none; color: var(--color-text-muted); font-size: 1.3rem; cursor: pointer; }
+    .modal-close:hover { color: var(--color-white); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .delete-confirm {
+      background: var(--color-dark-card); border-radius: 16px;
+      padding: 32px; max-width: 420px; width: 100%; text-align: center;
+      border: 1px solid var(--color-dark-border);
+    }
+    .delete-confirm p { color: var(--color-text-muted); margin: 8px 0 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--color-text-muted); grid-column: 1/-1; }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 12px; opacity: .4; display: block; }
+    .offer-card-actions {
+      display: flex; gap: 8px; margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--color-dark-border);
+    }
+    .badge-statut { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .s-publiee   { background: rgba(34,197,94,.15);   color: #4ade80; }
+    .s-brouillon { background: rgba(251,191,36,.15);  color: #fbbf24; }
+    .s-expiree, .s-archivee { background: rgba(156,163,175,.12); color: #9ca3af; }
+    .photo-upload-area {
+      border: 2px dashed var(--color-dark-border); border-radius: 12px;
+      padding: 20px; text-align: center; cursor: pointer;
+      transition: border-color .2s; position: relative;
+    }
+    .photo-upload-area:hover { border-color: var(--color-primary); }
+    .photo-upload-area input[type="file"] {
+      position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+    }
+    .photo-preview { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
+    .photo-placeholder { color: var(--color-text-muted); font-size: .85rem; pointer-events: none; }
+    .photo-placeholder i { font-size: 2rem; display: block; margin-bottom: 6px; opacity: .5; }
+    .alert { padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-size: .9rem; }
+    .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
+    .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+  </style>
+</head>
+<body>
+<div class="dashboard-layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><img src="/caremeal/assets/logo.png" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;"></div>
+      <div class="sidebar-brand">Care<span>Meal</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Partenaire</div>
+        <a href="/caremeal/partner/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Établissement</a>
+        <a href="offers.php"                      class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Offres</a>
+        <a href="/caremeal/partner/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+        <a href="/caremeal/partner/stats.html"     class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Statistiques</a>
+        <a href="/caremeal/partner/settings.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-user-avatar">P</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-user-name">Partenaire</div>
+          <div class="sidebar-user-role" id="sidebar-user-role">Partenaire</div>
+        </div>
+        <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-left">
+        <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+        <div class="page-title"><h2>Mes Offres</h2><p>Gérez vos offres anti-gaspillage</p></div>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-primary" onclick="openModal('modal-create')">
+          <i class="fa-solid fa-plus"></i> Nouvelle offre
+        </button>
+      </div>
+    </header>
+
+    <div class="page-content">
+
+      <?php if ($flash): ?>
+        <div class="alert alert-<?= $flash['type'] === 'success' ? 'success' : 'error' ?>">
+          <i class="fa-solid fa-<?= $flash['type'] === 'success' ? 'check-circle' : 'triangle-exclamation' ?>"></i>
+          <?= e($flash['msg']) ?>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($errors): ?>
+        <div class="alert alert-error">
+          <?php foreach ($errors as $err): ?>
+            <div><i class="fa-solid fa-triangle-exclamation"></i> <?= e($err) ?></div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+
+      <!-- Stats -->
+      <div class="grid grid-2 gap-4 mb-8 animate-fade-in-up">
+        <div class="card" style="display:flex;align-items:center;gap:16px;">
+          <div class="stat-icon green" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="fa-solid fa-check"></i></div>
+          <div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--color-white);"><?= (int)($counts['publiée'] ?? 0) ?></div>
+            <div style="font-size:.8rem;color:var(--color-text-muted);">Offres actives</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:16px;">
+          <div class="stat-icon yellow" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="fa-solid fa-clock"></i></div>
+          <div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--color-text-muted);"><?= (int)(($counts['expirée'] ?? 0) + ($counts['archivée'] ?? 0)) ?></div>
+            <div style="font-size:.8rem;color:var(--color-text-muted);">Expirées / archivées</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offres actives -->
+      <div class="section animate-fade-in-up stagger-1">
+        <div class="section-header"><h3><i class="fa-solid fa-check"></i> Offres actives</h3></div>
+        <div class="grid grid-3 gap-6">
+          <?php if (empty($active)): ?>
+            <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre active. Publiez votre première offre !</p></div>
+          <?php else: foreach ($active as $o): ?>
+            <?php
+              $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
+              $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
+            ?>
+            <div class="offer-card">
+              <div style="position:relative;">
+                <?php if (!empty($o['photo_url'])): ?>
+                  <img src="<?= e($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
+                <?php else: ?>
+                  <div style="width:100%;height:140px;background:var(--color-dark-hover);border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--color-text-muted);"><i class="fa-solid fa-utensils"></i></div>
+                <?php endif; ?>
+                <span style="position:absolute;top:10px;left:10px;background:var(--color-primary);color:#fff;padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:700;">-<?= $disc ?>%</span>
+                <span style="position:absolute;top:10px;right:10px;"><span class="badge-statut <?= $sCls ?>"><?= e($o['statut']) ?></span></span>
+              </div>
+              <div class="offer-card-body">
+                <h4 style="margin:0 0 4px;color:var(--color-white);font-size:.95rem;"><?= e($o['titre']) ?></h4>
+                <?php if (!empty($o['nom_categorie'])): ?>
+                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;"><?= e($o['nom_categorie']) ?></p>
+                <?php endif; ?>
+                <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= e($o['description']) ?></p>
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                  <div>
+                    <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:.85rem;"><?= number_format($o['prix_original'], 2) ?> DT</span>
+                    <span style="color:var(--color-primary);font-size:1.05rem;font-weight:700;margin-left:6px;"><?= number_format($o['prix'], 2) ?> DT</span>
+                  </div>
+                  <?php if (!empty($o['heure_debut'])): ?>
+                    <span style="font-size:.78rem;color:var(--color-text-muted);"><i class="fa-solid fa-clock"></i> <?= e($o['heure_debut']) ?>–<?= e($o['heure_fin']) ?></span>
+                  <?php endif; ?>
+                </div>
+                <p style="font-size:.75rem;color:var(--color-text-muted);margin-top:6px;"><i class="fa-solid fa-box"></i> <?= (int)($o['quantite_restante'] ?? $o['quantite']) ?>/<?= (int)$o['quantite'] ?> restants</p>
+                <div class="offer-card-actions">
+                  <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openEditModal(<?= $o['id_offre'] ?>)">
+                    <i class="fa-solid fa-pen"></i> Modifier
+                  </button>
+                  <button class="btn btn-danger btn-sm" onclick="openDeleteModal(<?= $o['id_offre'] ?>, '<?= e($o['titre']) ?>')">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          <?php endforeach; endif; ?>
+        </div>
+      </div>
+
+      <!-- Offres expirées / archivées -->
+      <div class="section animate-fade-in-up stagger-2" style="margin-top:32px;">
+        <div class="section-header"><h3><i class="fa-solid fa-clock"></i> Expirées / Archivées</h3></div>
+        <div class="grid grid-3 gap-6">
+          <?php if (empty($expired)): ?>
+            <div class="empty-state"><i class="fa-solid fa-clock"></i><p>Aucune offre expirée.</p></div>
+          <?php else: foreach ($expired as $o): ?>
+            <?php
+              $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
+              $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
+            ?>
+            <div class="offer-card">
+              <div style="position:relative;">
+                <?php if (!empty($o['photo_url'])): ?>
+                  <img src="<?= e($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
+                <?php else: ?>
+                  <div style="width:100%;height:140px;background:var(--color-dark-hover);border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--color-text-muted);"><i class="fa-solid fa-utensils"></i></div>
+                <?php endif; ?>
+                <span style="position:absolute;top:10px;left:10px;background:var(--color-primary);color:#fff;padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:700;">-<?= $disc ?>%</span>
+                <span style="position:absolute;top:10px;right:10px;"><span class="badge-statut <?= $sCls ?>"><?= e($o['statut']) ?></span></span>
+              </div>
+              <div class="offer-card-body">
+                <h4 style="margin:0 0 4px;color:var(--color-white);font-size:.95rem;"><?= e($o['titre']) ?></h4>
+                <?php if (!empty($o['nom_categorie'])): ?>
+                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;"><?= e($o['nom_categorie']) ?></p>
+                <?php endif; ?>
+                <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= e($o['description']) ?></p>
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                  <div>
+                    <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:.85rem;"><?= number_format($o['prix_original'], 2) ?> DT</span>
+                    <span style="color:var(--color-primary);font-size:1.05rem;font-weight:700;margin-left:6px;"><?= number_format($o['prix'], 2) ?> DT</span>
+                  </div>
+                </div>
+                <p style="font-size:.75rem;color:var(--color-text-muted);margin-top:6px;"><i class="fa-solid fa-box"></i> <?= (int)($o['quantite_restante'] ?? $o['quantite']) ?>/<?= (int)$o['quantite'] ?> restants</p>
+                <div class="offer-card-actions">
+                  <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openEditModal(<?= $o['id_offre'] ?>)">
+                    <i class="fa-solid fa-pen"></i> Modifier
+                  </button>
+                  <button class="btn btn-danger btn-sm" onclick="openDeleteModal(<?= $o['id_offre'] ?>, '<?= e($o['titre']) ?>')">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          <?php endforeach; endif; ?>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL CRÉER                                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-create">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-plus"></i> Nouvelle offre</h3>
+      <button class="modal-close" onclick="closeModal('modal-create')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="offers.php">
+      <input type="hidden" name="action"        value="create">
+      <input type="hidden" name="id_partenaire" id="create-id_partenaire" value="">
+      <div class="modal-body">
+        <?php include __DIR__ . '/offerform.php'; // formulaire partagé ?>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create')">Annuler</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> Créer l'offre
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL MODIFIER  (peuplé en JS depuis $offers PHP)     -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-pen"></i> Modifier l'offre</h3>
+      <button class="modal-close" onclick="closeModal('modal-edit')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="offers.php" id="form-edit">
+      <input type="hidden" name="action"   value="update">
+      <input type="hidden" name="id_offre" id="edit-id_offre">
+      <div class="modal-body" id="edit-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit')">Annuler</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  MODAL SUPPRIMER                                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="delete-confirm">
+    <i class="fa-solid fa-trash" style="font-size:2.5rem;color:#f87171;margin-bottom:12px;display:block;"></i>
+    <h3 style="color:var(--color-white);margin:0;">Supprimer l'offre ?</h3>
+    <p id="delete-label">Cette action est irréversible.</p>
+    <form method="POST" action="offers.php" style="display:flex;gap:12px;justify-content:center;">
+      <input type="hidden" name="action"   value="delete">
+      <input type="hidden" name="id_offre" id="delete-id_offre">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete')">Annuler</button>
+      <button type="submit" class="btn btn-danger">
+        <i class="fa-solid fa-trash"></i> Supprimer
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Données des offres injectées en PHP pour l'édition JS -->
+<script>
+const allOffersData = <?= json_encode(array_values($offers ?? []), JSON_UNESCAPED_UNICODE) ?>;
+const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNICODE) ?>;
+</script>
+
+<script src="/caremeal/js/app.js"></script>
+<script src="/caremeal/js/components.js"></script>
+<script>
+/* ── Helpers modal ─────────────────────────────────────── */
+function openModal(id)  { const el=document.getElementById(id); el.classList.add('active'); el.style.display='flex'; document.body.style.overflow='hidden'; }
+function closeModal(id) {
+  const el=document.getElementById(id);
+  el.classList.remove('active');
+  el.style.display='none';
+  document.body.style.overflow='';
+  // Vider tous les champs si c'est le modal de création
+  if (id === 'modal-create') {
+    const form = el.querySelector('form');
+    if (form) {
+      form.reset();
+      // Réinitialiser le champ caché photo_url
+      const photoUrl = form.querySelector('#create-photo-url');
+      if (photoUrl) photoUrl.value = '';
+      // Masquer l'aperçu photo et afficher le placeholder
+      const preview = form.querySelector('#create-photo-preview');
+      if (preview) { preview.src = ''; preview.style.display = 'none'; }
+      const placeholder = form.querySelector('#create-photo-placeholder');
+      if (placeholder) placeholder.style.display = '';
+      // Supprimer les messages d'erreur éventuels
+      form.querySelectorAll('.field-error').forEach(e => e.remove());
+      form.querySelectorAll('.form-input.invalid, .form-textarea.invalid').forEach(e => e.classList.remove('invalid'));
+    }
+  }
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); })
+);
+
+/* ── Génération du formulaire d'édition en JS ─────────── */
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function buildEditForm(o) {
+  const catOpts = allCategoriesData.map(c =>
+    `<option value="${c.id_categorie}" ${o.id_categorie == c.id_categorie ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
+  ).join('');
+  const statuts = ['publiée','brouillon','expirée','archivée'];
+  const statutOpts = statuts.map(s =>
+    `<option value="${s}" ${(o.statut??'publiée')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+  ).join('');
+  const existingPhoto = o.photo_url || '';
+
+  return `
+    <div class="form-group">
+      <label>Titre <span style="color:var(--color-primary)">*</span></label>
+      <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
+        <input type="text" name="titre" class="form-input" placeholder="Ex: Panier surprise" value="${esc(o.titre??'')}" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu...">${esc(o.description??'')}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
+          <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" placeholder="12.00" value="${esc(o.prix_original??'')}" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
+          <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50" value="${esc(o.prix??'')}" required>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+          <input type="number" name="quantite" class="form-input" min="1" placeholder="5" value="${esc(o.quantite??'')}" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Catégorie</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
+          <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Heure début</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+          <input type="time" name="heure_debut" class="form-input" value="${esc(o.heure_debut??'')}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Heure fin</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+          <input type="time" name="heure_fin" class="form-input" value="${esc(o.heure_fin??'')}">
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Photo</label>
+      <input type="hidden" name="photo_url" id="edit-photo-url" value="${esc(existingPhoto)}">
+      <div class="photo-upload-area">
+        <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'edit-photo-url','edit-photo-preview','edit-photo-placeholder')">
+        <div class="photo-placeholder" id="edit-photo-placeholder" ${existingPhoto?'style="display:none"':''}>
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          Cliquez ou glissez une image ici<br>
+          <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+        </div>
+        <img id="edit-photo-preview" class="photo-preview" alt="Aperçu" ${existingPhoto?`src="${esc(existingPhoto)}" style="display:block;"`:''}
+      </div>
+      ${existingPhoto ? '<p style="font-size:.75rem;color:var(--color-text-muted);margin-top:4px;"><i class="fa-solid fa-image"></i> Photo existante — uploadez-en une nouvelle pour la remplacer</p>' : ''}
+    </div>
+    <div class="form-group">
+      <label>Statut</label>
+      <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-toggle-on"></i></span>
+        <select name="statut" class="form-input">${statutOpts}</select>
+      </div>
+    </div>`;
+}
+
+/* ── Validation des formulaires offre ─────────────────── */
+function showFieldError(input, msg) {
+  input.style.borderColor = '#f87171';
+  let err = input.parentElement.parentElement.querySelector('.field-error');
+  if (!err) {
+    err = document.createElement('small');
+    err.className = 'field-error';
+    err.style.cssText = 'color:#f87171;font-size:.75rem;margin-top:4px;display:block;';
+    input.parentElement.parentElement.appendChild(err);
+  }
+  err.textContent = msg;
+}
+function clearFieldError(input) {
+  input.style.borderColor = '';
+  const err = input.parentElement.parentElement.querySelector('.field-error');
+  if (err) err.remove();
+}
+function validateOfferForm(form) {
+  let valid = true;
+  // Titre
+  const titre = form.querySelector('[name="titre"]');
+  if (titre) {
+    const v = titre.value.trim();
+    if (!v) { showFieldError(titre, 'Le titre est obligatoire.'); valid = false; }
+    else if (v.length < 3) { showFieldError(titre, 'Minimum 3 caractères.'); valid = false; }
+    else if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+$/.test(v)) { showFieldError(titre, 'Lettres uniquement, pas de chiffres ni symboles.'); valid = false; }
+    else clearFieldError(titre);
+  }
+  // Prix original
+  const prixOrig = form.querySelector('[name="prix_original"]');
+  if (prixOrig) {
+    const v = parseFloat(prixOrig.value);
+    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit être un nombre positif.'); valid = false; }
+    else clearFieldError(prixOrig);
+  }
+  // Prix réduit
+  const prix = form.querySelector('[name="prix"]');
+  if (prix) {
+    const v = parseFloat(prix.value);
+    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix réduit doit être un nombre positif.'); valid = false; }
+    else if (prixOrig && parseFloat(prixOrig.value) > 0 && v >= parseFloat(prixOrig.value)) {
+      showFieldError(prix, 'Le prix réduit doit être inférieur au prix original.'); valid = false;
+    }
+    else clearFieldError(prix);
+  }
+  // Quantité
+  const qte = form.querySelector('[name="quantite"]');
+  if (qte) {
+    const v = parseInt(qte.value);
+    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
+    else clearFieldError(qte);
+  }
+  // Heures
+  const hd = form.querySelector('[name="heure_debut"]');
+  const hf = form.querySelector('[name="heure_fin"]');
+  if (hd && hf && hd.value && hf.value && hf.value <= hd.value) {
+    showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
+  } else if (hf) clearFieldError(hf);
+  return valid;
+}
+
+// Validation titre en temps réel (affiche rouge sans bloquer)
+function attachTitreRealtime(form) {
+  const titre = form.querySelector('[name="titre"]');
+  if (!titre) return;
+  titre.addEventListener('input', () => {
+    const v = titre.value.trim();
+    if (v.length > 0 && !/^[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+$/.test(v)) {
+      showFieldError(titre, 'Lettres uniquement, pas de chiffres ni symboles.');
+    } else {
+      clearFieldError(titre);
+    }
+  });
+}
+
+// Attacher la validation au formulaire de création
+document.addEventListener('DOMContentLoaded', () => {
+  const createForm = document.querySelector('#modal-create form');
+  if (createForm) {
+    createForm.addEventListener('submit', e => {
+      if (!validateOfferForm(createForm)) e.preventDefault();
+    });
+    attachTitreRealtime(createForm);
+  }
+  const editForm = document.getElementById('form-edit');
+  if (editForm) {
+    editForm.addEventListener('submit', e => {
+      if (!validateOfferForm(editForm)) e.preventDefault();
+    });
+  }
+});
+
+/* ── Ouvrir modal modifier ────────────────────────────── */
+function openEditModal(id) {
+  const o = allOffersData.find(x => x.id_offre == id);
+  if (!o) { alert('Offre introuvable.'); return; }
+  document.getElementById('edit-id_offre').value = id;
+  document.getElementById('edit-body').innerHTML  = buildEditForm(o);
+  // Attacher validation en temps réel sur les champs générés dynamiquement
+  const editForm = document.getElementById('form-edit');
+  editForm.querySelectorAll('input,textarea,select').forEach(el => {
+    el.addEventListener('input', () => clearFieldError(el));
+  });
+  attachTitreRealtime(editForm);
+  openModal('modal-edit');
+}
+
+/* ── Ouvrir modal supprimer ──────────────────────────── */
+function openDeleteModal(id, titre) {
+  document.getElementById('delete-id_offre').value   = id;
+  document.getElementById('delete-label').textContent = `« ${titre} » sera définitivement supprimée.`;
+  openModal('modal-delete');
+}
+
+/* ── Upload photo (base64) ───────────────────────────── */
+function handlePhotoUpload(input, hiddenId, previewId, placeholderId) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Image trop lourde (max 2 Mo).'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById(hiddenId).value   = e.target.result;
+    const preview = document.getElementById(previewId);
+    const ph      = document.getElementById(placeholderId);
+    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    if (ph)      { ph.style.display = 'none'; }
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── Injection de l'id du partenaire connecté ─────────────
+   L'auth est gérée côté JS (localStorage via app.js).
+   On injecte l'ID dans le champ caché du formulaire créer,
+   et on recharge la page avec ?partner_id= pour que PHP
+   filtre les offres de ce seul partenaire.                 */
+(function injectPartnerId() {
+  try {
+    const stored = localStorage.getItem('caremeal_current_user');
+    if (!stored) return;
+    const user = JSON.parse(stored);
+    if (!user || !user.id) return;
+
+    // Champ caché du formulaire Créer
+    const el = document.getElementById('create-id_partenaire');
+    if (el) el.value = user.id;
+
+    // Si l'URL n'a pas déjà le partner_id, on recharge avec
+    const url = new URL(window.location.href);
+    if (!url.searchParams.get('partner_id')) {
+      url.searchParams.set('partner_id', user.id);
+      window.location.replace(url.toString());
+    }
+  } catch (_) {}
+})();
+
+/* ── Infos partenaire dans la sidebar ───────────────── */
+(function initSidebarUser() {
+  try {
+    const stored = localStorage.getItem('caremeal_current_user');
+    if (!stored) return;
+    const user = JSON.parse(stored);
+    if (!user) return;
+    const initials = (user.name || 'P').slice(0, 2).toUpperCase();
+    const sAvatar = document.getElementById('sidebar-user-avatar');
+    const sName   = document.getElementById('sidebar-user-name');
+    const sRole   = document.getElementById('sidebar-user-role');
+    const hAvatar = document.getElementById('header-avatar');
+    if (sAvatar) sAvatar.textContent = initials;
+    if (sName)   sName.textContent   = user.name  || 'Partenaire';
+    if (sRole)   sRole.textContent   = user.companyName || 'Partenaire';
+    if (hAvatar) hAvatar.textContent = initials;
+  } catch (_) {}
+})();
+
+/* ── Déconnexion ────────────────────────────────────── */
+document.querySelectorAll('[data-action="logout"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    localStorage.removeItem('caremeal_current_user');
+    window.location.href = '/caremeal/login.html';
+  });
+});
+
+/* ── Menu mobile ────────────────────────────────────── */
+const mt = document.getElementById('menu-toggle');
+const sb = document.getElementById('sidebar');
+const ov = document.getElementById('sidebar-overlay');
+if (mt) mt.addEventListener('click', () => sb.classList.toggle('open'));
+if (ov) ov.addEventListener('click', () => sb.classList.remove('open'));
+
+/* ── Ouvrir modal si erreurs de validation (retour POST) */
+<?php if (!empty($errors) && !empty($old)): ?>
+  document.addEventListener('DOMContentLoaded', () => {
+    <?php if (isset($old['id_offre'])): ?>
+      openEditModal(<?= (int)$old['id_offre'] ?>);
+    <?php else: ?>
+      openModal('modal-create');
+    <?php endif; ?>
+  });
+<?php endif; ?>
+</script>
+</body>
+</html>

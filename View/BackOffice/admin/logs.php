@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Logs d'activité — CareMeal Admin.">
+  <title>Logs d'activité — CareMeal Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><img src="../assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
+        <div class="sidebar-brand">Care<span>Meal</span></div>
+      </div>
+      <nav class="sidebar-nav">
+                <div class="sidebar-section">
+          <div class="sidebar-section-title">Administration</div>
+          <a href="dashboard.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
+          <a href="users.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
+          <a href="partners.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+          <a href="offers.php" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
+          <a href="events.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+          <a href="logs.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
+            <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
+          </div>
+          <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+        </div>
+      </div>
+    </aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+          <div class="page-title"><h2>Logs d'activité</h2><p>Qui a fait quoi, quand</p></div>
+        </div>
+        <div class="header-right">
+          <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="card animate-fade-in-up">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fa-solid fa-clipboard-list"></i> Toute l'activité</h3>
+            <span class="badge badge-info" id="logs-count">0 entrées</span>
+          </div>
+          <div class="timeline" id="logs-timeline" style="padding:16px 16px 16px 40px;">
+            <!-- Loaded dynamically -->
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../js/app.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/admin.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      Admin.initLogs();
+      const logs = App.getLogs();
+      document.getElementById('logs-count').textContent = logs.length + ' entrée' + (logs.length > 1 ? 's' : '');
+    });
+  </script>
+</body>
+</html>
