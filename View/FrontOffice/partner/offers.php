@@ -413,9 +413,9 @@ function buildEditForm(o) {
         </div>
       </div>
       <div class="form-group">
-        <label>Catégorie</label>
+        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-          <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
+          <select name="id_categorie" class="form-input" required><option value="" disabled>-- Choisir une catégorie --</option>${catOpts}</select>
         </div>
       </div>
     </div>
