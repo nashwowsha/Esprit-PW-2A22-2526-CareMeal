@@ -138,6 +138,10 @@ class OfferController
             $errors[] = 'La quantité doit être au moins 1.';
         }
 
+        if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {
+            $errors[] = 'La catégorie est obligatoire.';
+        }
+
         return $errors;
     }
 }
