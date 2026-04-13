@@ -418,11 +418,11 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Quantité <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
-          <input type="number" name="quantite" class="form-input" min="1" placeholder="5" value="${esc(o.quantite??'')}" required>
+          <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
         </div>
       </div>
       <div class="form-group">
-        <label>Catégorie</label>
+        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
           <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
         </div>
@@ -432,13 +432,13 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Heure début</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-          <input type="time" name="heure_debut" class="form-input" value="${(o.heure_debut??'').substring(0,5)}">
+          <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM" value="${(o.heure_debut??'').substring(0,5)}">
         </div>
       </div>
       <div class="form-group">
         <label>Heure fin</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-          <input type="time" name="heure_fin" class="form-input" value="${(o.heure_fin??'').substring(0,5)}">
+          <input type="text" name="heure_fin" class="form-input" placeholder="HH:MM" value="${(o.heure_fin??'').substring(0,5)}">
         </div>
       </div>
     </div>
@@ -516,12 +516,24 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Heures
+  // Catégorie obligatoire
+  const cat = form.querySelector('[name="id_categorie"]');
+  if (cat) {
+    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une catégorie.'); valid = false; }
+    else clearFieldError(cat);
+  }
+  // Heures — format HH:MM et cohérence
+  const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
   const hd = form.querySelector('[name="heure_debut"]');
   const hf = form.querySelector('[name="heure_fin"]');
-  if (hd && hf && hd.value && hf.value && hf.value <= hd.value) {
+  if (hd && hd.value && !timeRe.test(hd.value.trim())) {
+    showFieldError(hd, "Format invalide. Utilisez HH:MM (ex: 08:30)."); valid = false;
+  } else if (hd && hd.value) clearFieldError(hd);
+  if (hf && hf.value && !timeRe.test(hf.value.trim())) {
+    showFieldError(hf, "Format invalide. Utilisez HH:MM (ex: 18:00)."); valid = false;
+  } else if (hd && hf && hd.value && hf.value && timeRe.test(hd.value) && timeRe.test(hf.value) && hf.value.trim() <= hd.value.trim()) {
     showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
-  } else if (hf) clearFieldError(hf);
+  } else if (hf && hf.value) clearFieldError(hf);
   return valid;
 }
 
