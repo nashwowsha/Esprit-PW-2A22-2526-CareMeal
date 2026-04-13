@@ -13,7 +13,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
            placeholder="Ex: Panier surprise" 
            value="<?= ec($old['titre'] ?? '') ?>"
            id="create-titre"
-           required>
+          >
   </div>
 </div>
 
@@ -26,13 +26,13 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   <div class="form-group">
     <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
-      <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" placeholder="12.00" value="<?= ec($old['prix_original'] ?? '') ?>" required>
+      <input type="text" name="prix_original" class="form-input" placeholder="12.00" value="<?= ec($old['prix_original'] ?? '') ?>">
     </div>
   </div>
   <div class="form-group">
     <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
-      <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50" value="<?= ec($old['prix'] ?? '') ?>" required>
+      <input type="text" name="prix" class="form-input" placeholder="4.50" value="<?= ec($old['prix'] ?? '') ?>">
     </div>
   </div>
 </div>
@@ -41,14 +41,14 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   <div class="form-group">
     <label>Quantité <span style="color:var(--color-primary)">*</span></label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
-      <input type="number" name="quantite" class="form-input" min="1" placeholder="5" value="<?= ec($old['quantite'] ?? '') ?>" required>
+      <input type="text" name="quantite" class="form-input" placeholder="5" value="<?= ec($old['quantite'] ?? '') ?>">
     </div>
   </div>
   <div class="form-group">
-    <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+    <label>Catégorie</label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-      <select name="id_categorie" class="form-input" required>
-        <option value="" disabled <?= empty($old["id_categorie"]) ? "selected" : "" ?>>-- Choisir une catégorie --</option>
+      <select name="id_categorie" class="form-input">
+        <option value="">-- Choisir --</option>
         <?php foreach ($categories ?? [] as $c): ?>
           <option value="<?= (int)$c['id_categorie'] ?>" <?= (($old['id_categorie'] ?? '') == $c['id_categorie']) ? 'selected' : '' ?>>
             <?= ec($c['nom_categorie']) ?>
@@ -63,13 +63,13 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   <div class="form-group">
     <label>Heure début</label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-      <input type="time" name="heure_debut" class="form-input" value="<?= ec($old['heure_debut'] ?? '') ?>">
+      <input type="text" name="heure_debut" class="form-input" value="<?= ec($old['heure_debut'] ?? '') ?>">
     </div>
   </div>
   <div class="form-group">
     <label>Heure fin</label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-      <input type="time" name="heure_fin" class="form-input" value="<?= ec($old['heure_fin'] ?? '') ?>">
+      <input type="text" name="heure_fin" class="form-input" value="<?= ec($old['heure_fin'] ?? '') ?>">
     </div>
   </div>
 </div>
@@ -78,7 +78,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   <label>Photo du produit</label>
   <input type="hidden" name="photo_url" id="create-photo-url" value="">
   <div class="photo-upload-area">
-    <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'create-photo-url','create-photo-preview','create-photo-placeholder')">
+    <input type="file" onchange="handlePhotoUpload(this,'create-photo-url','create-photo-preview','create-photo-placeholder')">
     <div class="photo-placeholder" id="create-photo-placeholder">
       <i class="fa-solid fa-cloud-arrow-up"></i>
       Cliquez ou glissez une image ici<br>

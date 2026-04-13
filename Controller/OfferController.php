@@ -134,12 +134,22 @@ class OfferController
             $errors[] = 'Le prix réduit doit être inférieur au prix original.';
         }
 
-        if (!isset($data['quantite']) || (int)$data['quantite'] < 1) {
+        if (!isset($data['quantite']) || trim($data['quantite']) === '' || (int)$data['quantite'] < 1) {
             $errors[] = 'La quantité doit être au moins 1.';
         }
 
-        if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {
-            $errors[] = 'La catégorie est obligatoire.';
+        // Validation format heure (HH:MM)
+        $heureDebut = trim($data['heure_debut'] ?? '');
+        $heureFin   = trim($data['heure_fin']   ?? '');
+
+        if ($heureDebut !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heureDebut)) {
+            $errors[] = 'L\'heure de début est invalide (format attendu : HH:MM).';
+        }
+        if ($heureFin !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $heureFin)) {
+            $errors[] = 'L\'heure de fin est invalide (format attendu : HH:MM).';
+        }
+        if ($heureDebut !== '' && $heureFin !== '' && $heureFin <= $heureDebut) {
+            $errors[] = 'L\'heure de fin doit être postérieure à l\'heure de début.';
         }
 
         return $errors;

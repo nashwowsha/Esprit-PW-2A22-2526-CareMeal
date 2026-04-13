@@ -384,7 +384,7 @@ function buildEditForm(o) {
     <div class="form-group">
       <label>Titre <span style="color:var(--color-primary)">*</span></label>
       <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
-        <input type="text" name="titre" class="form-input" placeholder="Ex: Panier surprise" value="${esc(o.titre??'')}" required>
+        <input type="text" name="titre" class="form-input" placeholder="Ex: Panier surprise" value="${esc(o.titre??'')}">
       </div>
     </div>
     <div class="form-group">
@@ -395,13 +395,13 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
-          <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" placeholder="12.00" value="${esc(o.prix_original??'')}" required>
+          <input type="text" name="prix_original" class="form-input" placeholder="12.00" value="${esc(o.prix_original??'')}">
         </div>
       </div>
       <div class="form-group">
         <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
-          <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50" value="${esc(o.prix??'')}" required>
+          <input type="text" name="prix" class="form-input" placeholder="4.50" value="${esc(o.prix??'')}">
         </div>
       </div>
     </div>
@@ -409,13 +409,13 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Quantité <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
-          <input type="number" name="quantite" class="form-input" min="1" placeholder="5" value="${esc(o.quantite??'')}" required>
+          <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
         </div>
       </div>
       <div class="form-group">
-        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+        <label>Catégorie</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-          <select name="id_categorie" class="form-input" required><option value="" disabled>-- Choisir une catégorie --</option>${catOpts}</select>
+          <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
         </div>
       </div>
     </div>
@@ -423,13 +423,13 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Heure début</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-          <input type="time" name="heure_debut" class="form-input" value="${esc(o.heure_debut??'')}">
+          <input type="text" name="heure_debut" class="form-input" value="${esc(o.heure_debut??'')}">
         </div>
       </div>
       <div class="form-group">
         <label>Heure fin</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-          <input type="time" name="heure_fin" class="form-input" value="${esc(o.heure_fin??'')}">
+          <input type="text" name="heure_fin" class="form-input" value="${esc(o.heure_fin??'')}">
         </div>
       </div>
     </div>
@@ -437,7 +437,7 @@ function buildEditForm(o) {
       <label>Photo</label>
       <input type="hidden" name="photo_url" id="edit-photo-url" value="${esc(existingPhoto)}">
       <div class="photo-upload-area">
-        <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'edit-photo-url','edit-photo-preview','edit-photo-placeholder')">
+        <input type="file" onchange="handlePhotoUpload(this,'edit-photo-url','edit-photo-preview','edit-photo-placeholder')">
         <div class="photo-placeholder" id="edit-photo-placeholder" ${existingPhoto?'style="display:none"':''}>
           <i class="fa-solid fa-cloud-arrow-up"></i>
           Cliquez ou glissez une image ici<br>
