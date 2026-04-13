@@ -401,11 +401,28 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
+  // Heures - validation JS pure (format HH:MM obligatoire)
+  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
   const hd = form.querySelector('[name="heure_debut"]');
   const hf = form.querySelector('[name="heure_fin"]');
-  if (hd && hf && hd.value && hf.value && hf.value <= hd.value) {
+  let hdOk = true, hfOk = true;
+  if (hd) {
+    if (!hd.value.trim()) {
+      showFieldError(hd, "L'heure de début est obligatoire."); valid = false; hdOk = false;
+    } else if (!timeRegex.test(hd.value.trim())) {
+      showFieldError(hd, "Format invalide. Utilisez HH:MM (ex: 08:30)."); valid = false; hdOk = false;
+    } else { clearFieldError(hd); }
+  }
+  if (hf) {
+    if (!hf.value.trim()) {
+      showFieldError(hf, "L'heure de fin est obligatoire."); valid = false; hfOk = false;
+    } else if (!timeRegex.test(hf.value.trim())) {
+      showFieldError(hf, "Format invalide. Utilisez HH:MM (ex: 21:00)."); valid = false; hfOk = false;
+    } else { clearFieldError(hf); }
+  }
+  if (hd && hf && hdOk && hfOk && hf.value.trim() <= hd.value.trim()) {
     showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
-  } else if (hf) clearFieldError(hf);
+  }
   return valid;
 }
 
