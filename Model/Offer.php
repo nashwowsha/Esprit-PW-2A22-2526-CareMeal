@@ -80,11 +80,11 @@ class OfferModel
         $stmt = $this->pdo->prepare("
             INSERT INTO offre
                 (titre, description, prix, prix_original, photo_url,
-                 quantite, quantite_restante, heure_debut, heure_fin,
+                 quantite, heure_debut, heure_fin,
                  statut, id_categorie, id_partenaire)
             VALUES
                 (:titre, :description, :prix, :prix_original, :photo_url,
-                 :quantite, :quantite, :heure_debut, :heure_fin,
+                 :quantite, :heure_debut, :heure_fin,
                  :statut, :id_categorie, :id_partenaire)
         ");
         $stmt->execute([
