@@ -71,6 +71,20 @@ $statusMessages = [
       grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
       gap: 18px;
     }
+    .pref-client-error {
+      color: #842029;
+      background: rgba(220, 53, 69, 0.16);
+      border: 1px solid rgba(220, 53, 69, 0.4);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 0.88rem;
+      display: none;
+    }
+    .pref-input-error {
+      border-color: rgba(220, 53, 69, 0.7) !important;
+      box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.25);
+    }
     @media (max-width: 1100px) {
       .pref-layout { grid-template-columns: 1fr; }
     }
@@ -131,22 +145,24 @@ $statusMessages = [
               <h3 class="card-title"><i class="fa-solid fa-pen-to-square"></i> <?= htmlspecialchars($formTitle, ENT_QUOTES, 'UTF-8') ?></h3>
             </div>
 
-            <form method="post" action="../Controller/preference.php?action=<?= htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8') ?>">
+            <form method="post" action="../Controller/preference.php?action=<?= htmlspecialchars($formAction, ENT_QUOTES, 'UTF-8') ?>" id="admin-pref-form" novalidate>
               <?php if ($editRow): ?>
                 <input type="hidden" name="id_pref" value="<?= (int)$editRow['id_pref'] ?>">
               <?php endif; ?>
 
+              <div id="admin-pref-error" class="pref-client-error"></div>
+
               <label for="id_user">User ID (required)</label>
-              <input id="id_user" name="id_user" class="pref-input" type="number" min="1" required value="<?= htmlspecialchars((string)($editRow['id_user'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <input id="id_user" name="id_user" class="pref-input" type="text" value="<?= htmlspecialchars((string)($editRow['id_user'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
 
               <label for="regime_alimentaire">Regime alimentaire (required)</label>
-              <input id="regime_alimentaire" name="regime_alimentaire" class="pref-input" type="text" required placeholder="halal, sans-gluten" value="<?= htmlspecialchars((string)($editRow['regime_alimentaire'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <input id="regime_alimentaire" name="regime_alimentaire" class="pref-input" type="text" placeholder="halal, sans-gluten" value="<?= htmlspecialchars((string)($editRow['regime_alimentaire'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
 
               <label for="allergies">Allergies (required)</label>
-              <textarea id="allergies" name="allergies" class="pref-input pref-textarea" required><?= htmlspecialchars((string)($editRow['allergies'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+              <textarea id="allergies" name="allergies" class="pref-input pref-textarea"><?= htmlspecialchars((string)($editRow['allergies'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
 
               <label for="localisation">Localisation (required)</label>
-              <input id="localisation" name="localisation" class="pref-input" type="text" required value="<?= htmlspecialchars((string)($editRow['localisation'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <input id="localisation" name="localisation" class="pref-input" type="text" value="<?= htmlspecialchars((string)($editRow['localisation'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
 
               <div class="pref-actions">
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> <?= $editRow ? 'Update' : 'Create' ?></button>
@@ -219,6 +235,80 @@ $statusMessages = [
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       App.requireAuth(['admin']);
+
+      const form = document.getElementById('admin-pref-form');
+      if (!form) return;
+
+      const errorBox = document.getElementById('admin-pref-error');
+      const idUserField = document.getElementById('id_user');
+      const regimeField = document.getElementById('regime_alimentaire');
+      const allergiesField = document.getElementById('allergies');
+      const localisationField = document.getElementById('localisation');
+
+      function clearErrors() {
+        [idUserField, regimeField, allergiesField, localisationField].forEach((field) => {
+          if (field) field.classList.remove('pref-input-error');
+        });
+      }
+
+      form.addEventListener('submit', (event) => {
+        clearErrors();
+        const errors = [];
+
+        const idUser = (idUserField ? idUserField.value : '').trim();
+        const regime = (regimeField ? regimeField.value : '').trim();
+        const allergies = (allergiesField ? allergiesField.value : '').trim();
+        const localisation = (localisationField ? localisationField.value : '').trim();
+
+        if (!/^\d+$/.test(idUser) || parseInt(idUser, 10) <= 0) {
+          errors.push('User ID must be a positive integer.');
+          if (idUserField) idUserField.classList.add('pref-input-error');
+        }
+
+        if (regime.length === 0) {
+          errors.push('Regime alimentaire is required.');
+          if (regimeField) regimeField.classList.add('pref-input-error');
+        }
+
+        if (allergies.length === 0) {
+          errors.push('Allergies field is required.');
+          if (allergiesField) allergiesField.classList.add('pref-input-error');
+        }
+
+        if (localisation.length === 0) {
+          errors.push('Localisation field is required.');
+          if (localisationField) localisationField.classList.add('pref-input-error');
+        }
+
+        if (regime.length > 1000) {
+          errors.push('Regime alimentaire must be 1000 characters or less.');
+          if (regimeField) regimeField.classList.add('pref-input-error');
+        }
+
+        if (allergies.length > 1000) {
+          errors.push('Allergies must be 1000 characters or less.');
+          if (allergiesField) allergiesField.classList.add('pref-input-error');
+        }
+
+        if (localisation.length > 1000) {
+          errors.push('Localisation must be 1000 characters or less.');
+          if (localisationField) localisationField.classList.add('pref-input-error');
+        }
+
+        if (errors.length > 0) {
+          event.preventDefault();
+          if (errorBox) {
+            errorBox.innerHTML = errors.join('<br>');
+            errorBox.style.display = 'block';
+          }
+          return;
+        }
+
+        if (errorBox) {
+          errorBox.innerHTML = '';
+          errorBox.style.display = 'none';
+        }
+      });
     });
   </script>
 </body>

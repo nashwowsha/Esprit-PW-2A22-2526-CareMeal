@@ -113,6 +113,20 @@ function isRegimeChecked($value, $selectedRegimes) {
       flex-wrap: wrap;
       align-items: center;
     }
+    .pref-client-error {
+      color: #842029;
+      background: rgba(220, 53, 69, 0.16);
+      border: 1px solid rgba(220, 53, 69, 0.4);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 0.88rem;
+      display: none;
+    }
+    .pref-input-error {
+      border-color: rgba(220, 53, 69, 0.7) !important;
+      box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.25);
+    }
   </style>
 </head>
 <body>
@@ -177,11 +191,13 @@ function isRegimeChecked($value, $selectedRegimes) {
               <?php endif; ?>
             </div>
 
-            <form method="post" action="../Controller/preference.php?action=student_upsert" id="student-pref-form">
+            <form method="post" action="../Controller/preference.php?action=student_upsert" id="student-pref-form" novalidate>
               <input type="hidden" name="id_user" class="js-id-user" value="<?= (int)$idUser ?>">
               <?php if ($editingPreference): ?>
                 <input type="hidden" name="id_pref" value="<?= (int)$editingPreference['id_pref'] ?>">
               <?php endif; ?>
+
+              <div id="student-pref-error" class="pref-client-error"></div>
 
               <label style="display:block;font-weight:500;margin-bottom:12px;color:var(--color-white);">Regimes alimentaires (required)</label>
               <div class="tags-grid" style="margin-bottom:20px;">
@@ -197,12 +213,12 @@ function isRegimeChecked($value, $selectedRegimes) {
 
               <div style="margin-bottom:18px;">
                 <label for="pref-allergies" style="display:block;font-weight:500;margin-bottom:8px;color:var(--color-white);">Allergies (required)</label>
-                <textarea id="pref-allergies" name="allergies" class="pref-form-input pref-form-textarea" required placeholder="Ex: soja, arachide"><?= htmlspecialchars($allergiesValue, ENT_QUOTES, 'UTF-8') ?></textarea>
+                <textarea id="pref-allergies" name="allergies" class="pref-form-input pref-form-textarea" placeholder="Ex: soja, arachide"><?= htmlspecialchars($allergiesValue, ENT_QUOTES, 'UTF-8') ?></textarea>
               </div>
 
               <div style="margin-bottom:20px;">
                 <label for="pref-localisation" style="display:block;font-weight:500;margin-bottom:8px;color:var(--color-white);">Localisation (required, exact match)</label>
-                <input type="text" id="pref-localisation" name="localisation" class="pref-form-input" required value="<?= htmlspecialchars($localisationValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Ex: Ariana">
+                <input type="text" id="pref-localisation" name="localisation" class="pref-form-input" value="<?= htmlspecialchars($localisationValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Ex: Ariana">
               </div>
 
               <div class="pref-actions-inline">
@@ -342,6 +358,66 @@ function isRegimeChecked($value, $selectedRegimes) {
           }
         });
       });
+
+      const studentForm = document.getElementById('student-pref-form');
+      const errorBox = document.getElementById('student-pref-error');
+      const allergiesField = document.getElementById('pref-allergies');
+      const localisationField = document.getElementById('pref-localisation');
+
+      function clearStudentFieldErrors() {
+        [allergiesField, localisationField].forEach((field) => {
+          if (field) field.classList.remove('pref-input-error');
+        });
+      }
+
+      if (studentForm) {
+        studentForm.addEventListener('submit', (event) => {
+          clearStudentFieldErrors();
+          const errors = [];
+
+          const selectedRegimes = studentForm.querySelectorAll('input[name="regimes[]"]:checked');
+          const allergiesValue = (allergiesField ? allergiesField.value : '').trim();
+          const localisationValue = (localisationField ? localisationField.value : '').trim();
+
+          if (selectedRegimes.length === 0) {
+            errors.push('Select at least one regime alimentaire.');
+          }
+
+          if (allergiesValue.length === 0) {
+            errors.push('Allergies field is required.');
+            if (allergiesField) allergiesField.classList.add('pref-input-error');
+          }
+
+          if (localisationValue.length === 0) {
+            errors.push('Localisation field is required.');
+            if (localisationField) localisationField.classList.add('pref-input-error');
+          }
+
+          if (localisationValue.length > 1000) {
+            errors.push('Localisation must be 1000 characters or less.');
+            if (localisationField) localisationField.classList.add('pref-input-error');
+          }
+
+          if (allergiesValue.length > 1000) {
+            errors.push('Allergies must be 1000 characters or less.');
+            if (allergiesField) allergiesField.classList.add('pref-input-error');
+          }
+
+          if (errors.length > 0) {
+            event.preventDefault();
+            if (errorBox) {
+              errorBox.innerHTML = errors.join('<br>');
+              errorBox.style.display = 'block';
+            }
+            return;
+          }
+
+          if (errorBox) {
+            errorBox.innerHTML = '';
+            errorBox.style.display = 'none';
+          }
+        });
+      }
     });
   </script>
 </body>
