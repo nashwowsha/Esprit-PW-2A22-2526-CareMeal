@@ -43,6 +43,15 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     }
     .modal-close { background: none; border: none; color: var(--color-text-muted); font-size: 1.3rem; cursor: pointer; }
     .modal-close:hover { color: var(--color-white); }
+    /* Fix select/option dark theme */
+    select.form-input option {
+      background-color: var(--color-dark-card, #1e2433);
+      color: var(--color-text, #e2e8f0);
+    }
+    select.form-input {
+      background-color: var(--color-dark-input, #252d3d);
+      color: var(--color-text, #e2e8f0);
+    }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .delete-confirm {
       background: var(--color-dark-card); border-radius: 16px;
@@ -190,7 +199,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                     <span style="color:var(--color-primary);font-size:1.05rem;font-weight:700;margin-left:6px;"><?= number_format($o['prix'], 2) ?> DT</span>
                   </div>
                   <?php if (!empty($o['heure_debut'])): ?>
-                    <span style="font-size:.78rem;color:var(--color-text-muted);"><i class="fa-solid fa-clock"></i> <?= e($o['heure_debut']) ?>–<?= e($o['heure_fin']) ?></span>
+                    <span style="font-size:.78rem;color:var(--color-text-muted);"><i class="fa-solid fa-clock"></i> <?= e(substr($o['heure_debut'],0,5)) ?>–<?= e(substr($o['heure_fin'],0,5)) ?></span>
                   <?php endif; ?>
                 </div>
                 <p style="font-size:.75rem;color:var(--color-text-muted);margin-top:6px;"><i class="fa-solid fa-box"></i> <?= (int)($o['quantite_restante'] ?? $o['quantite']) ?>/<?= (int)$o['quantite'] ?> restants</p>
@@ -384,7 +393,7 @@ function buildEditForm(o) {
     <div class="form-group">
       <label>Titre <span style="color:var(--color-primary)">*</span></label>
       <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
-        <input type="text" name="titre" class="form-input" placeholder="Ex: Panier surprise" value="${esc(o.titre??'')}">
+        <input type="text" name="titre" class="form-input" placeholder="Ex: Panier surprise" value="${esc(o.titre??'')}" required>
       </div>
     </div>
     <div class="form-group">
@@ -395,13 +404,13 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
-          <input type="text" name="prix_original" class="form-input" placeholder="12.00" value="${esc(o.prix_original??'')}">
+          <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" placeholder="12.00" value="${esc(o.prix_original??'')}" required>
         </div>
       </div>
       <div class="form-group">
         <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
-          <input type="text" name="prix" class="form-input" placeholder="4.50" value="${esc(o.prix??'')}">
+          <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50" value="${esc(o.prix??'')}" required>
         </div>
       </div>
     </div>
@@ -409,7 +418,7 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Quantité <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
-          <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
+          <input type="number" name="quantite" class="form-input" min="1" placeholder="5" value="${esc(o.quantite??'')}" required>
         </div>
       </div>
       <div class="form-group">
@@ -423,13 +432,13 @@ function buildEditForm(o) {
       <div class="form-group">
         <label>Heure début</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-          <input type="text" name="heure_debut" class="form-input" value="${esc(o.heure_debut??'')}">
+          <input type="time" name="heure_debut" class="form-input" value="${(o.heure_debut??'').substring(0,5)}">
         </div>
       </div>
       <div class="form-group">
         <label>Heure fin</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
-          <input type="text" name="heure_fin" class="form-input" value="${esc(o.heure_fin??'')}">
+          <input type="time" name="heure_fin" class="form-input" value="${(o.heure_fin??'').substring(0,5)}">
         </div>
       </div>
     </div>
@@ -437,7 +446,7 @@ function buildEditForm(o) {
       <label>Photo</label>
       <input type="hidden" name="photo_url" id="edit-photo-url" value="${esc(existingPhoto)}">
       <div class="photo-upload-area">
-        <input type="file" onchange="handlePhotoUpload(this,'edit-photo-url','edit-photo-preview','edit-photo-placeholder')">
+        <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'edit-photo-url','edit-photo-preview','edit-photo-placeholder')">
         <div class="photo-placeholder" id="edit-photo-placeholder" ${existingPhoto?'style="display:none"':''}>
           <i class="fa-solid fa-cloud-arrow-up"></i>
           Cliquez ou glissez une image ici<br>
@@ -507,28 +516,12 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Heures - validation JS pure (format HH:MM obligatoire)
-  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+  // Heures
   const hd = form.querySelector('[name="heure_debut"]');
   const hf = form.querySelector('[name="heure_fin"]');
-  let hdOk = true, hfOk = true;
-  if (hd) {
-    if (!hd.value.trim()) {
-      showFieldError(hd, "L'heure de début est obligatoire."); valid = false; hdOk = false;
-    } else if (!timeRegex.test(hd.value.trim())) {
-      showFieldError(hd, "Format invalide. Utilisez HH:MM (ex: 08:30)."); valid = false; hdOk = false;
-    } else { clearFieldError(hd); }
-  }
-  if (hf) {
-    if (!hf.value.trim()) {
-      showFieldError(hf, "L'heure de fin est obligatoire."); valid = false; hfOk = false;
-    } else if (!timeRegex.test(hf.value.trim())) {
-      showFieldError(hf, "Format invalide. Utilisez HH:MM (ex: 21:00)."); valid = false; hfOk = false;
-    } else { clearFieldError(hf); }
-  }
-  if (hd && hf && hdOk && hfOk && hf.value.trim() <= hd.value.trim()) {
+  if (hd && hf && hd.value && hf.value && hf.value <= hd.value) {
     showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
-  }
+  } else if (hf) clearFieldError(hf);
   return valid;
 }
 
