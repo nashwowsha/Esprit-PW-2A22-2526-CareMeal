@@ -1,14 +1,14 @@
 <?php
 require_once __DIR__ . '/../Controller/StudentController.php';
 $studentController = new StudentController();
-$offers = $studentController->getPublishedOffers();
+$offers = $studentController->getAllOffers();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — CareMeal</title>
+  <title>Dashboard â€” CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
@@ -33,19 +33,19 @@ $offers = $studentController->getPublishedOffers();
             <span class="link-icon"><i class="fa-solid fa-user"></i></span> Mon Profil
           </a>
           <a href="preferences.html" class="sidebar-link">
-            <span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences
+            <span class="link-icon"><i class="fa-solid fa-utensils"></i></span> PrÃ©fÃ©rences
           </a>
           <a href="events.html" class="sidebar-link">
-            <span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements
+            <span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ã‰vÃ©nements
           </a>
           <a href="orders.html" class="sidebar-link">
             <span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Commandes
           </a>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-section-title">Paramètres</div>
+          <div class="sidebar-section-title">ParamÃ¨tres</div>
           <a href="settings.html" class="sidebar-link">
-            <span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres
+            <span class="link-icon"><i class="fa-solid fa-gear"></i></span> ParamÃ¨tres
           </a>
         </div>
       </nav>
@@ -55,9 +55,9 @@ $offers = $studentController->getPublishedOffers();
           <div class="avatar" id="sidebar-user-avatar">AA</div>
           <div class="sidebar-user-info">
             <div class="sidebar-user-name" id="sidebar-user-name">Utilisateur</div>
-            <div class="sidebar-user-role" id="sidebar-user-role">Étudiant</div>
+            <div class="sidebar-user-role" id="sidebar-user-role">Ã‰tudiant</div>
           </div>
-          <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+          <button class="sidebar-logout" data-action="logout" title="DÃ©connexion"><i class="fa-solid fa-door-open"></i></button>
         </div>
       </div>
     </aside>
@@ -70,7 +70,7 @@ $offers = $studentController->getPublishedOffers();
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
           <div class="page-title">
             <h2>Accueil</h2>
-            <p>Découvrez les offres du jour</p>
+            <p>DÃ©couvrez les offres du jour</p>
           </div>
         </div>
         <div class="header-right">
@@ -86,8 +86,8 @@ $offers = $studentController->getPublishedOffers();
         <!-- Welcome Banner -->
         <div class="welcome-banner animate-fade-in-up">
           <div class="welcome-text">
-            <h2>Bonjour, <span id="welcome-name">Étudiant</span> ! <i class="fa-solid fa-hand-wave"></i></h2>
-            <p>Heureux de vous revoir. Continuez à sauver des repas !</p>
+            <h2>Bonjour, <span id="welcome-name">Ã‰tudiant</span> ! <i class="fa-solid fa-hand-wave"></i></h2>
+            <p>Heureux de vous revoir. Continuez Ã  sauver des repas !</p>
           </div>
           <div class="welcome-emoji"><i class="fa-solid fa-bowl-food"></i></div>
         </div>
@@ -97,17 +97,17 @@ $offers = $studentController->getPublishedOffers();
           <div class="stat-card">
             <div class="stat-icon green"><i class="fa-solid fa-utensils"></i></div>
             <div class="stat-value" id="impact-meals">0</div>
-            <div class="stat-label">Repas sauvés</div>
+            <div class="stat-label">Repas sauvÃ©s</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon orange"><i class="fa-solid fa-leaf"></i></div>
             <div class="stat-value" id="impact-co2">0 kg</div>
-            <div class="stat-label">CO₂ évité</div>
+            <div class="stat-label">COâ‚‚ Ã©vitÃ©</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon yellow"><i class="fa-solid fa-coins"></i></div>
             <div class="stat-value" id="impact-money">0 DT</div>
-            <div class="stat-label">Économisés</div>
+            <div class="stat-label">Ã‰conomisÃ©s</div>
           </div>
         </div>
 
@@ -123,7 +123,7 @@ $offers = $studentController->getPublishedOffers();
               <div class="empty-state" style="grid-column:1/-1;">
                 <div class="empty-icon"><i class="fa-solid fa-utensils"></i></div>
                 <h3>Aucune offre disponible</h3>
-                <p>Revenez plus tard pour découvrir de nouvelles offres !</p>
+                <p>Revenez plus tard pour dÃ©couvrir de nouvelles offres !</p>
               </div>
             <?php else: ?>
               <?php foreach ($offers as $o):
@@ -138,9 +138,9 @@ $offers = $studentController->getPublishedOffers();
                   <?php if (!empty($o['photo_url'])): ?>
                     <img src="<?= htmlspecialchars($o['photo_url']) ?>"
                          style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;"
-                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;\'>🍽️</div>'">
+                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;\'>ðŸ½ï¸</div>'">
                   <?php else: ?>
-                    <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">🍽️</div>
+                    <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">ðŸ½ï¸</div>
                   <?php endif; ?>
                   <span class="offer-card-discount">-<?= $disc ?>%</span>
                   <?php if ($restant > 0 && $restant <= 2): ?>
@@ -163,7 +163,7 @@ $offers = $studentController->getPublishedOffers();
                     <?php if (!empty($o['heure_debut'])): ?>
                       <span class="offer-card-time">
                         <i class="fa-solid fa-clock"></i>
-                        <?= htmlspecialchars($o['heure_debut']) ?>–<?= htmlspecialchars($o['heure_fin'] ?? '') ?>
+                        <?= htmlspecialchars($o['heure_debut']) ?>â€“<?= htmlspecialchars($o['heure_fin'] ?? '') ?>
                       </span>
                     <?php endif; ?>
                   </div>
@@ -184,10 +184,10 @@ $offers = $studentController->getPublishedOffers();
   <script src="../js/components.js"></script>
   <script src="../js/student.js"></script>
   <script>
-    // On empêche student.js de recharger les offres (déjà rendues par PHP)
+    // On empÃªche student.js de recharger les offres (dÃ©jÃ  rendues par PHP)
     // On surcharge loadOffers pour qu'il ne fasse rien
     const _origStudentInit = Student.init.bind(Student);
-    Student.loadOffers = function() {};  // désactivé — offres déjà en PHP
+    Student.loadOffers = function() {};  // dÃ©sactivÃ© â€” offres dÃ©jÃ  en PHP
     
     document.addEventListener('DOMContentLoaded', () => {
       // Auth & infos utilisateur via app.js
@@ -197,7 +197,7 @@ $offers = $studentController->getPublishedOffers();
 
       // Nom
       const wn = document.getElementById('welcome-name');
-      if (wn) wn.textContent = user.name?.split(' ')[0] || 'Étudiant';
+      if (wn) wn.textContent = user.name?.split(' ')[0] || 'Ã‰tudiant';
 
       // Avatars
       const initials = (user.name || 'AA').slice(0,2).toUpperCase();
@@ -238,3 +238,4 @@ $offers = $studentController->getPublishedOffers();
   </script>
 </body>
 </html>
+
