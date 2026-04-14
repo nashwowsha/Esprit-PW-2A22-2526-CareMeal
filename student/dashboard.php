@@ -1,10 +1,7 @@
 ﻿<?php
-// Chargement des offres depuis la BD
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../Model/Offer.php';
-$offerModel = new OfferModel();
-$allOffers  = $offerModel->getAll();
-$offers     = array_values(array_filter($allOffers, fn($o) => $o['statut'] === 'publiée'));
+require_once __DIR__ . '/../Controller/StudentController.php';
+$studentController = new StudentController();
+$offers = $studentController->getPublishedOffers();
 ?>
 <!DOCTYPE html>
 <html lang="fr">

@@ -1,164 +1,149 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
 
 class OfferModel
 {
-    private $pdo;
+    private ?int $idOffre = null;
+    private string $titre = '';
+    private string $description = '';
+    private float $prix = 0.0;
+    private float $prixOriginal = 0.0;
+    private string $photoUrl = '';
+    private int $quantite = 0;
+    private ?string $heureDebut = null;
+    private ?string $heureFin = null;
+    private string $statut = 'publi�e';
+    private ?int $idCategorie = null;
+    private ?string $idPartenaire = null;
 
-    public function __construct()
+    public function getIdOffre(): ?int
     {
-        $this->pdo = Config::getConnexion();
-        $this->migrate();
+        return $this->idOffre;
     }
 
-    // ── Migrations automatiques ──────────────────────────────
-    // (conservées pour compatibilité avec les anciennes BD)
-    private function migrate()
+    public function setIdOffre(?int $idOffre): self
     {
-        try {
-            $this->pdo->query("SELECT id_partenaire FROM offre LIMIT 1");
-        } catch (Exception $e) {
-            $this->pdo->exec("ALTER TABLE offre ADD COLUMN id_partenaire VARCHAR(100) NULL DEFAULT NULL");
-        }
-
-        try {
-            $col = $this->pdo->query("SHOW COLUMNS FROM offre LIKE 'photo_url'")->fetch();
-            if ($col && stripos($col['Type'], 'longtext') === false) {
-                $this->pdo->exec("ALTER TABLE offre MODIFY COLUMN photo_url LONGTEXT NULL");
-            }
-        } catch (Exception $e) { /* silencieux */ }
+        $this->idOffre = $idOffre;
+        return $this;
     }
 
-    // ── Récupérer toutes les offres ──────────────────────────
-    public function getAll(?string $partnerId = null): array
+    public function getTitre(): string
     {
-        $where  = [];
-        $params = [];
-
-        if ($partnerId !== null) {
-            $where[]              = "o.id_partenaire = :partner_id";
-            $params[':partner_id'] = $partnerId;
-        }
-
-        $sql = "SELECT o.*, c.nom_categorie, c.icone
-                FROM offre o
-                LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie"
-             . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
-             . " ORDER BY o.date_creation DESC";
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
+        return $this->titre;
     }
 
-    // ── Récupérer une offre par ID ───────────────────────────
-    public function getById(int $id): array|false
+    public function setTitre(string $titre): self
     {
-        $stmt = $this->pdo->prepare("
-            SELECT o.*, c.nom_categorie, c.icone
-            FROM offre o
-            LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie
-            WHERE o.id_offre = ?
-        ");
-        $stmt->execute([$id]);
-        return $stmt->fetch();
+        $this->titre = trim($titre);
+        return $this;
     }
 
-    // ── Limiter la taille de la photo base64 (max 1MB) ──────
-    private function compressPhoto(string $base64): string
+    public function getDescription(): string
     {
-        if (strpos($base64, 'data:image') !== 0) return $base64;
-        if (strlen($base64) > 1 * 1024 * 1024) return '';
-        return $base64;
+        return $this->description;
     }
 
-    // ── Créer une offre ──────────────────────────────────────
-    public function create(array $data): int
+    public function setDescription(string $description): self
     {
-        $photo = $this->compressPhoto(trim($data['photo_url'] ?? ''));
-
-        $stmt = $this->pdo->prepare("
-            INSERT INTO offre
-                (titre, description, prix, prix_original, photo_url,
-                 quantite, heure_debut, heure_fin,
-                 statut, id_categorie, id_partenaire)
-            VALUES
-                (:titre, :description, :prix, :prix_original, :photo_url,
-                 :quantite, :heure_debut, :heure_fin,
-                 :statut, :id_categorie, :id_partenaire)
-        ");
-        $stmt->execute([
-            ':titre'          => trim($data['titre']),
-            ':description'    => trim($data['description']  ?? ''),
-            ':prix'           => (float) $data['prix'],
-            ':prix_original'  => (float) $data['prix_original'],
-            ':photo_url'      => $photo,
-            ':quantite'       => (int)   $data['quantite'],
-            ':heure_debut'    => ($data['heure_debut']      ?: null),
-            ':heure_fin'      => ($data['heure_fin']        ?: null),
-            ':statut'         => $data['statut']            ?? 'publiée',
-            ':id_categorie'   => !empty($data['id_categorie'])  ? (int)$data['id_categorie']  : null,
-            ':id_partenaire'  => !empty($data['id_partenaire']) ? $data['id_partenaire']       : null,
-        ]);
-        return (int) $this->pdo->lastInsertId();
+        $this->description = trim($description);
+        return $this;
     }
 
-    // ── Modifier une offre ───────────────────────────────────
-    public function update(int $id, array $data): void
+    public function getPrix(): float
     {
-        $photo = $this->compressPhoto(trim($data['photo_url'] ?? ''));
-
-        $stmt = $this->pdo->prepare("
-            UPDATE offre SET
-                titre           = :titre,
-                description     = :description,
-                prix            = :prix,
-                prix_original   = :prix_original,
-                photo_url       = :photo_url,
-                quantite        = :quantite,
-                heure_debut     = :heure_debut,
-                heure_fin       = :heure_fin,
-                statut          = :statut,
-                id_categorie    = :id_categorie
-            WHERE id_offre = :id
-        ");
-        $stmt->execute([
-            ':titre'         => trim($data['titre']),
-            ':description'   => trim($data['description']  ?? ''),
-            ':prix'          => (float) $data['prix'],
-            ':prix_original' => (float) $data['prix_original'],
-            ':photo_url'     => $photo,
-            ':quantite'      => (int)   $data['quantite'],
-            ':heure_debut'   => ($data['heure_debut']      ?: null),
-            ':heure_fin'     => ($data['heure_fin']        ?: null),
-            ':statut'        => $data['statut']            ?? 'publiée',
-            ':id_categorie'  => !empty($data['id_categorie']) ? (int)$data['id_categorie'] : null,
-            ':id'            => $id,
-        ]);
+        return $this->prix;
     }
 
-    // ── Supprimer une offre ──────────────────────────────────
-    public function delete(int $id): void
+    public function setPrix(float $prix): self
     {
-        $this->pdo->prepare("DELETE FROM offre WHERE id_offre = ?")->execute([$id]);
+        $this->prix = $prix;
+        return $this;
     }
 
-    // ── Compter par statut ───────────────────────────────────
-    public function countByStatut(): array
+    public function getPrixOriginal(): float
     {
-        $stmt   = $this->pdo->query("SELECT statut, COUNT(*) as total FROM offre GROUP BY statut");
-        $rows   = $stmt->fetchAll();
-        $counts = ['publiée' => 0, 'expirée' => 0, 'brouillon' => 0, 'archivée' => 0];
-        foreach ($rows as $row) {
-            $counts[$row['statut']] = (int) $row['total'];
-        }
-        return $counts;
+        return $this->prixOriginal;
     }
 
-    // ── Toutes les catégories ────────────────────────────────
-    public function getAllCategories(): array
+    public function setPrixOriginal(float $prixOriginal): self
     {
-        $stmt = $this->pdo->query("SELECT * FROM categorie_offre ORDER BY nom_categorie");
-        return $stmt->fetchAll();
+        $this->prixOriginal = $prixOriginal;
+        return $this;
+    }
+
+    public function getPhotoUrl(): string
+    {
+        return $this->photoUrl;
+    }
+
+    public function setPhotoUrl(string $photoUrl): self
+    {
+        $this->photoUrl = trim($photoUrl);
+        return $this;
+    }
+
+    public function getQuantite(): int
+    {
+        return $this->quantite;
+    }
+
+    public function setQuantite(int $quantite): self
+    {
+        $this->quantite = $quantite;
+        return $this;
+    }
+
+    public function getHeureDebut(): ?string
+    {
+        return $this->heureDebut;
+    }
+
+    public function setHeureDebut(?string $heureDebut): self
+    {
+        $this->heureDebut = $heureDebut;
+        return $this;
+    }
+
+    public function getHeureFin(): ?string
+    {
+        return $this->heureFin;
+    }
+
+    public function setHeureFin(?string $heureFin): self
+    {
+        $this->heureFin = $heureFin;
+        return $this;
+    }
+
+    public function getStatut(): string
+    {
+        return $this->statut;
+    }
+
+    public function setStatut(string $statut): self
+    {
+        $this->statut = $statut;
+        return $this;
+    }
+
+    public function getIdCategorie(): ?int
+    {
+        return $this->idCategorie;
+    }
+
+    public function setIdCategorie(?int $idCategorie): self
+    {
+        $this->idCategorie = $idCategorie;
+        return $this;
+    }
+
+    public function getIdPartenaire(): ?string
+    {
+        return $this->idPartenaire;
+    }
+
+    public function setIdPartenaire(?string $idPartenaire): self
+    {
+        $this->idPartenaire = $idPartenaire;
+        return $this;
     }
 }
