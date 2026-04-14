@@ -98,11 +98,11 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     <nav class="sidebar-nav">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Partenaire</div>
-        <a href="/caremeal/partner/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Ã‰tablissement</a>
+        <a href="/caremeal/partner/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Etablissement</a>
         <a href="offers.php"                      class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Offres</a>
-        <a href="/caremeal/partner/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ã‰vÃ©nements</a>
+        <a href="/caremeal/partner/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
         <a href="/caremeal/partner/stats.html"     class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Statistiques</a>
-        <a href="/caremeal/partner/settings.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> ParamÃ¨tres</a>
+        <a href="/caremeal/partner/settings.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
       </div>
     </nav>
     <div class="sidebar-footer">
