@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/../Controller/AdminOfferController.php';
+require_once __DIR__ . '/../Controller/adminoffercontroller.php';
 
 $controller = new AdminOfferController();
 $action     = $_POST['action'] ?? 'index';

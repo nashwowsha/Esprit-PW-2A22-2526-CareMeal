@@ -22,13 +22,13 @@ class OfferController
         $offers     = $this->getAllOffers($partnerId);
         $categories = $this->getAllCategories();
 
-        $active  = array_values(array_filter($offers, fn($o) => $o['statut'] === 'publiée'));
-        $expired = array_values(array_filter($offers, fn($o) => in_array($o['statut'], ['expirée', 'archivée', 'brouillon'], true)));
+        $active  = array_values(array_filter($offers, fn($o) => $o['statut'] === 'publiÃ©e'));
+        $expired = array_values(array_filter($offers, fn($o) => in_array($o['statut'], ['expirÃ©e', 'archivÃ©e', 'brouillon'], true)));
 
         $counts = [
-            'publiée'   => count($active),
-            'expirée'   => count(array_filter($offers, fn($o) => $o['statut'] === 'expirée')),
-            'archivée'  => count(array_filter($offers, fn($o) => $o['statut'] === 'archivée')),
+            'publiÃ©e'   => count($active),
+            'expirÃ©e'   => count(array_filter($offers, fn($o) => $o['statut'] === 'expirÃ©e')),
+            'archivÃ©e'  => count(array_filter($offers, fn($o) => $o['statut'] === 'archivÃ©e')),
             'brouillon' => count(array_filter($offers, fn($o) => $o['statut'] === 'brouillon')),
         ];
 
@@ -55,7 +55,7 @@ class OfferController
         $offer = $this->buildOfferFromInput($_POST);
         $this->insertOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succès !'];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre crÃ©Ã©e avec succÃ¨s !'];
         $this->redirect();
     }
 
@@ -79,7 +79,7 @@ class OfferController
         $offer = $this->buildOfferFromInput($_POST)->setIdOffre($id);
         $this->updateOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succès !'];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiÃ©e avec succÃ¨s !'];
         $this->redirect();
     }
 
@@ -90,7 +90,7 @@ class OfferController
         if ($id) {
             $stmt = $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?');
             $stmt->execute([$id]);
-            $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprimée.'];
+            $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprimÃ©e.'];
         }
 
         $this->redirect();
@@ -199,7 +199,7 @@ class OfferController
             ->setQuantite((int)($data['quantite'] ?? 0))
             ->setHeureDebut(!empty($data['heure_debut']) ? (string)$data['heure_debut'] : null)
             ->setHeureFin(!empty($data['heure_fin']) ? (string)$data['heure_fin'] : null)
-            ->setStatut((string)($data['statut'] ?? 'publiée'))
+            ->setStatut((string)($data['statut'] ?? 'publiÃ©e'))
             ->setIdCategorie(!empty($data['id_categorie']) ? (int)$data['id_categorie'] : null)
             ->setIdPartenaire(!empty($data['id_partenaire']) ? (string)$data['id_partenaire'] : null);
     }
@@ -250,32 +250,34 @@ class OfferController
 
         if (empty($titre)) {
             $errors[] = 'Le titre est obligatoire.';
-        } elseif (!preg_match('/^[A-Za-zÀ-ÖØ-öø-ÿ\s\-\']+$/u', $titre)) {
+        } elseif (!preg_match('/^[\\p{L}\\s\\-\\\']+$/u', $titre)) {
             $errors[] = 'Le titre doit contenir uniquement des lettres (pas de chiffres ni symboles).';
         } elseif (mb_strlen($titre) < 3) {
-            $errors[] = 'Le titre doit contenir au moins 3 caractères.';
+            $errors[] = 'Le titre doit contenir au moins 3 caractÃ¨res.';
         }
 
         if (!isset($data['prix']) || !is_numeric($data['prix']) || (float)$data['prix'] <= 0) {
-            $errors[] = 'Le prix réduit doit être un nombre positif.';
+            $errors[] = 'Le prix rÃ©duit doit Ãªtre un nombre positif.';
         }
 
         if (!isset($data['prix_original']) || !is_numeric($data['prix_original']) || (float)$data['prix_original'] <= 0) {
-            $errors[] = 'Le prix original doit être un nombre positif.';
+            $errors[] = 'Le prix original doit Ãªtre un nombre positif.';
         }
 
         if (isset($data['prix'], $data['prix_original']) && (float)$data['prix'] >= (float)$data['prix_original']) {
-            $errors[] = 'Le prix réduit doit être inférieur au prix original.';
+            $errors[] = 'Le prix rÃ©duit doit Ãªtre infÃ©rieur au prix original.';
         }
 
         if (!isset($data['quantite']) || (int)$data['quantite'] < 1) {
-            $errors[] = 'La quantité doit être au moins 1.';
+            $errors[] = 'La quantitÃ© doit Ãªtre au moins 1.';
         }
 
         if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {
-            $errors[] = 'La catégorie est obligatoire.';
+            $errors[] = 'La catÃ©gorie est obligatoire.';
         }
 
         return $errors;
     }
 }
+
+

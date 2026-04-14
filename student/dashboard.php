@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../Controller/StudentController.php';
 $studentController = new StudentController();
 $offers = $studentController->getPublishedOffers();

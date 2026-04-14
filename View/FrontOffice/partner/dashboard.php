@@ -1,20 +1,18 @@
 <?php
-// Chargement direct sans passer par le contrôleur (accès direct au fichier)
+// Fallback si la vue est appelée directement sans contrôleur
 if (!isset($offers)) {
     require_once __DIR__ . '/../../../config/database.php';
-    require_once __DIR__ . '/../../../Model/Offer.php';
-    $offerModel = new OfferModel();
-    $allOffers  = $offerModel->getAll();
-    $offers     = array_values(array_filter($allOffers, fn($o) => $o['statut'] === 'publiée'));
+    $pdo = Config::getConnexion();
+    $stmt = $pdo->query("SELECT o.*, c.nom_categorie, c.icone FROM offre o LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie WHERE o.statut = 'publiée' ORDER BY o.date_creation DESC");
+    $offers = $stmt->fetchAll();
 }
-?>
-<!DOCTYPE html>
+?><!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Votre tableau de bord CareMeal — Découvrez les offres anti-gaspillage près de chez vous.">
-  <title>Dashboard — CareMeal</title>
+  <meta name="description" content="Votre tableau de bord CareMeal â€” DÃ©couvrez les offres anti-gaspillage prÃ¨s de chez vous.">
+  <title>Dashboard â€” CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
@@ -39,19 +37,19 @@ if (!isset($offers)) {
             <span class="link-icon"><i class="fa-solid fa-user"></i></span> Mon Profil
           </a>
           <a href="preferences.php" class="sidebar-link">
-            <span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences
+            <span class="link-icon"><i class="fa-solid fa-utensils"></i></span> PrÃ©fÃ©rences
           </a>
           <a href="events.php" class="sidebar-link">
-            <span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements
+            <span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ã‰vÃ©nements
           </a>
           <a href="orders.php" class="sidebar-link">
             <span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Commandes
           </a>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-section-title">Paramètres</div>
+          <div class="sidebar-section-title">ParamÃ¨tres</div>
           <a href="settings.php" class="sidebar-link">
-            <span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres
+            <span class="link-icon"><i class="fa-solid fa-gear"></i></span> ParamÃ¨tres
           </a>
         </div>
       </nav>
@@ -61,9 +59,9 @@ if (!isset($offers)) {
           <div class="avatar" id="sidebar-user-avatar">AA</div>
           <div class="sidebar-user-info">
             <div class="sidebar-user-name" id="sidebar-user-name">Utilisateur</div>
-            <div class="sidebar-user-role" id="sidebar-user-role">Étudiant</div>
+            <div class="sidebar-user-role" id="sidebar-user-role">Ã‰tudiant</div>
           </div>
-          <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+          <button class="sidebar-logout" data-action="logout" title="DÃ©connexion"><i class="fa-solid fa-door-open"></i></button>
         </div>
       </div>
     </aside>
@@ -76,7 +74,7 @@ if (!isset($offers)) {
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
           <div class="page-title">
             <h2>Accueil</h2>
-            <p>Découvrez les offres du jour</p>
+            <p>DÃ©couvrez les offres du jour</p>
           </div>
         </div>
         <div class="header-right">
@@ -92,8 +90,8 @@ if (!isset($offers)) {
         <!-- Welcome Banner -->
         <div class="welcome-banner animate-fade-in-up">
           <div class="welcome-text">
-            <h2>Bonjour, <span id="welcome-name">Étudiant</span> ! <i class="fa-solid fa-hand-wave"></i></h2>
-            <p>Heureux de vous revoir. Continuez à sauver des repas !</p>
+            <h2>Bonjour, <span id="welcome-name">Ã‰tudiant</span> ! <i class="fa-solid fa-hand-wave"></i></h2>
+            <p>Heureux de vous revoir. Continuez Ã  sauver des repas !</p>
           </div>
           <div class="welcome-emoji"><i class="fa-solid fa-bowl-food"></i></div>
         </div>
@@ -103,17 +101,17 @@ if (!isset($offers)) {
           <div class="stat-card">
             <div class="stat-icon green"><i class="fa-solid fa-utensils"></i></div>
             <div class="stat-value" id="impact-meals">0</div>
-            <div class="stat-label">Repas sauvés</div>
+            <div class="stat-label">Repas sauvÃ©s</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon orange"><i class="fa-solid fa-leaf"></i></div>
             <div class="stat-value" id="impact-co2">0 kg</div>
-            <div class="stat-label">CO₂ évité</div>
+            <div class="stat-label">COâ‚‚ Ã©vitÃ©</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon yellow"><i class="fa-solid fa-coins"></i></div>
             <div class="stat-value" id="impact-money">0 DT</div>
-            <div class="stat-label">Économisés</div>
+            <div class="stat-label">Ã‰conomisÃ©s</div>
           </div>
         </div>
 
@@ -129,7 +127,7 @@ if (!isset($offers)) {
               <div class="empty-state" style="grid-column:1/-1;">
                 <div class="empty-icon"><i class="fa-solid fa-utensils"></i></div>
                 <h3>Aucune offre disponible</h3>
-                <p>Revenez plus tard pour découvrir de nouvelles offres !</p>
+                <p>Revenez plus tard pour dÃ©couvrir de nouvelles offres !</p>
               </div>
             <?php else: ?>
               <?php foreach ($offers as $o):
@@ -144,9 +142,9 @@ if (!isset($offers)) {
                   <?php if (!empty($o['photo_url'])): ?>
                     <img src="<?= htmlspecialchars($o['photo_url']) ?>"
                          style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;"
-                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;\'>🍽️</div>'">
+                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;\'>ðŸ½ï¸</div>'">
                   <?php else: ?>
-                    <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">🍽️</div>
+                    <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">ðŸ½ï¸</div>
                   <?php endif; ?>
                   <span class="offer-card-discount">-<?= $disc ?>%</span>
                   <?php if ($restant > 0 && $restant <= 2): ?>
@@ -169,7 +167,7 @@ if (!isset($offers)) {
                     <?php if (!empty($o['heure_debut'])): ?>
                       <span class="offer-card-time">
                         <i class="fa-solid fa-clock"></i>
-                        <?= htmlspecialchars($o['heure_debut']) ?>–<?= htmlspecialchars($o['heure_fin'] ?? '') ?>
+                        <?= htmlspecialchars($o['heure_debut']) ?>â€“<?= htmlspecialchars($o['heure_fin'] ?? '') ?>
                       </span>
                     <?php endif; ?>
                   </div>
@@ -187,7 +185,7 @@ if (!isset($offers)) {
   <script src="../js/components.js"></script>
   <script src="../js/student.js"></script>
   <script>
-    // Initialise sidebar, avatar, niveau — sans recharger les offres (déjà en PHP)
+    // Initialise sidebar, avatar, niveau â€” sans recharger les offres (dÃ©jÃ  en PHP)
     document.addEventListener('DOMContentLoaded', () => {
       // Sidebar toggle
       const toggle  = document.getElementById('menu-toggle');
@@ -203,7 +201,7 @@ if (!isset($offers)) {
         const user = App.getCurrentUser?.();
         if (user) {
           const wn = document.getElementById('welcome-name');
-          if (wn) wn.textContent = user.name?.split(' ')[0] || 'Étudiant';
+          if (wn) wn.textContent = user.name?.split(' ')[0] || 'Ã‰tudiant';
 
           const av = document.getElementById('sidebar-user-avatar');
           if (av) av.textContent = (user.name || 'AA').slice(0,2).toUpperCase();

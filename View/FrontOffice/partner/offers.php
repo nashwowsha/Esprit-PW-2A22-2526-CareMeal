@@ -6,7 +6,7 @@ $errors = $_SESSION['errors'] ?? [];
 $old    = $_SESSION['old']    ?? [];
 unset($_SESSION['errors'], $_SESSION['old']);
 
-// Aide : afficher une valeur en sécurité
+// Aide : afficher une valeur en sÃ©curitÃ©
 function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 ?>
 <!DOCTYPE html>
@@ -14,7 +14,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mes Offres — CareMeal</title>
+  <title>Mes Offres â€” CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="/caremeal/css/main.css">
   <link rel="stylesheet" href="/caremeal/css/components.css">
@@ -98,11 +98,11 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     <nav class="sidebar-nav">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Partenaire</div>
-        <a href="/caremeal/partner/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Établissement</a>
+        <a href="/caremeal/partner/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Ã‰tablissement</a>
         <a href="offers.php"                      class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Offres</a>
-        <a href="/caremeal/partner/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+        <a href="/caremeal/partner/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ã‰vÃ©nements</a>
         <a href="/caremeal/partner/stats.html"     class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Statistiques</a>
-        <a href="/caremeal/partner/settings.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
+        <a href="/caremeal/partner/settings.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> ParamÃ¨tres</a>
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -112,7 +112,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <div class="sidebar-user-name" id="sidebar-user-name">Partenaire</div>
           <div class="sidebar-user-role" id="sidebar-user-role">Partenaire</div>
         </div>
-        <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+        <button class="sidebar-logout" data-action="logout" title="DÃ©connexion"><i class="fa-solid fa-door-open"></i></button>
       </div>
     </div>
   </aside>
@@ -122,7 +122,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     <header class="top-header">
       <div class="header-left">
         <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
-        <div class="page-title"><h2>Mes Offres</h2><p>Gérez vos offres anti-gaspillage</p></div>
+        <div class="page-title"><h2>Mes Offres</h2><p>GÃ©rez vos offres anti-gaspillage</p></div>
       </div>
       <div class="header-right">
         <button class="btn btn-primary" onclick="openModal('modal-create')">
@@ -153,15 +153,15 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <div class="card" style="display:flex;align-items:center;gap:16px;">
           <div class="stat-icon green" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="fa-solid fa-check"></i></div>
           <div>
-            <div style="font-size:1.5rem;font-weight:700;color:var(--color-white);"><?= (int)($counts['publiée'] ?? 0) ?></div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--color-white);"><?= (int)($counts['publiÃ©e'] ?? 0) ?></div>
             <div style="font-size:.8rem;color:var(--color-text-muted);">Offres actives</div>
           </div>
         </div>
         <div class="card" style="display:flex;align-items:center;gap:16px;">
           <div class="stat-icon yellow" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="fa-solid fa-clock"></i></div>
           <div>
-            <div style="font-size:1.5rem;font-weight:700;color:var(--color-text-muted);"><?= (int)(($counts['expirée'] ?? 0) + ($counts['archivée'] ?? 0)) ?></div>
-            <div style="font-size:.8rem;color:var(--color-text-muted);">Expirées / archivées</div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--color-text-muted);"><?= (int)(($counts['expirÃ©e'] ?? 0) + ($counts['archivÃ©e'] ?? 0)) ?></div>
+            <div style="font-size:.8rem;color:var(--color-text-muted);">ExpirÃ©es / archivÃ©es</div>
           </div>
         </div>
       </div>
@@ -171,11 +171,11 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <div class="section-header"><h3><i class="fa-solid fa-check"></i> Offres actives</h3></div>
         <div class="grid grid-3 gap-6">
           <?php if (empty($active)): ?>
-            <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre active. Publiez votre première offre !</p></div>
+            <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre active. Publiez votre premiÃ¨re offre !</p></div>
           <?php else: foreach ($active as $o): ?>
             <?php
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-              $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
+              $sCls = ['publiÃ©e'=>'s-publiee','brouillon'=>'s-brouillon','expirÃ©e'=>'s-expiree','archivÃ©e'=>'s-archivee'][$o['statut']] ?? '';
             ?>
             <div class="offer-card">
               <div style="position:relative;">
@@ -199,7 +199,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                     <span style="color:var(--color-primary);font-size:1.05rem;font-weight:700;margin-left:6px;"><?= number_format($o['prix'], 2) ?> DT</span>
                   </div>
                   <?php if (!empty($o['heure_debut'])): ?>
-                    <span style="font-size:.78rem;color:var(--color-text-muted);"><i class="fa-solid fa-clock"></i> <?= e(substr($o['heure_debut'],0,5)) ?>–<?= e(substr($o['heure_fin'],0,5)) ?></span>
+                    <span style="font-size:.78rem;color:var(--color-text-muted);"><i class="fa-solid fa-clock"></i> <?= e(substr($o['heure_debut'],0,5)) ?>â€“<?= e(substr($o['heure_fin'],0,5)) ?></span>
                   <?php endif; ?>
                 </div>
                 <p style="font-size:.75rem;color:var(--color-text-muted);margin-top:6px;"><i class="fa-solid fa-box"></i> <?= (int)($o['quantite_restante'] ?? $o['quantite']) ?>/<?= (int)$o['quantite'] ?> restants</p>
@@ -217,16 +217,16 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
       </div>
 
-      <!-- Offres expirées / archivées -->
+      <!-- Offres expirÃ©es / archivÃ©es -->
       <div class="section animate-fade-in-up stagger-2" style="margin-top:32px;">
-        <div class="section-header"><h3><i class="fa-solid fa-clock"></i> Expirées / Archivées</h3></div>
+        <div class="section-header"><h3><i class="fa-solid fa-clock"></i> ExpirÃ©es / ArchivÃ©es</h3></div>
         <div class="grid grid-3 gap-6">
           <?php if (empty($expired)): ?>
-            <div class="empty-state"><i class="fa-solid fa-clock"></i><p>Aucune offre expirée.</p></div>
+            <div class="empty-state"><i class="fa-solid fa-clock"></i><p>Aucune offre expirÃ©e.</p></div>
           <?php else: foreach ($expired as $o): ?>
             <?php
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-              $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
+              $sCls = ['publiÃ©e'=>'s-publiee','brouillon'=>'s-brouillon','expirÃ©e'=>'s-expiree','archivÃ©e'=>'s-archivee'][$o['statut']] ?? '';
             ?>
             <div class="offer-card">
               <div style="position:relative;">
@@ -269,9 +269,9 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   </main>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!--  MODAL CRÉER                                           -->
-<!-- ═══════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!--  MODAL CRÃ‰ER                                           -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="modal-overlay" id="modal-create">
   <div class="modal">
     <div class="modal-header">
@@ -282,21 +282,21 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       <input type="hidden" name="action"        value="create">
       <input type="hidden" name="id_partenaire" id="create-id_partenaire" value="">
       <div class="modal-body">
-        <?php include __DIR__ . '/offerform.php'; // formulaire partagé ?>
+        <?php include __DIR__ . '/offerform.php'; // formulaire partagÃ© ?>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create')">Annuler</button>
         <button type="submit" class="btn btn-primary">
-          <i class="fa-solid fa-plus"></i> Créer l'offre
+          <i class="fa-solid fa-plus"></i> CrÃ©er l'offre
         </button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!--  MODAL MODIFIER  (peuplé en JS depuis $offers PHP)     -->
-<!-- ═══════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<!--  MODAL MODIFIER  (peuplÃ© en JS depuis $offers PHP)     -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="modal-overlay" id="modal-edit">
   <div class="modal">
     <div class="modal-header">
@@ -317,14 +317,14 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <!--  MODAL SUPPRIMER                                       -->
-<!-- ═══════════════════════════════════════════════════════ -->
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
 <div class="modal-overlay" id="modal-delete">
   <div class="delete-confirm">
     <i class="fa-solid fa-trash" style="font-size:2.5rem;color:#f87171;margin-bottom:12px;display:block;"></i>
     <h3 style="color:var(--color-white);margin:0;">Supprimer l'offre ?</h3>
-    <p id="delete-label">Cette action est irréversible.</p>
+    <p id="delete-label">Cette action est irrÃ©versible.</p>
     <form method="POST" action="offers.php" style="display:flex;gap:12px;justify-content:center;">
       <input type="hidden" name="action"   value="delete">
       <input type="hidden" name="id_offre" id="delete-id_offre">
@@ -336,7 +336,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   </div>
 </div>
 
-<!-- Données des offres injectées en PHP pour l'édition JS -->
+<!-- DonnÃ©es des offres injectÃ©es en PHP pour l'Ã©dition JS -->
 <script>
 const allOffersData = <?= json_encode(array_values($offers ?? []), JSON_UNESCAPED_UNICODE) ?>;
 const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNICODE) ?>;
@@ -345,27 +345,27 @@ const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNIC
 <script src="/caremeal/js/app.js"></script>
 <script src="/caremeal/js/components.js"></script>
 <script>
-/* ── Helpers modal ─────────────────────────────────────── */
+/* â”€â”€ Helpers modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function openModal(id)  { const el=document.getElementById(id); el.classList.add('active'); el.style.display='flex'; document.body.style.overflow='hidden'; }
 function closeModal(id) {
   const el=document.getElementById(id);
   el.classList.remove('active');
   el.style.display='none';
   document.body.style.overflow='';
-  // Vider tous les champs si c'est le modal de création
+  // Vider tous les champs si c'est le modal de crÃ©ation
   if (id === 'modal-create') {
     const form = el.querySelector('form');
     if (form) {
       form.reset();
-      // Réinitialiser le champ caché photo_url
+      // RÃ©initialiser le champ cachÃ© photo_url
       const photoUrl = form.querySelector('#create-photo-url');
       if (photoUrl) photoUrl.value = '';
-      // Masquer l'aperçu photo et afficher le placeholder
+      // Masquer l'aperÃ§u photo et afficher le placeholder
       const preview = form.querySelector('#create-photo-preview');
       if (preview) { preview.src = ''; preview.style.display = 'none'; }
       const placeholder = form.querySelector('#create-photo-placeholder');
       if (placeholder) placeholder.style.display = '';
-      // Supprimer les messages d'erreur éventuels
+      // Supprimer les messages d'erreur Ã©ventuels
       form.querySelectorAll('.field-error').forEach(e => e.remove());
       form.querySelectorAll('.form-input.invalid, .form-textarea.invalid').forEach(e => e.classList.remove('invalid'));
     }
@@ -376,16 +376,16 @@ document.querySelectorAll('.modal-overlay').forEach(el =>
   el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); })
 );
 
-/* ── Génération du formulaire d'édition en JS ─────────── */
+/* â”€â”€ GÃ©nÃ©ration du formulaire d'Ã©dition en JS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function buildEditForm(o) {
   const catOpts = allCategoriesData.map(c =>
     `<option value="${c.id_categorie}" ${o.id_categorie == c.id_categorie ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
   ).join('');
-  const statuts = ['publiée','brouillon','expirée','archivée'];
+  const statuts = ['publiÃ©e','brouillon','expirÃ©e','archivÃ©e'];
   const statutOpts = statuts.map(s =>
-    `<option value="${s}" ${(o.statut??'publiée')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+    `<option value="${s}" ${(o.statut??'publiÃ©e')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
   ).join('');
   const existingPhoto = o.photo_url || '';
 
@@ -398,7 +398,7 @@ function buildEditForm(o) {
     </div>
     <div class="form-group">
       <label>Description</label>
-      <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu...">${esc(o.description??'')}</textarea>
+      <textarea name="description" class="form-textarea" rows="3" placeholder="DÃ©crivez le contenu...">${esc(o.description??'')}</textarea>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -408,7 +408,7 @@ function buildEditForm(o) {
         </div>
       </div>
       <div class="form-group">
-        <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+        <label>Prix rÃ©duit (DT) <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
           <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50" value="${esc(o.prix??'')}" required>
         </div>
@@ -416,13 +416,13 @@ function buildEditForm(o) {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+        <label>QuantitÃ© <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
           <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
         </div>
       </div>
       <div class="form-group">
-        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+        <label>CatÃ©gorie <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
           <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
         </div>
@@ -430,7 +430,7 @@ function buildEditForm(o) {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Heure début</label>
+        <label>Heure dÃ©but</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
           <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM" value="${(o.heure_debut??'').substring(0,5)}">
         </div>
@@ -450,11 +450,11 @@ function buildEditForm(o) {
         <div class="photo-placeholder" id="edit-photo-placeholder" ${existingPhoto?'style="display:none"':''}>
           <i class="fa-solid fa-cloud-arrow-up"></i>
           Cliquez ou glissez une image ici<br>
-          <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+          <small style="opacity:.6;">JPG, PNG, WEBP â€” max 2 Mo</small>
         </div>
-        <img id="edit-photo-preview" class="photo-preview" alt="Aperçu" ${existingPhoto?`src="${esc(existingPhoto)}" style="display:block;"`:''}
+        <img id="edit-photo-preview" class="photo-preview" alt="AperÃ§u" ${existingPhoto?`src="${esc(existingPhoto)}" style="display:block;"`:''}
       </div>
-      ${existingPhoto ? '<p style="font-size:.75rem;color:var(--color-text-muted);margin-top:4px;"><i class="fa-solid fa-image"></i> Photo existante — uploadez-en une nouvelle pour la remplacer</p>' : ''}
+      ${existingPhoto ? '<p style="font-size:.75rem;color:var(--color-text-muted);margin-top:4px;"><i class="fa-solid fa-image"></i> Photo existante â€” uploadez-en une nouvelle pour la remplacer</p>' : ''}
     </div>
     <div class="form-group">
       <label>Statut</label>
@@ -464,7 +464,7 @@ function buildEditForm(o) {
     </div>`;
 }
 
-/* ── Validation des formulaires offre ─────────────────── */
+/* â”€â”€ Validation des formulaires offre â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function showFieldError(input, msg) {
   input.style.borderColor = '#f87171';
   let err = input.parentElement.parentElement.querySelector('.field-error');
@@ -488,41 +488,39 @@ function validateOfferForm(form) {
   if (titre) {
     const v = titre.value.trim();
     if (!v) { showFieldError(titre, 'Le titre est obligatoire.'); valid = false; }
-    else if (v.length < 3) { showFieldError(titre, 'Minimum 3 caractères.'); valid = false; }
-    else if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+$/.test(v)) { showFieldError(titre, 'Lettres uniquement, pas de chiffres ni symboles.'); valid = false; }
-    else clearFieldError(titre);
+    else if (v.length < 3) { showFieldError(titre, 'Minimum 3 caractÃ¨res.'); valid = false; }    else clearFieldError(titre);
   }
   // Prix original
   const prixOrig = form.querySelector('[name="prix_original"]');
   if (prixOrig) {
     const v = parseFloat(prixOrig.value);
-    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit être un nombre positif.'); valid = false; }
+    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit Ãªtre un nombre positif.'); valid = false; }
     else clearFieldError(prixOrig);
   }
-  // Prix réduit
+  // Prix rÃ©duit
   const prix = form.querySelector('[name="prix"]');
   if (prix) {
     const v = parseFloat(prix.value);
-    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix réduit doit être un nombre positif.'); valid = false; }
+    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix rÃ©duit doit Ãªtre un nombre positif.'); valid = false; }
     else if (prixOrig && parseFloat(prixOrig.value) > 0 && v >= parseFloat(prixOrig.value)) {
-      showFieldError(prix, 'Le prix réduit doit être inférieur au prix original.'); valid = false;
+      showFieldError(prix, 'Le prix rÃ©duit doit Ãªtre infÃ©rieur au prix original.'); valid = false;
     }
     else clearFieldError(prix);
   }
-  // Quantité
+  // QuantitÃ©
   const qte = form.querySelector('[name="quantite"]');
   if (qte) {
     const v = parseInt(qte.value);
-    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
+    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantitÃ© doit Ãªtre au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Catégorie obligatoire
+  // CatÃ©gorie obligatoire
   const cat = form.querySelector('[name="id_categorie"]');
   if (cat) {
-    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une catégorie.'); valid = false; }
+    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une catÃ©gorie.'); valid = false; }
     else clearFieldError(cat);
   }
-  // Heures — format HH:MM et cohérence
+  // Heures â€” format HH:MM et cohÃ©rence
   const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
   const hd = form.querySelector('[name="heure_debut"]');
   const hf = form.querySelector('[name="heure_fin"]');
@@ -532,26 +530,26 @@ function validateOfferForm(form) {
   if (hf && hf.value && !timeRe.test(hf.value.trim())) {
     showFieldError(hf, "Format invalide. Utilisez HH:MM (ex: 18:00)."); valid = false;
   } else if (hd && hf && hd.value && hf.value && timeRe.test(hd.value) && timeRe.test(hf.value) && hf.value.trim() <= hd.value.trim()) {
-    showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
+    showFieldError(hf, "L'heure de fin doit Ãªtre aprÃ¨s l'heure de dÃ©but."); valid = false;
   } else if (hf && hf.value) clearFieldError(hf);
   return valid;
 }
 
-// Validation titre en temps réel (affiche rouge sans bloquer)
+// Validation titre en temps rÃ©el (affiche rouge sans bloquer)
 function attachTitreRealtime(form) {
   const titre = form.querySelector('[name="titre"]');
   if (!titre) return;
   titre.addEventListener('input', () => {
     const v = titre.value.trim();
-    if (v.length > 0 && !/^[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+$/.test(v)) {
-      showFieldError(titre, 'Lettres uniquement, pas de chiffres ni symboles.');
+    if (v.length > 0 && v.length < 3) {
+      showFieldError(titre, 'Minimum 3 caractères.');
     } else {
       clearFieldError(titre);
     }
   });
 }
 
-// Attacher la validation au formulaire de création
+// Attacher la validation au formulaire de crÃ©ation
 document.addEventListener('DOMContentLoaded', () => {
   const createForm = document.querySelector('#modal-create form');
   if (createForm) {
@@ -568,13 +566,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-/* ── Ouvrir modal modifier ────────────────────────────── */
+/* â”€â”€ Ouvrir modal modifier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function openEditModal(id) {
   const o = allOffersData.find(x => x.id_offre == id);
   if (!o) { alert('Offre introuvable.'); return; }
   document.getElementById('edit-id_offre').value = id;
   document.getElementById('edit-body').innerHTML  = buildEditForm(o);
-  // Attacher validation en temps réel sur les champs générés dynamiquement
+  // Attacher validation en temps rÃ©el sur les champs gÃ©nÃ©rÃ©s dynamiquement
   const editForm = document.getElementById('form-edit');
   editForm.querySelectorAll('input,textarea,select').forEach(el => {
     el.addEventListener('input', () => clearFieldError(el));
@@ -583,14 +581,14 @@ function openEditModal(id) {
   openModal('modal-edit');
 }
 
-/* ── Ouvrir modal supprimer ──────────────────────────── */
+/* â”€â”€ Ouvrir modal supprimer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function openDeleteModal(id, titre) {
   document.getElementById('delete-id_offre').value   = id;
-  document.getElementById('delete-label').textContent = `« ${titre} » sera définitivement supprimée.`;
+  document.getElementById('delete-label').textContent = `Â« ${titre} Â» sera dÃ©finitivement supprimÃ©e.`;
   openModal('modal-delete');
 }
 
-/* ── Upload photo (base64) ───────────────────────────── */
+/* â”€â”€ Upload photo (base64) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function handlePhotoUpload(input, hiddenId, previewId, placeholderId) {
   const file = input.files[0];
   if (!file) return;
@@ -606,9 +604,9 @@ function handlePhotoUpload(input, hiddenId, previewId, placeholderId) {
   reader.readAsDataURL(file);
 }
 
-/* ── Injection de l'id du partenaire connecté ─────────────
-   L'auth est gérée côté JS (localStorage via app.js).
-   On injecte l'ID dans le champ caché du formulaire créer,
+/* â”€â”€ Injection de l'id du partenaire connectÃ© â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   L'auth est gÃ©rÃ©e cÃ´tÃ© JS (localStorage via app.js).
+   On injecte l'ID dans le champ cachÃ© du formulaire crÃ©er,
    et on recharge la page avec ?partner_id= pour que PHP
    filtre les offres de ce seul partenaire.                 */
 (function injectPartnerId() {
@@ -618,11 +616,11 @@ function handlePhotoUpload(input, hiddenId, previewId, placeholderId) {
     const user = JSON.parse(stored);
     if (!user || !user.id) return;
 
-    // Champ caché du formulaire Créer
+    // Champ cachÃ© du formulaire CrÃ©er
     const el = document.getElementById('create-id_partenaire');
     if (el) el.value = user.id;
 
-    // Si l'URL n'a pas déjà le partner_id, on recharge avec
+    // Si l'URL n'a pas dÃ©jÃ  le partner_id, on recharge avec
     const url = new URL(window.location.href);
     if (!url.searchParams.get('partner_id')) {
       url.searchParams.set('partner_id', user.id);
@@ -631,7 +629,7 @@ function handlePhotoUpload(input, hiddenId, previewId, placeholderId) {
   } catch (_) {}
 })();
 
-/* ── Infos partenaire dans la sidebar ───────────────── */
+/* â”€â”€ Infos partenaire dans la sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 (function initSidebarUser() {
   try {
     const stored = localStorage.getItem('caremeal_current_user');
@@ -650,7 +648,7 @@ function handlePhotoUpload(input, hiddenId, previewId, placeholderId) {
   } catch (_) {}
 })();
 
-/* ── Déconnexion ────────────────────────────────────── */
+/* â”€â”€ DÃ©connexion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 document.querySelectorAll('[data-action="logout"]').forEach(btn => {
   btn.addEventListener('click', () => {
     localStorage.removeItem('caremeal_current_user');
@@ -658,14 +656,14 @@ document.querySelectorAll('[data-action="logout"]').forEach(btn => {
   });
 });
 
-/* ── Menu mobile ────────────────────────────────────── */
+/* â”€â”€ Menu mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const mt = document.getElementById('menu-toggle');
 const sb = document.getElementById('sidebar');
 const ov = document.getElementById('sidebar-overlay');
 if (mt) mt.addEventListener('click', () => sb.classList.toggle('open'));
 if (ov) ov.addEventListener('click', () => sb.classList.remove('open'));
 
-/* ── Ouvrir modal si erreurs de validation (retour POST) */
+/* â”€â”€ Ouvrir modal si erreurs de validation (retour POST) */
 <?php if (!empty($errors) && !empty($old)): ?>
   document.addEventListener('DOMContentLoaded', () => {
     <?php if (isset($old['id_offre'])): ?>
