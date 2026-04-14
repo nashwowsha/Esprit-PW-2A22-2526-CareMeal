@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/../../../Controller/PreferenceController.php';
-require_once __DIR__ . '/../../../Model/Preference.php';
 
 $controller = new PreferenceController();
 $rows = $controller->getAllForAdmin();
@@ -9,7 +8,7 @@ $status = $_GET['status'] ?? '';
 $editId = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
 $editRow = null;
 if ($editId > 0) {
-    $editRow = Preference::getById($editId);
+    $editRow = $controller->getById($editId);
 }
 
 $statusMessages = [

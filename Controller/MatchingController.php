@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../Model/Preference.php';
+require_once __DIR__ . '/PreferenceController.php';
 require_once __DIR__ . '/../Model/Matching.php';
 
 class MatchingController {
@@ -13,7 +13,8 @@ class MatchingController {
             ];
         }
 
-        $preference = Preference::getByUserId($idUser);
+        $preferenceController = new PreferenceController();
+        $preference = $preferenceController->getByUserId($idUser);
         if (!$preference) {
             return [
                 'ok' => true,

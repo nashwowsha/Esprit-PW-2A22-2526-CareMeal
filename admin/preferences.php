@@ -1,13 +1,12 @@
 <?php
 require_once __DIR__ . '/../Controller/PreferenceController.php';
-require_once __DIR__ . '/../Model/Preference.php';
 
 $controller = new PreferenceController();
 $rows = $controller->getAllForAdmin();
 $status = $_GET['status'] ?? '';
 
 $editId = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
-$editRow = $editId > 0 ? Preference::getById($editId) : null;
+$editRow = $editId > 0 ? $controller->getById($editId) : null;
 
 $formAction = $editRow ? 'admin_update' : 'admin_create';
 $formTitle = $editRow ? 'Edit Preference #' . (int)$editRow['id_pref'] : 'Create Preference';
@@ -16,6 +15,8 @@ $statusMessages = [
     'success_created' => ['class' => 'success', 'text' => 'Preference created successfully.'],
     'success_updated' => ['class' => 'success', 'text' => 'Preference updated successfully.'],
     'success_deleted' => ['class' => 'success', 'text' => 'Preference deleted successfully.'],
+    'error_validation' => ['class' => 'error', 'text' => 'Validation failed. Please check your input values.'],
+    'error_duplicate_preference' => ['class' => 'error', 'text' => 'This preference already exists for this user.'],
     'error_missing_fields' => ['class' => 'error', 'text' => 'Missing required fields.'],
     'error_not_found' => ['class' => 'error', 'text' => 'Preference not found.'],
     'error_db' => ['class' => 'error', 'text' => 'Database error.'],
@@ -244,6 +245,14 @@ $statusMessages = [
       const regimeField = document.getElementById('regime_alimentaire');
       const allergiesField = document.getElementById('allergies');
       const localisationField = document.getElementById('localisation');
+      const allergyTokenPattern = /^[A-Za-z\u00C0-\u024F\s'-]+$/u;
+
+      function parseCommaList(value) {
+        return String(value || '')
+          .split(/[;,]+/)
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0);
+      }
 
       function clearErrors() {
         [idUserField, regimeField, allergiesField, localisationField].forEach((field) => {
@@ -259,6 +268,8 @@ $statusMessages = [
         const regime = (regimeField ? regimeField.value : '').trim();
         const allergies = (allergiesField ? allergiesField.value : '').trim();
         const localisation = (localisationField ? localisationField.value : '').trim();
+        const regimeItems = parseCommaList(regime);
+        const allergyItems = parseCommaList(allergies);
 
         if (!/^\d+$/.test(idUser) || parseInt(idUser, 10) <= 0) {
           errors.push('User ID must be a positive integer.');
@@ -273,6 +284,40 @@ $statusMessages = [
         if (allergies.length === 0) {
           errors.push('Allergies field is required.');
           if (allergiesField) allergiesField.classList.add('pref-input-error');
+        }
+
+        if (/\d/.test(allergies)) {
+          errors.push('Allergies cannot contain numbers.');
+          if (allergiesField) allergiesField.classList.add('pref-input-error');
+        }
+
+        if (regimeItems.length > 4) {
+          errors.push('At most 4 regime items are allowed.');
+          if (regimeField) regimeField.classList.add('pref-input-error');
+        }
+
+        if (allergies.length > 0) {
+          if (allergyItems.length === 0) {
+            errors.push('Add at least one valid allergy item.');
+            if (allergiesField) allergiesField.classList.add('pref-input-error');
+          }
+
+          const seenAllergies = new Set();
+          for (const token of allergyItems) {
+            const normalized = token.toLocaleLowerCase();
+            if (seenAllergies.has(normalized)) {
+              errors.push('Duplicate allergy items are not allowed.');
+              if (allergiesField) allergiesField.classList.add('pref-input-error');
+              break;
+            }
+            seenAllergies.add(normalized);
+
+            if (!allergyTokenPattern.test(token)) {
+              errors.push('Each allergy must contain only letters, spaces, apostrophe or hyphen.');
+              if (allergiesField) allergiesField.classList.add('pref-input-error');
+              break;
+            }
+          }
         }
 
         if (localisation.length === 0) {

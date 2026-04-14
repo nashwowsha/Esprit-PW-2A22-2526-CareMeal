@@ -1,134 +1,92 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
-
 class Preference {
-    public static function create($regime, $allergies, $localisation, $idUser, $dateDemande = null) {
-        $db = config::getConnexion();
-        $dateDemande = $dateDemande ?: date('Y-m-d H:i:s');
+    private $idPref;
+    private $regimeAlimentaire;
+    private $allergies;
+    private $localisation;
+    private $dateDemande;
+    private $idUser;
 
-        $sql = 'INSERT INTO preference (regime_alimentaire, allergies, localisation, date_demande, id_user)
-                VALUES (:regime, :allergies, :localisation, :date_demande, :id_user)';
-
-        $query = $db->prepare($sql);
-        $query->execute([
-            'regime' => $regime,
-            'allergies' => $allergies,
-            'localisation' => $localisation,
-            'date_demande' => $dateDemande,
-            'id_user' => $idUser,
-        ]);
-
-        return (int)$db->lastInsertId();
+    public function __construct($idPref = null, $regimeAlimentaire = '', $allergies = '', $localisation = '', $dateDemande = null, $idUser = null) {
+        $this->idPref = $idPref !== null ? (int)$idPref : null;
+        $this->regimeAlimentaire = (string)$regimeAlimentaire;
+        $this->allergies = (string)$allergies;
+        $this->localisation = (string)$localisation;
+        $this->dateDemande = $dateDemande !== null ? (string)$dateDemande : null;
+        $this->idUser = $idUser !== null ? (int)$idUser : null;
     }
 
-    public static function upsertByUserId($regime, $allergies, $localisation, $idUser, $dateDemande = null) {
-        $db = config::getConnexion();
-        $dateDemande = $dateDemande ?: date('Y-m-d H:i:s');
-        $existing = self::getByUserId($idUser);
-
-        if ($existing) {
-            $sql = 'UPDATE preference
-                    SET regime_alimentaire = :regime,
-                        allergies = :allergies,
-                        localisation = :localisation,
-                        date_demande = :date_demande
-                    WHERE id_user = :id_user';
-
-            $query = $db->prepare($sql);
-            $query->execute([
-                'regime' => $regime,
-                'allergies' => $allergies,
-                'localisation' => $localisation,
-                'date_demande' => $dateDemande,
-                'id_user' => $idUser,
-            ]);
-
-            return (int)$existing['id_pref'];
+    public static function fromArray($row) {
+        if (!is_array($row)) {
+            return null;
         }
 
-        return self::create($regime, $allergies, $localisation, $idUser, $dateDemande);
+        return new self(
+            isset($row['id_pref']) ? (int)$row['id_pref'] : null,
+            $row['regime_alimentaire'] ?? '',
+            $row['allergies'] ?? '',
+            $row['localisation'] ?? '',
+            $row['date_demande'] ?? null,
+            isset($row['id_user']) ? (int)$row['id_user'] : null
+        );
     }
 
-    public static function updateById($idPref, $regime, $allergies, $localisation, $idUser, $dateDemande = null) {
-        $db = config::getConnexion();
-        $dateDemande = $dateDemande ?: date('Y-m-d H:i:s');
-
-        $sql = 'UPDATE preference
-                SET regime_alimentaire = :regime,
-                    allergies = :allergies,
-                    localisation = :localisation,
-                    date_demande = :date_demande,
-                    id_user = :id_user
-                WHERE id_pref = :id_pref';
-
-        $query = $db->prepare($sql);
-        $query->execute([
-            'id_pref' => $idPref,
-            'regime' => $regime,
-            'allergies' => $allergies,
-            'localisation' => $localisation,
-            'date_demande' => $dateDemande,
-            'id_user' => $idUser,
-        ]);
-
-        return $query->rowCount() > 0;
+    public function toArray() {
+        return [
+            'id_pref' => $this->idPref,
+            'regime_alimentaire' => $this->regimeAlimentaire,
+            'allergies' => $this->allergies,
+            'localisation' => $this->localisation,
+            'date_demande' => $this->dateDemande,
+            'id_user' => $this->idUser,
+        ];
     }
 
-    public static function deleteById($idPref) {
-        $db = config::getConnexion();
-        $query = $db->prepare('DELETE FROM preference WHERE id_pref = :id_pref');
-        $query->execute(['id_pref' => $idPref]);
-
-        return $query->rowCount() > 0;
+    public function getIdPref() {
+        return $this->idPref;
     }
 
-    public static function getById($idPref) {
-        $db = config::getConnexion();
-        $query = $db->prepare('SELECT * FROM preference WHERE id_pref = :id_pref LIMIT 1');
-        $query->execute(['id_pref' => $idPref]);
-
-        return $query->fetch() ?: null;
+    public function setIdPref($idPref) {
+        $this->idPref = $idPref !== null ? (int)$idPref : null;
     }
 
-    public static function getByUserId($idUser) {
-        $db = config::getConnexion();
-        $query = $db->prepare('SELECT * FROM preference WHERE id_user = :id_user ORDER BY id_pref DESC LIMIT 1');
-        $query->execute(['id_user' => $idUser]);
-
-        return $query->fetch() ?: null;
+    public function getRegimeAlimentaire() {
+        return $this->regimeAlimentaire;
     }
 
-    public static function listByUserId($idUser) {
-        $db = config::getConnexion();
-        $query = $db->prepare('SELECT * FROM preference WHERE id_user = :id_user ORDER BY id_pref DESC');
-        $query->execute(['id_user' => $idUser]);
-
-        return $query->fetchAll();
+    public function setRegimeAlimentaire($regimeAlimentaire) {
+        $this->regimeAlimentaire = (string)$regimeAlimentaire;
     }
 
-    public static function listAllWithUser() {
-        $db = config::getConnexion();
-        $sql = 'SELECT p.*, u.nom AS user_nom, u.email AS user_email, u.role AS user_role
-                FROM preference p
-                LEFT JOIN utilisateur u ON u.id = p.id_user
-                ORDER BY p.id_pref DESC';
-
-        return $db->query($sql)->fetchAll();
+    public function getAllergies() {
+        return $this->allergies;
     }
 
-    // Backward-compatible methods
-    public static function listPreferences() {
-        $db = config::getConnexion();
-
-        return $db->query('SELECT * FROM preference ORDER BY id_pref DESC')->fetchAll();
+    public function setAllergies($allergies) {
+        $this->allergies = (string)$allergies;
     }
 
-    public static function deletePreference($idPref) {
-        return self::deleteById($idPref);
+    public function getLocalisation() {
+        return $this->localisation;
     }
 
-    public static function getPreferenceByUser($idUser) {
-        return self::getByUserId($idUser);
+    public function setLocalisation($localisation) {
+        $this->localisation = (string)$localisation;
+    }
+
+    public function getDateDemande() {
+        return $this->dateDemande;
+    }
+
+    public function setDateDemande($dateDemande) {
+        $this->dateDemande = $dateDemande !== null ? (string)$dateDemande : null;
+    }
+
+    public function getIdUser() {
+        return $this->idUser;
+    }
+
+    public function setIdUser($idUser) {
+        $this->idUser = $idUser !== null ? (int)$idUser : null;
     }
 }
-

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../../Model/Preference.php';
+require_once __DIR__ . '/../../../Controller/PreferenceController.php';
 require_once __DIR__ . '/../../../Controller/MatchingController.php';
 
 $idUser = isset($_GET['id_user']) ? (int)$_GET['id_user'] : 1;
@@ -8,7 +8,8 @@ if ($idUser <= 0) {
 }
 
 $status = $_GET['status'] ?? '';
-$preference = Preference::getByUserId($idUser);
+$preferenceController = new PreferenceController();
+$preference = $preferenceController->getByUserId($idUser);
 $selectedRegimes = [];
 
 if ($preference && !empty($preference['regime_alimentaire'])) {

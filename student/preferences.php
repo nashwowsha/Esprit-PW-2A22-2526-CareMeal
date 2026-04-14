@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../Model/Preference.php';
+require_once __DIR__ . '/../Controller/PreferenceController.php';
 require_once __DIR__ . '/../Controller/MatchingController.php';
 
 $idUser = isset($_GET['id_user']) ? (int)$_GET['id_user'] : 1;
@@ -10,11 +10,12 @@ if ($idUser <= 0) {
 $status = $_GET['status'] ?? '';
 $editId = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
 
-$preferenceRows = Preference::listByUserId($idUser);
+$preferenceController = new PreferenceController();
+$preferenceRows = $preferenceController->getListByUserId($idUser);
 $editingPreference = null;
 
 if ($editId > 0) {
-    $candidate = Preference::getById($editId);
+    $candidate = $preferenceController->getById($editId);
     if ($candidate && (int)$candidate['id_user'] === $idUser) {
         $editingPreference = $candidate;
     }
@@ -37,6 +38,8 @@ $statusMessages = [
     'success_created' => ['class' => 'success', 'text' => 'Preference added successfully.'],
     'success_updated' => ['class' => 'success', 'text' => 'Selected preference updated successfully.'],
     'success_deleted' => ['class' => 'success', 'text' => 'Preference deleted successfully.'],
+    'error_validation' => ['class' => 'error', 'text' => 'Validation failed. Please check your input values.'],
+    'error_duplicate_preference' => ['class' => 'error', 'text' => 'This preference already exists for this user.'],
     'error_missing_fields' => ['class' => 'error', 'text' => 'Please fill all required fields.'],
     'error_db' => ['class' => 'error', 'text' => 'Database error. Please try again.'],
     'error_forbidden' => ['class' => 'error', 'text' => 'You cannot modify another student preference.'],
@@ -363,6 +366,14 @@ function isRegimeChecked($value, $selectedRegimes) {
       const errorBox = document.getElementById('student-pref-error');
       const allergiesField = document.getElementById('pref-allergies');
       const localisationField = document.getElementById('pref-localisation');
+      const allergyTokenPattern = /^[A-Za-z\u00C0-\u024F\s'-]+$/u;
+
+      function parseCommaList(value) {
+        return String(value || '')
+          .split(/[;,]+/)
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0);
+      }
 
       function clearStudentFieldErrors() {
         [allergiesField, localisationField].forEach((field) => {
@@ -378,14 +389,48 @@ function isRegimeChecked($value, $selectedRegimes) {
           const selectedRegimes = studentForm.querySelectorAll('input[name="regimes[]"]:checked');
           const allergiesValue = (allergiesField ? allergiesField.value : '').trim();
           const localisationValue = (localisationField ? localisationField.value : '').trim();
+          const allergyItems = parseCommaList(allergiesValue);
 
           if (selectedRegimes.length === 0) {
             errors.push('Select at least one regime alimentaire.');
           }
 
+          if (selectedRegimes.length > 4) {
+            errors.push('You can select at most 4 regimes alimentaires.');
+          }
+
           if (allergiesValue.length === 0) {
             errors.push('Allergies field is required.');
             if (allergiesField) allergiesField.classList.add('pref-input-error');
+          }
+
+          if (allergiesValue.length > 0) {
+            if (/\d/.test(allergiesValue)) {
+              errors.push('Allergies cannot contain numbers.');
+              if (allergiesField) allergiesField.classList.add('pref-input-error');
+            }
+
+            if (allergyItems.length === 0) {
+              errors.push('Add at least one valid allergy item.');
+              if (allergiesField) allergiesField.classList.add('pref-input-error');
+            }
+
+            const seenAllergies = new Set();
+            for (const token of allergyItems) {
+              const normalized = token.toLocaleLowerCase();
+              if (seenAllergies.has(normalized)) {
+                errors.push('Duplicate allergy items are not allowed.');
+                if (allergiesField) allergiesField.classList.add('pref-input-error');
+                break;
+              }
+              seenAllergies.add(normalized);
+
+              if (!allergyTokenPattern.test(token)) {
+                errors.push('Each allergy must contain only letters, spaces, apostrophe or hyphen.');
+                if (allergiesField) allergiesField.classList.add('pref-input-error');
+                break;
+              }
+            }
           }
 
           if (localisationValue.length === 0) {
