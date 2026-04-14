@@ -21,14 +21,14 @@ const Student = {
     const levelDisplay = document.getElementById('user-level');
     if (levelDisplay) levelDisplay.textContent = 'Niveau ' + (user.level || 1);
 
-    // Load offers depuis l'API PHP (BD réelle)
+
     this.loadOffers();
 
     // Load impact
     this.loadImpact(user);
   },
 
-  // Charge les offres depuis /api/offers.php?status=active
+  //
   // Si le serveur PHP n'est pas disponible, repli sur localStorage
   async loadOffers() {
     const container = document.getElementById('offers-grid');
