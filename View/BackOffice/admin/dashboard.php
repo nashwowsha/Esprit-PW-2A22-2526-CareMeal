@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Tableau de bord administrateur CareMeal � Vue globale des statistiques.">
-  <title>Admin Dashboard � CareMeal</title>
+  <meta name="description" content="Tableau de bord administrateur CareMeal Ã¯Â¿Â½ Vue globale des statistiques.">
+  <title>Admin Dashboard Ã¯Â¿Â½ CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
@@ -23,8 +23,8 @@
           <a href="dashboard.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
           <a href="users.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
           <a href="partners.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-          <a href="offers.php" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
-          <a href="events.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+          <a href="categorie.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Catégories &amp; Offres</a>
+          <a href="events.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> ÃÂvÃÂ©nements</a>
           <a href="logs.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
         </div>
       </nav>
@@ -45,7 +45,7 @@
       <header class="top-header">
         <div class="header-left">
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
-          <div class="page-title"><h2>Vue globale</h2><p>Statistiques et aperçu du système</p></div>
+          <div class="page-title"><h2>Vue globale</h2><p>Statistiques et aperçu du systÃÂ¨me</p></div>
         </div>
         <div class="header-right">
           <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
@@ -58,7 +58,7 @@
         <div class="welcome-banner animate-fade-in-up">
           <div class="welcome-text">
             <h2>Bienvenue, <span>Admin</span> <i class="fa-solid fa-hand-wave"></i></h2>
-            <p>Voici un aperçu de l'activité de la plateforme CareMeal.</p>
+            <p>Voici un aperçu de l'activitÃÂ© de la plateforme CareMeal.</p>
           </div>
           <div class="welcome-emoji"><i class="fa-solid fa-shield-halved"></i></div>
         </div>
@@ -69,25 +69,25 @@
             <div class="stat-icon orange"><i class="fa-solid fa-users"></i></div>
             <div class="stat-value" id="stat-users">0</div>
             <div class="stat-label">Utilisateurs totaux</div>
-            <div class="stat-change up">�  +12%</div>
+            <div class="stat-change up">Ã¯Â¿Â½  +12%</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon blue"><i class="fa-solid fa-graduation-cap"></i></div>
             <div class="stat-value" id="stat-students">0</div>
-            <div class="stat-label">�0tudiants actifs</div>
-            <div class="stat-change up">�  +8%</div>
+            <div class="stat-label">Ã¯Â¿Â½0tudiants actifs</div>
+            <div class="stat-change up">Ã¯Â¿Â½  +8%</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon green"><i class="fa-solid fa-utensils"></i></div>
             <div class="stat-value" id="stat-meals">0</div>
             <div class="stat-label">Repas sauvés</div>
-            <div class="stat-change up">�  +23%</div>
+            <div class="stat-change up">Ã¯Â¿Â½  +23%</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon yellow"><i class="fa-solid fa-leaf"></i></div>
             <div class="stat-value" id="stat-co2">0 kg</div>
-            <div class="stat-label">CO� évité</div>
-            <div class="stat-change up">�  +18%</div>
+            <div class="stat-label">COÃ¯Â¿Â½ évité</div>
+            <div class="stat-change up">Ã¯Â¿Â½  +18%</div>
           </div>
         </div>
 
@@ -128,7 +128,7 @@
                 <thead>
                   <tr>
                     <th>Utilisateur</th>
-                    <th>Rôle</th>
+                    <th>RÃÂ´le</th>
                     <th>Statut</th>
                     <th>Date</th>
                   </tr>
@@ -140,7 +140,7 @@
 
           <div class="card">
             <div class="card-header">
-              <h3 class="card-title"><i class="fa-solid fa-clipboard-list"></i> Activité récente</h3>
+              <h3 class="card-title"><i class="fa-solid fa-clipboard-list"></i> ActivitÃÂ© rÃÂ©cente</h3>
               <a href="logs.html" class="btn btn-sm btn-outline">Voir tout</a>
             </div>
             <div class="timeline" id="recent-logs" style="max-height:320px;overflow-y:auto;">

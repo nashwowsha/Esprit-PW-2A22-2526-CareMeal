@@ -1,6 +1,7 @@
-﻿<?php
+﻿Ã¯»Â¿<?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../Model/Offer.php';
+require_once __DIR__ . '/../Model/Categorie.php';
 
 class OfferController
 {
@@ -55,7 +56,7 @@ class OfferController
         $offer = $this->buildOfferFromInput($_POST);
         $this->insertOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succès !'];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succÃÂ¨s !'];
         $this->redirect();
     }
 
@@ -79,7 +80,7 @@ class OfferController
         $offer = $this->buildOfferFromInput($_POST)->setIdOffre($id);
         $this->updateOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succès !'];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succÃÂ¨s !'];
         $this->redirect();
     }
 
@@ -263,19 +264,19 @@ class OfferController
         }
 
         if (!isset($data['prix']) || !is_numeric($data['prix']) || (float)$data['prix'] <= 0) {
-            $errors[] = 'Le prix réduit doit être un nombre positif.';
+            $errors[] = 'Le prix réduit doit ÃÂªtre un nombre positif.';
         }
 
         if (!isset($data['prix_original']) || !is_numeric($data['prix_original']) || (float)$data['prix_original'] <= 0) {
-            $errors[] = 'Le prix original doit être un nombre positif.';
+            $errors[] = 'Le prix original doit ÃÂªtre un nombre positif.';
         }
 
         if (isset($data['prix'], $data['prix_original']) && (float)$data['prix'] >= (float)$data['prix_original']) {
-            $errors[] = 'Le prix réduit doit être inférieur au prix original.';
+            $errors[] = 'Le prix réduit doit ÃÂªtre inférieur au prix original.';
         }
 
         if (!isset($data['quantite']) || (int)$data['quantite'] < 1) {
-            $errors[] = 'La quantité doit être au moins 1.';
+            $errors[] = 'La quantité doit ÃÂªtre au moins 1.';
         }
 
         if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {
@@ -297,18 +298,18 @@ class OfferController
         $map = [
             'publiee' => 'publiée',
             'publiée' => 'publiée',
-            'publiã©e' => 'publiée',
-            'publiãƒâ©e' => 'publiée',
+            'publiÃÂ£ÃÂ©e' => 'publiée',
+            'publiÃÂ£ÃÂÃÂ¢ÃÂ©e' => 'publiée',
             'active' => 'publiée',
             'actif' => 'publiée',
             'expiree' => 'expirée',
             'expirée' => 'expirée',
-            'expirã©e' => 'expirée',
-            'expirãƒâ©e' => 'expirée',
+            'expirÃÂ£ÃÂ©e' => 'expirée',
+            'expirÃÂ£ÃÂÃÂ¢ÃÂ©e' => 'expirée',
             'archivee' => 'archivée',
             'archivée' => 'archivée',
-            'archivã©e' => 'archivée',
-            'archivãƒâ©e' => 'archivée',
+            'archivÃÂ£ÃÂ©e' => 'archivée',
+            'archivÃÂ£ÃÂÃÂ¢ÃÂ©e' => 'archivée',
             'draft' => 'brouillon',
             'brouillon' => 'brouillon',
         ];
