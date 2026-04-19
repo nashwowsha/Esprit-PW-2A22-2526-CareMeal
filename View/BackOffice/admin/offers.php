@@ -71,8 +71,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <a href="/caremeal/admin/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
         <a href="/caremeal/admin/users.html"     class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
         <a href="/caremeal/admin/partners.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-        <a href="/caremeal/admin/categories.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Catégories &amp; Offres</a>
-        <a href="offers.php"                    class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres (ancien)</a>
+        <a href="offers.php"                    class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
         <a href="/caremeal/admin/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
         <a href="/caremeal/admin/logs.html"      class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activités</a>
       </div>
