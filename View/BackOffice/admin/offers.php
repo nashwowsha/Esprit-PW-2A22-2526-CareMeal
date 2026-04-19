@@ -95,7 +95,10 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
         <div class="page-title"><h2>Offres partenaires</h2><p>Liste et gestion de toutes les offres</p></div>
       </div>
-      <div class="header-right">
+      <div class="header-right" style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn-primary" onclick="openModal('modal-create')" style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-plus"></i> Ajouter une offre
+        </button>
         <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
       </div>
     </header>
@@ -196,6 +199,129 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 </div>
 
 <!-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  MODAL AJOUTER UNE OFFRE                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-create">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-plus"></i> Ajouter une offre</h3>
+      <button class="modal-close" onclick="closeModal('modal-create')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="offers.php" id="form-create" novalidate>
+      <input type="hidden" name="action" value="create">
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label>Titre <span style="color:var(--color-primary)">*</span></label>
+          <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
+            <input type="text" name="titre" id="create-titre" class="form-input" placeholder="Ex: Panier surprise"
+                   value="<?= ea(['titre'] ?? '') ?>" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu..."><?= ea(['description'] ?? '') ?></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
+            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
+              <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" placeholder="12.00"
+                     value="<?= ea(['prix_original'] ?? '') ?>" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
+              <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50"
+                     value="<?= ea(['prix'] ?? '') ?>" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+              <input type="number" name="quantite" class="form-input" min="1" placeholder="5"
+                     value="<?= ea(['quantite'] ?? '') ?>" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
+              <select name="id_categorie" class="form-input" required>
+                <option value="">-- Choisir --</option>
+                <?php foreach ( as ): ?>
+                  <option value="<?= (int)['id_categorie'] ?>"
+                    <?= ((['id_categorie'] ?? '') == ['id_categorie']) ? 'selected' : '' ?>>
+                    <?= ea(['nom_categorie']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Heure début</label>
+            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+              <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM"
+                     value="<?= ea(['heure_debut'] ?? '') ?>">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Heure fin</label>
+            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+              <input type="text" name="heure_fin" class="form-input" placeholder="HH:MM"
+                     value="<?= ea(['heure_fin'] ?? '') ?>">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Photo du produit</label>
+          <input type="hidden" name="photo_url" id="create-photo-url" value="">
+          <div class="photo-upload-area">
+            <input type="file" accept="image/*"
+                   onchange="handlePhotoUpload(this,'create-photo-url','create-photo-preview','create-photo-placeholder')">
+            <div class="photo-placeholder" id="create-photo-placeholder">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              Cliquez ou glissez une image ici<br>
+              <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+            </div>
+            <img id="create-photo-preview" class="photo-preview" alt="Aperçu">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Statut</label>
+          <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-toggle-on"></i></span>
+            <select name="statut" class="form-input">
+              <?php foreach (['publiée','brouillon','expirée','archivée'] as ): ?>
+                <option value="<?=  ?>" <?= ((['statut'] ?? 'publiée') === ) ? 'selected' : '' ?>>
+                  <?= ucfirst() ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create')">Annuler</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> Créer l'offre
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!--  MODAL MODIFIER                                           -->
 <!-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â -->
 <div class="modal-overlay" id="modal-edit">
@@ -441,15 +567,21 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Upload photo (base64 Ã¢â€ â€™ champ cachÃƒÂ©) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-function handlePhotoUpload(input) {
+function handlePhotoUpload(input, urlId, previewId, placeholderId) {
+  // Compatibilité : si appelé sans IDs (modal edit), utiliser les IDs par défaut
+  urlId         = urlId         || 'edit-photo-url';
+  previewId     = previewId     || 'edit-photo-preview';
+  placeholderId = placeholderId || 'edit-photo-placeholder';
+
   const file = input.files[0];
   if (!file) return;
   if (file.size > 2 * 1024 * 1024) { alert('Image trop lourde (max 2 Mo).'); return; }
   const reader = new FileReader();
   reader.onload = e => {
-    document.getElementById('edit-photo-url').value = e.target.result;
-    const preview = document.getElementById('edit-photo-preview');
-    const ph      = document.getElementById('edit-photo-placeholder');
+    const urlEl = document.getElementById(urlId);
+    const preview = document.getElementById(previewId);
+    const ph      = document.getElementById(placeholderId);
+    if (urlEl)   { urlEl.value = e.target.result; }
     if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
     if (ph)      { ph.style.display = 'none'; }
   };
@@ -494,8 +626,24 @@ if (logoutBtn) logoutBtn.addEventListener('click', () => { if (typeof App !== 'u
 <?php if (!empty($errors) && !empty($old) && isset($old['id_offre'])): ?>
   document.addEventListener('DOMContentLoaded', () => openEditModal(<?= (int)$old['id_offre'] ?>));
 <?php endif; ?>
+
+// Attacher validation au formulaire de création
+document.addEventListener('DOMContentLoaded', () => {
+  const createForm = document.getElementById('form-create');
+  if (createForm) {
+    createForm.addEventListener('submit', e => {
+      if (!validateOfferForm(createForm)) e.preventDefault();
+    });
+    createForm.querySelectorAll('input,textarea,select').forEach(el => {
+      el.addEventListener('input', () => clearFieldError(el));
+    });
+  }
+});
+
+// Ré-ouvrir modal création si erreurs côté serveur
+<?php if (!empty($errors) && !empty($old) && !isset($old['id_offre'])): ?>
+  document.addEventListener('DOMContentLoaded', () => openModal('modal-create'));
+<?php endif; ?>
 </script>
 </body>
 </html>
-
-

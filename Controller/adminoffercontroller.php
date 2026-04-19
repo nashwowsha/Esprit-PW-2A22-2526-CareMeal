@@ -30,6 +30,41 @@ class AdminOfferController
         require_once __DIR__ . '/../View/BackOffice/admin/offers.php';
     }
 
+    public function create()
+    {
+        $errors = $this->validate($_POST);
+
+        if (!empty($errors)) {
+            $_SESSION['errors'] = $errors;
+            $_SESSION['old'] = $_POST;
+            $_SESSION['open_create_modal'] = true;
+            $this->redirect();
+        }
+
+        $offer = $this->buildOfferFromInput($_POST);
+
+        $stmt = $this->pdo->prepare('
+            INSERT INTO offre (titre, description, prix, prix_original, photo_url, quantite, heure_debut, heure_fin, statut, id_categorie, date_creation)
+            VALUES (:titre, :description, :prix, :prix_original, :photo_url, :quantite, :heure_debut, :heure_fin, :statut, :id_categorie, NOW())
+        ');
+
+        $stmt->execute([
+            ':titre'        => $offer->getTitre(),
+            ':description'  => $offer->getDescription(),
+            ':prix'         => $offer->getPrix(),
+            ':prix_original'=> $offer->getPrixOriginal(),
+            ':photo_url'    => $offer->getPhotoUrl(),
+            ':quantite'     => $offer->getQuantite(),
+            ':heure_debut'  => $offer->getHeureDebut(),
+            ':heure_fin'    => $offer->getHeureFin(),
+            ':statut'       => $offer->getStatut(),
+            ':id_categorie' => $offer->getIdCategorie(),
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succès !'];
+        $this->redirect();
+    }
+
     public function update()
     {
         $id = (int)($_POST['id_offre'] ?? 0);
