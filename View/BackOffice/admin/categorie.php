@@ -1,0 +1,839 @@
+<?php
+// Variables disponibles : $categories (avec ->offres), $allOffers, $flash, $errors, $old
+function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catégories & Offres - Admin CareMeal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/caremeal/css/main.css">
+  <link rel="stylesheet" href="/caremeal/css/components.css">
+  <link rel="stylesheet" href="/caremeal/css/dashboard.css">
+  <style>
+    /* ── Modals ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.active { display:flex; }
+    .modal { background:var(--color-dark-card); border-radius:16px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; border:1px solid var(--color-dark-border); }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--color-dark-border); }
+    .modal-header h3 { margin:0; font-size:1.1rem; color:var(--color-white); }
+    .modal-body  { padding:24px; }
+    .modal-footer { padding:16px 24px; border-top:1px solid var(--color-dark-border); display:flex; gap:12px; justify-content:flex-end; }
+    .modal-close { background:none; border:none; color:var(--color-text-muted); font-size:1.3rem; cursor:pointer; }
+    .modal-close:hover { color:var(--color-white); }
+    .delete-confirm { background:var(--color-dark-card); border-radius:16px; padding:32px; max-width:420px; width:100%; text-align:center; border:1px solid var(--color-dark-border); }
+    .delete-confirm p { color:var(--color-text-muted); margin:8px 0 24px; }
+    /* ── Formulaires ── */
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    select.form-input option { background-color:var(--color-dark-card,#1e2433); color:var(--color-text,#e2e8f0); }
+    select.form-input { background-color:var(--color-dark-input,#252d3d); color:var(--color-text,#e2e8f0); }
+    /* ── Catégories accordion ── */
+    .category-block { background:var(--color-dark-card); border:1px solid var(--color-dark-border); border-radius:16px; margin-bottom:20px; overflow:hidden; }
+    .category-header { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; cursor:pointer; transition:background .2s; }
+    .category-header:hover { background:var(--color-dark-hover); }
+    .category-title { display:flex; align-items:center; gap:12px; }
+    .category-icon { width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,var(--color-primary),#f97316); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:#fff; flex-shrink:0; }
+    .category-name { font-size:1rem; font-weight:700; color:var(--color-white); }
+    .category-desc { font-size:.8rem; color:var(--color-text-muted); margin-top:2px; }
+    .category-actions { display:flex; align-items:center; gap:8px; }
+    .category-count { background:rgba(var(--color-primary-rgb),.15); color:var(--color-primary); font-size:.75rem; font-weight:700; padding:4px 10px; border-radius:20px; }
+    .category-toggle { color:var(--color-text-muted); transition:transform .3s; font-size:.9rem; }
+    .category-block.open .category-toggle { transform:rotate(180deg); }
+    .category-body { display:none; border-top:1px solid var(--color-dark-border); }
+    .category-block.open .category-body { display:block; }
+    /* ── Table offres ── */
+    .offers-table { width:100%; border-collapse:collapse; }
+    .offers-table th { text-align:left; padding:10px 16px; font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--color-text-muted); border-bottom:1px solid var(--color-dark-border); }
+    .offers-table td { padding:12px 16px; border-bottom:1px solid var(--color-dark-border); font-size:.855rem; vertical-align:middle; }
+    .offers-table tr:last-child td { border-bottom:none; }
+    .offers-table tr:hover td { background:var(--color-dark-hover); }
+    .add-offer-row { padding:14px 24px; background:rgba(var(--color-primary-rgb),.04); border-top:1px solid var(--color-dark-border); display:flex; align-items:center; justify-content:space-between; }
+    /* ── Badges statut ── */
+    .badge-statut { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; }
+    .s-publiee   { background:rgba(34,197,94,.15);  color:#4ade80; }
+    .s-brouillon { background:rgba(251,191,36,.15); color:#fbbf24; }
+    .s-expiree, .s-archivee { background:rgba(156,163,175,.12); color:#9ca3af; }
+    /* ── Photo upload ── */
+    .photo-upload-area { border:2px dashed var(--color-dark-border); border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:border-color .2s; position:relative; }
+    .photo-upload-area:hover { border-color:var(--color-primary); }
+    .photo-upload-area input[type="file"] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+    .photo-preview { width:100%; height:120px; object-fit:cover; border-radius:8px; margin-top:10px; display:none; }
+    .photo-placeholder { color:var(--color-text-muted); font-size:.85rem; pointer-events:none; }
+    .photo-placeholder i { font-size:2rem; display:block; margin-bottom:6px; opacity:.5; }
+    /* ── Alerts ── */
+    .alert { padding:12px 18px; border-radius:10px; margin-bottom:18px; font-size:.9rem; }
+    .alert-success { background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.2); }
+    .alert-error   { background:rgba(239,68,68,.12);  color:#f87171; border:1px solid rgba(239,68,68,.2); }
+    /* ── Empty ── */
+    .empty-cat { text-align:center; padding:32px 20px; color:var(--color-text-muted); font-size:.875rem; }
+    .empty-cat i { font-size:2rem; opacity:.3; display:block; margin-bottom:8px; }
+    .field-error { color:#f87171; font-size:.75rem; margin-top:4px; display:block; }
+  </style>
+</head>
+<body>
+<div class="dashboard-layout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo"><img src="/caremeal/assets/logo.png" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;"></div>
+      <div class="sidebar-brand">Care<span>Meal</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Administration</div>
+        <a href="/caremeal/admin/dashboard.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
+        <a href="/caremeal/admin/users.html"      class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
+        <a href="/caremeal/admin/partners.html"   class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+        <a href="/caremeal/admin/categories.php"  class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Catégories & Offres</a>
+        <a href="/caremeal/admin/events.html"     class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+        <a href="/caremeal/admin/logs.html"       class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activités</a>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
+          <div class="sidebar-user-role">Administrateur</div>
+        </div>
+        <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <main class="main-content">
+    <!-- ── TOP HEADER ── -->
+    <header class="top-header">
+      <div class="header-left">
+        <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+        <div class="page-title">
+          <h2>Catégories &amp; Offres</h2>
+          <p>Gérez vos catégories et les offres associées</p>
+        </div>
+      </div>
+      <div class="header-right" style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn-primary" onclick="openModal('modal-create-category')" style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-folder-plus"></i> Ajouter une catégorie
+        </button>
+        <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+      </div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Flash -->
+      <?php if ($flash): ?>
+        <div class="alert alert-<?= $flash['type'] === 'success' ? 'success' : 'error' ?>">
+          <i class="fa-solid fa-<?= $flash['type'] === 'success' ? 'check-circle' : 'triangle-exclamation' ?>"></i>
+          <?= ea($flash['msg']) ?>
+        </div>
+      <?php endif; ?>
+
+      <!-- ── LISTE DES CATÉGORIES avec leurs offres (JOINTURE) ── -->
+      <?php if (empty($categories)): ?>
+        <div class="card" style="padding:60px 20px;text-align:center;color:var(--color-text-muted);">
+          <i class="fa-solid fa-tags" style="font-size:3rem;opacity:.3;display:block;margin-bottom:12px;"></i>
+          <p>Aucune catégorie créée. Commencez par en ajouter une !</p>
+        </div>
+      <?php else: foreach ($categories as $cat):
+        $nbOffres = count($cat['offres'] ?? []);
+      ?>
+        <div class="category-block" id="cat-block-<?= $cat['id_categorie'] ?>">
+
+          <!-- En-tête catégorie (cliquable pour ouvrir/fermer) -->
+          <div class="category-header" onclick="toggleCategory(<?= $cat['id_categorie'] ?>)">
+            <div class="category-title">
+              <div class="category-icon">
+                <?php if (!empty($cat['icone'])): ?>
+                  <i class="fa-solid <?= ea($cat['icone']) ?>"></i>
+                <?php else: ?>
+                  <i class="fa-solid fa-tag"></i>
+                <?php endif; ?>
+              </div>
+              <div>
+                <div class="category-name"><?= ea($cat['nom_categorie']) ?></div>
+                <?php if (!empty($cat['description'])): ?>
+                  <div class="category-desc"><?= ea($cat['description']) ?></div>
+                <?php endif; ?>
+              </div>
+            </div>
+            <div class="category-actions">
+              <span class="category-count"><?= $nbOffres ?> offre<?= $nbOffres !== 1 ? 's' : '' ?></span>
+              <button class="btn btn-secondary btn-sm"
+                      onclick="event.stopPropagation(); openEditCategoryModal(<?= $cat['id_categorie'] ?>, '<?= ea($cat['nom_categorie']) ?>', '<?= ea($cat['description'] ?? '') ?>', '<?= ea($cat['icone'] ?? '') ?>')"
+                      title="Modifier la catégorie">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button class="btn btn-danger btn-sm"
+                      onclick="event.stopPropagation(); openDeleteCategoryModal(<?= $cat['id_categorie'] ?>, '<?= ea($cat['nom_categorie']) ?>')"
+                      title="Supprimer la catégorie">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+              <i class="fa-solid fa-chevron-down category-toggle"></i>
+            </div>
+          </div>
+
+          <!-- Corps : offres de cette catégorie -->
+          <div class="category-body">
+            <?php if (empty($cat['offres'])): ?>
+              <div class="empty-cat">
+                <i class="fa-solid fa-box-open"></i>
+                Aucune offre dans cette catégorie.
+              </div>
+            <?php else: ?>
+              <div style="overflow-x:auto;">
+                <table class="offers-table">
+                  <thead>
+                    <tr>
+                      <th>Offre</th>
+                      <th>Partenaire</th>
+                      <th>Prix</th>
+                      <th>Stock</th>
+                      <th>Statut</th>
+                      <th style="text-align:center;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($cat['offres'] as $o):
+                      $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
+                      $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
+                    ?>
+                      <tr>
+                        <td>
+                          <div style="display:flex;align-items:center;gap:10px;">
+                            <?php if (!empty($o['photo_url'])): ?>
+                              <img src="<?= ea($o['photo_url']) ?>" style="width:38px;height:38px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">
+                            <?php else: ?>
+                              <div style="width:38px;height:38px;border-radius:8px;background:var(--color-dark-hover);display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);"><i class="fa-solid fa-utensils"></i></div>
+                            <?php endif; ?>
+                            <span style="font-weight:600;color:var(--color-white);font-size:.875rem;"><?= ea($o['titre']) ?></span>
+                          </div>
+                        </td>
+                        <td style="font-size:.85rem;color:var(--color-text-muted);"><?= ea($o['id_partenaire'] ?? '—') ?></td>
+                        <td>
+                          <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:.8rem;"><?= number_format($o['prix_original'], 2) ?> DT</span><br>
+                          <span style="color:var(--color-primary);font-weight:700;"><?= number_format($o['prix'], 2) ?> DT</span>
+                          <span style="color:#4ade80;font-size:.72rem;"> ↘<?= $disc ?>%</span>
+                        </td>
+                        <td style="font-size:.85rem;"><?= (int)$o['quantite'] ?></td>
+                        <td><span class="badge-statut <?= $sCls ?>"><?= ea($o['statut']) ?></span></td>
+                        <td style="text-align:center;">
+                          <div style="display:flex;gap:6px;justify-content:center;">
+                            <button class="btn btn-secondary btn-sm"
+                                    onclick="openEditOfferModal(<?= (int)$o['id_offre'] ?>)"
+                                    title="Modifier">
+                              <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm"
+                                    onclick="openDeleteOfferModal(<?= (int)$o['id_offre'] ?>, '<?= ea($o['titre']) ?>')"
+                                    title="Supprimer">
+                              <i class="fa-solid fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            <?php endif; ?>
+
+            <!-- Bouton Ajouter une offre dans cette catégorie -->
+            <div class="add-offer-row">
+              <span style="font-size:.85rem;color:var(--color-text-muted);">
+                <i class="fa-solid fa-info-circle"></i>
+                Ajouter une offre dans <strong><?= ea($cat['nom_categorie']) ?></strong>
+              </span>
+              <button class="btn btn-primary btn-sm"
+                      onclick="openCreateOfferModal(<?= $cat['id_categorie'] ?>, '<?= ea($cat['nom_categorie']) ?>')">
+                <i class="fa-solid fa-plus"></i> Ajouter une offre
+              </button>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; endif; ?>
+
+    </div><!-- /page-content -->
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!--  MODAL : CRÉER UNE CATÉGORIE                               -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-create-category">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-folder-plus"></i> Nouvelle catégorie</h3>
+      <button class="modal-close" onclick="closeModal('modal-create-category')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="categories.php" id="form-create-category" novalidate>
+      <input type="hidden" name="action" value="create_category">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nom de la catégorie <span style="color:var(--color-primary)">*</span></label>
+          <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
+            <input type="text" name="nom_categorie" class="form-input"
+                   placeholder="Ex: Protéines, Glucides, Café…"
+                   value="<?= ea($old['nom_categorie'] ?? '') ?>" id="cc-nom">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description <span style="color:var(--color-text-muted);font-size:.8rem;">(optionnel)</span></label>
+          <textarea name="description" class="form-textarea" rows="2"
+                    placeholder="Décrivez brièvement cette catégorie…"><?= ea($old['description'] ?? '') ?></textarea>
+        </div>
+        <div class="form-group">
+          <label>Icône FontAwesome <span style="color:var(--color-text-muted);font-size:.8rem;">(optionnel)</span></label>
+          <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-icons"></i></span>
+            <input type="text" name="icone" class="form-input"
+                   placeholder="fa-leaf, fa-coffee, fa-drumstick-bite…"
+                   value="<?= ea($old['icone'] ?? '') ?>" id="cc-icone">
+          </div>
+          <small style="color:var(--color-text-muted);font-size:.75rem;">
+            Prévisualisation : <i id="cc-icon-preview" class="fa-solid fa-tag"></i>
+            — Choisissez sur <a href="https://fontawesome.com/icons" target="_blank" style="color:var(--color-primary);">fontawesome.com</a>
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-category')">Annuler</button>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-folder-plus"></i> Créer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!--  MODAL : MODIFIER UNE CATÉGORIE                            -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-edit-category">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-pen"></i> Modifier la catégorie</h3>
+      <button class="modal-close" onclick="closeModal('modal-edit-category')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="categories.php" id="form-edit-category">
+      <input type="hidden" name="action"       value="update_category">
+      <input type="hidden" name="id_categorie" id="ec-id">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nom de la catégorie <span style="color:var(--color-primary)">*</span></label>
+          <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
+            <input type="text" name="nom_categorie" id="ec-nom" class="form-input" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea name="description" id="ec-desc" class="form-textarea" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Icône FontAwesome</label>
+          <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-icons"></i></span>
+            <input type="text" name="icone" id="ec-icone" class="form-input"
+                   placeholder="fa-leaf, fa-coffee…">
+          </div>
+          <small style="color:var(--color-text-muted);font-size:.75rem;">
+            Prévisualisation : <i id="ec-icon-preview" class="fa-solid fa-tag"></i>
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-category')">Annuler</button>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!--  MODAL : SUPPRIMER UNE CATÉGORIE                           -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-delete-category">
+  <div class="delete-confirm">
+    <i class="fa-solid fa-folder-minus" style="font-size:2.5rem;color:#f87171;margin-bottom:12px;display:block;"></i>
+    <h3 style="color:var(--color-white);margin:0;">Supprimer cette catégorie ?</h3>
+    <p id="dc-label"></p>
+    <div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:.82rem;color:#fbbf24;text-align:left;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      Les offres de cette catégorie seront <strong>masquées</strong> (non supprimées) et leur catégorie sera retirée.
+    </div>
+    <form method="POST" action="categories.php" style="display:flex;gap:12px;justify-content:center;">
+      <input type="hidden" name="action"       value="delete_category">
+      <input type="hidden" name="id_categorie" id="dc-id">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete-category')">Annuler</button>
+      <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Supprimer</button>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!--  MODAL : AJOUTER UNE OFFRE dans une catégorie              -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-create-offer">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-plus"></i> Ajouter une offre</h3>
+      <button class="modal-close" onclick="closeModal('modal-create-offer')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="categories.php" id="form-create-offer" novalidate>
+      <input type="hidden" name="action"       value="create_offer">
+      <input type="hidden" name="id_categorie" id="co-cat-id">
+      <div class="modal-body">
+        <div class="form-group" id="co-cat-label-group">
+          <div style="background:rgba(var(--color-primary-rgb),.1);border-radius:10px;padding:10px 14px;font-size:.875rem;color:var(--color-primary);">
+            <i class="fa-solid fa-tag"></i> Catégorie : <strong id="co-cat-name"></strong>
+          </div>
+        </div>
+        <?= buildOfferFormFields('co', []) ?>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-offer')">Annuler</button>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Créer l'offre</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!--  MODAL : MODIFIER UNE OFFRE                                -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-edit-offer">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-pen"></i> Modifier l'offre</h3>
+      <button class="modal-close" onclick="closeModal('modal-edit-offer')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form method="POST" action="categories.php" id="form-edit-offer">
+      <input type="hidden" name="action"   value="update_offer">
+      <input type="hidden" name="id_offre" id="eo-id">
+      <div class="modal-body" id="eo-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-offer')">Annuler</button>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!--  MODAL : SUPPRIMER UNE OFFRE                               -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-delete-offer">
+  <div class="delete-confirm">
+    <i class="fa-solid fa-trash" style="font-size:2.5rem;color:#f87171;margin-bottom:12px;display:block;"></i>
+    <h3 style="color:var(--color-white);margin:0;">Supprimer cette offre ?</h3>
+    <p id="do-label"></p>
+    <form method="POST" action="categories.php" style="display:flex;gap:12px;justify-content:center;">
+      <input type="hidden" name="action"   value="delete_offer">
+      <input type="hidden" name="id_offre" id="do-id">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete-offer')">Annuler</button>
+      <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Supprimer</button>
+    </form>
+  </div>
+</div>
+
+<!-- Données PHP → JS -->
+<script>
+const allOffersData     = <?= json_encode(array_values($allOffers ?? []), JSON_UNESCAPED_UNICODE) ?>;
+const allCategoriesData = <?= json_encode(array_values($categories  ?? []), JSON_UNESCAPED_UNICODE) ?>;
+</script>
+
+<script src="/caremeal/js/app.js"></script>
+<script src="/caremeal/js/components.js"></script>
+<script>
+/* ── Modal helpers ── */
+function openModal(id) {
+  const el = document.getElementById(id);
+  el.classList.add('active'); el.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('active'); el.style.display = 'none';
+  document.body.style.overflow = '';
+  // Reset create-offer form
+  if (id === 'modal-create-offer') {
+    const f = document.getElementById('form-create-offer');
+    if (f) {
+      f.reset();
+      const prev = document.getElementById('co-photo-preview');
+      const ph   = document.getElementById('co-photo-placeholder');
+      const pu   = document.getElementById('co-photo-url');
+      if (prev) { prev.src = ''; prev.style.display = 'none'; }
+      if (ph)   ph.style.display = '';
+      if (pu)   pu.value = '';
+      f.querySelectorAll('.field-error').forEach(e => e.remove());
+      f.querySelectorAll('input,select,textarea').forEach(e => e.style.borderColor = '');
+    }
+  }
+  // Reset create-category form
+  if (id === 'modal-create-category') {
+    const f = document.getElementById('form-create-category');
+    if (f) {
+      f.reset();
+      const preview = document.getElementById('cc-icon-preview');
+      if (preview) { preview.className = 'fa-solid fa-tag'; }
+      f.querySelectorAll('.field-error').forEach(e => e.remove());
+      f.querySelectorAll('input,textarea').forEach(e => e.style.borderColor = '');
+    }
+  }
+}
+document.querySelectorAll('.modal-overlay').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); })
+);
+
+/* ── Accordion catégories ── */
+function toggleCategory(id) {
+  const block = document.getElementById('cat-block-' + id);
+  if (block) block.classList.toggle('open');
+}
+
+/* ── Catégorie : modifier ── */
+function openEditCategoryModal(id, nom, desc, icone) {
+  document.getElementById('ec-id').value    = id;
+  document.getElementById('ec-nom').value   = nom;
+  document.getElementById('ec-desc').value  = desc;
+  document.getElementById('ec-icone').value = icone;
+  updateIconPreview('ec-icone', 'ec-icon-preview');
+  openModal('modal-edit-category');
+}
+
+/* ── Catégorie : supprimer ── */
+function openDeleteCategoryModal(id, nom) {
+  document.getElementById('dc-id').value    = id;
+  document.getElementById('dc-label').textContent = `La catégorie « ${nom} » sera supprimée définitivement.`;
+  openModal('modal-delete-category');
+}
+
+/* ── Offre : créer dans une catégorie ── */
+function openCreateOfferModal(catId, catNom) {
+  document.getElementById('co-cat-id').value   = catId;
+  document.getElementById('co-cat-name').textContent = catNom;
+  openModal('modal-create-offer');
+}
+
+/* ── Offre : modifier ── */
+function openEditOfferModal(id) {
+  const o = allOffersData.find(x => x.id_offre == id);
+  if (!o) { alert('Offre introuvable.'); return; }
+  document.getElementById('eo-id').value = id;
+
+  // Construire les options de catégorie
+  const catOpts = allCategoriesData.map(c =>
+    `<option value="${c.id_categorie}" ${o.id_categorie == c.id_categorie ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
+  ).join('');
+
+  const statuts = ['publiée','brouillon','expirée','archivée'];
+  const statOpts = statuts.map(s =>
+    `<option value="${s}" ${(o.statut ?? 'publiée') === s ? 'selected' : ''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+  ).join('');
+
+  const ep = o.photo_url || '';
+  document.getElementById('eo-body').innerHTML = `
+    <div class="form-group">
+      <label>Titre <span style="color:var(--color-primary)">*</span></label>
+      <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
+        <input type="text" name="titre" class="form-input" value="${esc(o.titre ?? '')}" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" class="form-textarea" rows="3">${esc(o.description ?? '')}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
+          <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" value="${esc(o.prix_original ?? '')}" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
+          <input type="number" name="prix" class="form-input" step="0.01" min="0.01" value="${esc(o.prix ?? '')}" required>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+          <input type="number" name="quantite" class="form-input" min="1" value="${esc(o.quantite ?? '')}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
+          <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Heure début</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+          <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM" value="${(o.heure_debut ?? '').substring(0,5)}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Heure fin</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+          <input type="text" name="heure_fin" class="form-input" placeholder="HH:MM" value="${(o.heure_fin ?? '').substring(0,5)}">
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Photo</label>
+      <input type="hidden" name="photo_url" id="eo-photo-url" value="${esc(ep)}">
+      <div class="photo-upload-area">
+        <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'eo-photo-url','eo-photo-preview','eo-photo-placeholder')">
+        <div class="photo-placeholder" id="eo-photo-placeholder" ${ep ? 'style="display:none"' : ''}>
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          Cliquez ou glissez une image<br><small style="opacity:.6;">JPG, PNG — max 2 Mo</small>
+        </div>
+        <img id="eo-photo-preview" class="photo-preview" alt="Aperçu" ${ep ? `src="${esc(ep)}" style="display:block;"` : ''}>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Statut</label>
+      <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-toggle-on"></i></span>
+        <select name="statut" class="form-input">${statOpts}</select>
+      </div>
+    </div>
+  `;
+
+  // Attacher validation en temps réel
+  document.getElementById('form-edit-offer').querySelectorAll('input,textarea,select').forEach(el => {
+    el.addEventListener('input', () => clearFieldError(el));
+  });
+  openModal('modal-edit-offer');
+}
+
+/* ── Offre : supprimer ── */
+function openDeleteOfferModal(id, titre) {
+  document.getElementById('do-id').value = id;
+  document.getElementById('do-label').textContent = `« ${titre} » sera définitivement supprimée.`;
+  openModal('modal-delete-offer');
+}
+
+/* ── Icône preview ── */
+function updateIconPreview(inputId, previewId) {
+  const val  = document.getElementById(inputId)?.value.trim();
+  const prev = document.getElementById(previewId);
+  if (prev) prev.className = val ? `fa-solid ${val}` : 'fa-solid fa-tag';
+}
+document.getElementById('cc-icone')?.addEventListener('input', () => updateIconPreview('cc-icone','cc-icon-preview'));
+document.getElementById('ec-icone')?.addEventListener('input', () => updateIconPreview('ec-icone','ec-icon-preview'));
+
+/* ── Validation offre ── */
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showFieldError(input, msg) {
+  input.style.borderColor = '#f87171';
+  const parent = input.parentElement.parentElement;
+  let err = parent.querySelector('.field-error');
+  if (!err) {
+    err = document.createElement('small');
+    err.className = 'field-error';
+    parent.appendChild(err);
+  }
+  err.textContent = msg;
+}
+function clearFieldError(input) {
+  input.style.borderColor = '';
+  const err = input.parentElement.parentElement.querySelector('.field-error');
+  if (err) err.remove();
+}
+function validateOfferForm(form) {
+  let valid = true;
+  const titre = form.querySelector('[name="titre"]');
+  if (titre) {
+    const v = titre.value.trim();
+    if (!v) { showFieldError(titre, 'Le titre est obligatoire.'); valid = false; }
+    else if (v.length < 3) { showFieldError(titre, 'Minimum 3 caractères.'); valid = false; }
+    else clearFieldError(titre);
+  }
+  const prixOrig = form.querySelector('[name="prix_original"]');
+  if (prixOrig) {
+    const v = parseFloat(prixOrig.value);
+    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Prix original invalide.'); valid = false; }
+    else clearFieldError(prixOrig);
+  }
+  const prix = form.querySelector('[name="prix"]');
+  if (prix) {
+    const v = parseFloat(prix.value);
+    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Prix réduit invalide.'); valid = false; }
+    else if (prixOrig && parseFloat(prixOrig.value) > 0 && v >= parseFloat(prixOrig.value)) {
+      showFieldError(prix, 'Le prix réduit doit être inférieur au prix original.'); valid = false;
+    }
+    else clearFieldError(prix);
+  }
+  const qte = form.querySelector('[name="quantite"]');
+  if (qte) {
+    const v = parseInt(qte.value);
+    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
+    else clearFieldError(qte);
+  }
+  const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  const hd = form.querySelector('[name="heure_debut"]');
+  const hf = form.querySelector('[name="heure_fin"]');
+  if (hd && hd.value && !timeRe.test(hd.value.trim())) {
+    showFieldError(hd, 'Format invalide. Utilisez HH:MM (ex: 08:30).'); valid = false;
+  } else if (hd && hd.value) clearFieldError(hd);
+  if (hf && hf.value && !timeRe.test(hf.value.trim())) {
+    showFieldError(hf, 'Format invalide. Utilisez HH:MM (ex: 18:00).'); valid = false;
+  } else if (hd && hf && hd.value && hf.value && timeRe.test(hd.value) && timeRe.test(hf.value) && hf.value <= hd.value) {
+    showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
+  } else if (hf && hf.value) clearFieldError(hf);
+  return valid;
+}
+
+/* ── Validation catégorie ── */
+function validateCategoryForm(form) {
+  let valid = true;
+  const nom = form.querySelector('[name="nom_categorie"]');
+  if (nom) {
+    const v = nom.value.trim();
+    if (!v) { showFieldError(nom, 'Le nom est obligatoire.'); valid = false; }
+    else if (v.length < 2) { showFieldError(nom, 'Minimum 2 caractères.'); valid = false; }
+    else clearFieldError(nom);
+  }
+  return valid;
+}
+
+/* ── Photo upload générique ── */
+function handlePhotoUpload(input, urlId, previewId, placeholderId) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Image trop lourde (max 2 Mo).'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const urlEl   = document.getElementById(urlId);
+    const preview = document.getElementById(previewId);
+    const ph      = document.getElementById(placeholderId);
+    if (urlEl)   urlEl.value = e.target.result;
+    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    if (ph)      ph.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── Soumission formulaires ── */
+document.addEventListener('DOMContentLoaded', () => {
+  ['form-create-offer','form-edit-offer'].forEach(fid => {
+    const f = document.getElementById(fid);
+    if (f) f.addEventListener('submit', e => { if (!validateOfferForm(f)) e.preventDefault(); });
+  });
+  ['form-create-category','form-edit-category'].forEach(fid => {
+    const f = document.getElementById(fid);
+    if (f) f.addEventListener('submit', e => { if (!validateCategoryForm(f)) e.preventDefault(); });
+  });
+});
+
+/* ── Attacher validation temps réel create-offer ── */
+document.getElementById('form-create-offer')?.querySelectorAll('input,textarea,select').forEach(el => {
+  el.addEventListener('input', () => clearFieldError(el));
+});
+
+/* ── Menu mobile ── */
+const mt = document.getElementById('menu-toggle');
+const sb = document.getElementById('sidebar');
+const ov = document.getElementById('sidebar-overlay');
+if (mt) mt.addEventListener('click', () => sb.classList.toggle('open'));
+if (ov) ov.addEventListener('click', () => sb.classList.remove('open'));
+
+const logoutBtn = document.querySelector('[data-action="logout"]');
+if (logoutBtn) logoutBtn.addEventListener('click', () => { if (typeof App !== 'undefined') App.logout(); });
+</script>
+</body>
+</html>
+
+<?php
+/* ── Helper PHP : génère les champs du formulaire offre ── */
+function buildOfferFormFields(string $prefix, array $old): string
+{
+    function eaf($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
+    return '
+    <div class="form-group">
+      <label>Titre <span style="color:var(--color-primary)">*</span></label>
+      <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
+        <input type="text" name="titre" class="form-input" placeholder="Ex: Panier surprise"
+               value="' . eaf($old['titre'] ?? '') . '" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu...">' . eaf($old['description'] ?? '') . '</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
+          <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01"
+                 placeholder="12.00" value="' . eaf($old['prix_original'] ?? '') . '" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
+          <input type="number" name="prix" class="form-input" step="0.01" min="0.01"
+                 placeholder="4.50" value="' . eaf($old['prix'] ?? '') . '" required>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+          <input type="number" name="quantite" class="form-input" min="1"
+                 placeholder="5" value="' . eaf($old['quantite'] ?? '') . '" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Heure début</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+          <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM"
+                 value="' . eaf($old['heure_debut'] ?? '') . '">
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Heure fin</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
+          <input type="text" name="heure_fin" class="form-input" placeholder="HH:MM"
+                 value="' . eaf($old['heure_fin'] ?? '') . '">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Statut</label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-toggle-on"></i></span>
+          <select name="statut" class="form-input">
+            <option value="publiée"  ' . (($old['statut'] ?? 'publiée') === 'publiée'  ? 'selected' : '') . '>Publiée</option>
+            <option value="brouillon"' . (($old['statut'] ?? '') === 'brouillon' ? 'selected' : '') . '>Brouillon</option>
+            <option value="expirée"  ' . (($old['statut'] ?? '') === 'expirée'   ? 'selected' : '') . '>Expirée</option>
+            <option value="archivée" ' . (($old['statut'] ?? '') === 'archivée'  ? 'selected' : '') . '>Archivée</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Photo du produit</label>
+      <input type="hidden" name="photo_url" id="' . $prefix . '-photo-url" value="">
+      <div class="photo-upload-area">
+        <input type="file" accept="image/*"
+               onchange="handlePhotoUpload(this,\'' . $prefix . '-photo-url\',\'' . $prefix . '-photo-preview\',\'' . $prefix . '-photo-placeholder\')">
+        <div class="photo-placeholder" id="' . $prefix . '-photo-placeholder">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          Cliquez ou glissez une image ici<br>
+          <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+        </div>
+        <img id="' . $prefix . '-photo-preview" class="photo-preview" alt="Aperçu">
+      </div>
+    </div>';
+}
+?>
