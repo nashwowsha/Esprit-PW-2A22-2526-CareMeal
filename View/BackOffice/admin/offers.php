@@ -373,8 +373,34 @@ const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNIC
 <script src="/caremeal/js/components.js"></script>
 <script>
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Helpers modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
-function openModal(id)  { const el=document.getElementById(id); el.classList.add('active'); el.style.display='flex'; document.body.style.overflow='hidden'; }
-function closeModal(id) { const el=document.getElementById(id); el.classList.remove('active'); el.style.display='none'; document.body.style.overflow=''; }
+function openModal(id) {
+  const el = document.getElementById(id);
+  el.classList.add('active');
+  el.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('active');
+  el.style.display = 'none';
+  document.body.style.overflow = '';
+  if (id === 'modal-create') {
+    const form = document.getElementById('form-create');
+    if (form) {
+      form.reset();
+      const statut = form.querySelector('[name="statut"]');
+      if (statut) statut.value = 'publiée';
+      const preview = document.getElementById('create-photo-preview');
+      const placeholder = document.getElementById('create-photo-placeholder');
+      const photoUrl = document.getElementById('create-photo-url');
+      if (preview) { preview.src = ''; preview.style.display = 'none'; }
+      if (placeholder) placeholder.style.display = '';
+      if (photoUrl) photoUrl.value = '';
+      form.querySelectorAll('.field-error').forEach(e => e.remove());
+      form.querySelectorAll('input, select, textarea').forEach(e => e.style.borderColor = '');
+    }
+  }
+}
 
 document.querySelectorAll('.modal-overlay').forEach(el =>
   el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); })
@@ -485,7 +511,7 @@ function openEditModal(id) {
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Ouvrir modal supprimer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 function openDeleteModal(id, titre) {
   document.getElementById('delete-id_offre').value   = id;
-  document.getElementById('delete-label').textContent = `Ã‚« ${titre} Ã‚» sera définitivement supprimÃƒÂ©e.`;
+  document.getElementById('delete-label').textContent = `« ${titre} » sera définitivement supprimée.`;
   openModal('modal-delete');
 }
 
@@ -517,22 +543,22 @@ function validateOfferForm(form) {
   const prixOrig = form.querySelector('[name="prix_original"]');
   if (prixOrig) {
     const v = parseFloat(prixOrig.value);
-    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit ÃƒÂªtre un nombre positif.'); valid = false; }
+    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit être un nombre positif.'); valid = false; }
     else clearFieldError(prixOrig);
   }
   const prix = form.querySelector('[name="prix"]');
   if (prix) {
     const v = parseFloat(prix.value);
-    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix rÃƒÂ©duit doit ÃƒÂªtre un nombre positif.'); valid = false; }
+    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix réduit doit être un nombre positif.'); valid = false; }
     else if (prixOrig && parseFloat(prixOrig.value) > 0 && v >= parseFloat(prixOrig.value)) {
-      showFieldError(prix, 'Le prix rÃƒÂ©duit doit ÃƒÂªtre inférieur au prix original.'); valid = false;
+      showFieldError(prix, 'Le prix réduit doit être inférieur au prix original.'); valid = false;
     }
     else clearFieldError(prix);
   }
   const qte = form.querySelector('[name="quantite"]');
   if (qte) {
     const v = parseInt(qte.value);
-    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit ÃƒÂªtre au moins 1.'); valid = false; }
+    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
   // Catégorie obligatoire
@@ -551,7 +577,7 @@ function validateOfferForm(form) {
   if (hf && hf.value && !timeRe.test(hf.value.trim())) {
     showFieldError(hf, "Format invalide. Utilisez HH:MM (ex: 18:00)."); valid = false;
   } else if (hd && hf && hd.value && hf.value && timeRe.test(hd.value) && timeRe.test(hf.value) && hf.value.trim() <= hd.value.trim()) {
-    showFieldError(hf, "L'heure de fin doit ÃƒÂªtre après l'heure de début."); valid = false;
+    showFieldError(hf, "L'heure de fin doit être après l'heure de début."); valid = false;
   } else if (hf && hf.value) clearFieldError(hf);
   return valid;
 }
