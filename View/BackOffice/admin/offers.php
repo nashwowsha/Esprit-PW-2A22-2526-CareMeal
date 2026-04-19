@@ -216,13 +216,13 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <label>Titre <span style="color:var(--color-primary)">*</span></label>
           <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
             <input type="text" name="titre" id="create-titre" class="form-input" placeholder="Ex: Panier surprise"
-                   value="<?= ea(['titre'] ?? '') ?>" required>
+                   value="<?= ea($old['titre'] ?? '') ?>" required>
           </div>
         </div>
 
         <div class="form-group">
           <label>Description</label>
-          <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu..."><?= ea(['description'] ?? '') ?></textarea>
+          <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu..."><?= ea($old['description'] ?? '') ?></textarea>
         </div>
 
         <div class="form-row">
@@ -230,14 +230,14 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
             <label>Prix original (DT) <span style="color:var(--color-primary)">*</span></label>
             <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-money-bill"></i></span>
               <input type="number" name="prix_original" class="form-input" step="0.01" min="0.01" placeholder="12.00"
-                     value="<?= ea(['prix_original'] ?? '') ?>" required>
+                     value="<?= ea($old['prix_original'] ?? '') ?>" required>
             </div>
           </div>
           <div class="form-group">
             <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
             <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
               <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50"
-                     value="<?= ea(['prix'] ?? '') ?>" required>
+                     value="<?= ea($old['prix'] ?? '') ?>" required>
             </div>
           </div>
         </div>
@@ -247,7 +247,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
             <label>Quantité <span style="color:var(--color-primary)">*</span></label>
             <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
               <input type="number" name="quantite" class="form-input" min="1" placeholder="5"
-                     value="<?= ea(['quantite'] ?? '') ?>" required>
+                     value="<?= ea($old['quantite'] ?? '') ?>" required>
             </div>
           </div>
           <div class="form-group">
@@ -255,10 +255,10 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
             <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
               <select name="id_categorie" class="form-input" required>
                 <option value="">-- Choisir --</option>
-                <?php foreach ( as ): ?>
-                  <option value="<?= (int)['id_categorie'] ?>"
-                    <?= ((['id_categorie'] ?? '') == ['id_categorie']) ? 'selected' : '' ?>>
-                    <?= ea(['nom_categorie']) ?>
+                <?php foreach ($categories as $c): ?>
+                  <option value="<?= (int)$c['id_categorie'] ?>"
+                    <?= (($old['id_categorie'] ?? '') == $c['id_categorie']) ? 'selected' : '' ?>>
+                    <?= ea($c['nom_categorie']) ?>
                   </option>
                 <?php endforeach; ?>
               </select>
@@ -271,14 +271,14 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
             <label>Heure début</label>
             <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
               <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM"
-                     value="<?= ea(['heure_debut'] ?? '') ?>">
+                     value="<?= ea($old['heure_debut'] ?? '') ?>">
             </div>
           </div>
           <div class="form-group">
             <label>Heure fin</label>
             <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
               <input type="text" name="heure_fin" class="form-input" placeholder="HH:MM"
-                     value="<?= ea(['heure_fin'] ?? '') ?>">
+                     value="<?= ea($old['heure_fin'] ?? '') ?>">
             </div>
           </div>
         </div>
@@ -302,9 +302,9 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <label>Statut</label>
           <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-toggle-on"></i></span>
             <select name="statut" class="form-input">
-              <?php foreach (['publiée','brouillon','expirée','archivée'] as ): ?>
-                <option value="<?=  ?>" <?= ((['statut'] ?? 'publiée') === ) ? 'selected' : '' ?>>
-                  <?= ucfirst() ?>
+              <?php foreach (['publiée','brouillon','expirée','archivée'] as $s): ?>
+                <option value="<?= $s ?>" <?= (($old['statut'] ?? 'publiée') === $s) ? 'selected' : '' ?>>
+                  <?= ucfirst($s) ?>
                 </option>
               <?php endforeach; ?>
             </select>
