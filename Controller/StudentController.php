@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/database.php';
 
 class StudentController
@@ -25,15 +25,21 @@ class StudentController
         return $stmt->fetchAll();
     }
 
-    // Compatibilite avec les anciens appels
     public function getPublishedOffers(): array
     {
-        return $this->getAllOffers();
+        $sql = "SELECT o.*, c.nom_categorie, c.icone
+                FROM offre o
+                LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie
+                WHERE LOWER(o.statut) IN ('publiée', 'publiee', 'publiã©e', 'publiãƒâ©e')
+                ORDER BY o.date_creation DESC";
+
+        $stmt = $this->pdo->query($sql);
+        return $stmt->fetchAll();
     }
 
     public function dashboard()
     {
-        $offers = $this->getAllOffers();
+        $offers = $this->getPublishedOffers();
         require_once __DIR__ . '/../View/FrontOffice/student/dashboard.php';
     }
 }

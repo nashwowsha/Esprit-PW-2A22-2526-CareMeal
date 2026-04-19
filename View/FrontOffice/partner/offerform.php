@@ -1,6 +1,6 @@
-<?php
-// Formulaire de CRÉATION d'offre (inclus dans modal-create de offers.php)
-// Variables disponibles : $categories, $old (valeurs précédentes si erreur)
+﻿<?php
+// Formulaire de CRÃ‰ATION d'offre (inclus dans modal-create de offers.php)
+// Variables disponibles : $categories, $old (valeurs prÃ©cÃ©dentes si erreur)
 $old = $old ?? [];
 
 function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
@@ -19,7 +19,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 
 <div class="form-group">
   <label>Description</label>
-  <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu..."><?= ec($old['description'] ?? '') ?></textarea>
+  <textarea name="description" class="form-textarea" rows="3" placeholder="DÃ©crivez le contenu..."><?= ec($old['description'] ?? '') ?></textarea>
 </div>
 
 <div class="form-row">
@@ -39,13 +39,13 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 
 <div class="form-row">
   <div class="form-group">
-    <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+    <label>QuantitÃ© <span style="color:var(--color-primary)">*</span></label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
       <input type="text" name="quantite" class="form-input" placeholder="5" value="<?= ec($old['quantite'] ?? '') ?>">
     </div>
   </div>
   <div class="form-group">
-    <label>Catégorie</label>
+    <label>CatÃ©gorie</label>
     <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
       <select name="id_categorie" class="form-input">
         <option value="">-- Choisir --</option>
@@ -82,7 +82,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     <div class="photo-placeholder" id="create-photo-placeholder">
       <i class="fa-solid fa-cloud-arrow-up"></i>
       Cliquez ou glissez une image ici<br>
-      <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+      <small style="opacity:.6;">JPG, PNG, WEBP â€” max 2 Mo</small>
     </div>
     <img id="create-photo-preview" class="photo-preview" alt="Aperçu">
   </div>
@@ -100,3 +100,4 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     </select>
   </div>
 </div>
+

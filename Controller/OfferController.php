@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../Model/Offer.php';
 
@@ -115,7 +115,13 @@ class OfferController
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
 
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['statut'] = $this->normalizeStatus($row['statut'] ?? null);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     private function getAllCategories(): array
@@ -199,7 +205,7 @@ class OfferController
             ->setQuantite((int)($data['quantite'] ?? 0))
             ->setHeureDebut(!empty($data['heure_debut']) ? (string)$data['heure_debut'] : null)
             ->setHeureFin(!empty($data['heure_fin']) ? (string)$data['heure_fin'] : null)
-            ->setStatut((string)($data['statut'] ?? 'publiée'))
+            ->setStatut($this->normalizeStatus((string)($data['statut'] ?? 'publiée'), 'publiée'))
             ->setIdCategorie(!empty($data['id_categorie']) ? (int)$data['id_categorie'] : null)
             ->setIdPartenaire(!empty($data['id_partenaire']) ? (string)$data['id_partenaire'] : null);
     }
@@ -278,6 +284,35 @@ class OfferController
 
         return $errors;
     }
+
+    private function normalizeStatus(?string $status, string $default = 'brouillon'): string
+    {
+        $s = trim((string)$status);
+        if ($s === '') {
+            return $default;
+        }
+
+        $s = mb_strtolower($s, 'UTF-8');
+
+        $map = [
+            'publiee' => 'publiée',
+            'publiée' => 'publiée',
+            'publiã©e' => 'publiée',
+            'publiãƒâ©e' => 'publiée',
+            'active' => 'publiée',
+            'actif' => 'publiée',
+            'expiree' => 'expirée',
+            'expirée' => 'expirée',
+            'expirã©e' => 'expirée',
+            'expirãƒâ©e' => 'expirée',
+            'archivee' => 'archivée',
+            'archivée' => 'archivée',
+            'archivã©e' => 'archivée',
+            'archivãƒâ©e' => 'archivée',
+            'draft' => 'brouillon',
+            'brouillon' => 'brouillon',
+        ];
+
+        return $map[$s] ?? $default;
+    }
 }
-
-

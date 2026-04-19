@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../Model/Offer.php';
 
@@ -50,7 +50,7 @@ class AdminOfferController
         $offer = $this->buildOfferFromInput($_POST)->setIdOffre($id);
         $this->updateOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifi�e avec succ�s !'];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succès !'];
         $this->redirect();
     }
 
@@ -61,7 +61,7 @@ class AdminOfferController
         if ($id) {
             $stmt = $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?');
             $stmt->execute([$id]);
-            $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprim�e.'];
+            $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprimée.'];
         }
 
         $this->redirect();
@@ -74,7 +74,14 @@ class AdminOfferController
                 LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie
                 ORDER BY o.date_creation DESC';
         $stmt = $this->pdo->query($sql);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+
+        foreach ($rows as &$row) {
+            $row['statut'] = $this->normalizeStatus($row['statut'] ?? null);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     private function getAllCategories(): array
@@ -87,10 +94,13 @@ class AdminOfferController
     {
         $stmt = $this->pdo->query('SELECT statut, COUNT(*) as total FROM offre GROUP BY statut');
         $rows = $stmt->fetchAll();
-        $counts = ['publi�e' => 0, 'expir�e' => 0, 'brouillon' => 0, 'archiv�e' => 0];
+        $counts = ['publiée' => 0, 'expirée' => 0, 'brouillon' => 0, 'archivée' => 0];
 
         foreach ($rows as $row) {
-            $counts[$row['statut']] = (int)$row['total'];
+            $normalized = $this->normalizeStatus($row['statut'] ?? null);
+            if (isset($counts[$normalized])) {
+                $counts[$normalized] += (int)$row['total'];
+            }
         }
 
         return $counts;
@@ -141,7 +151,7 @@ class AdminOfferController
             ->setQuantite((int)($data['quantite'] ?? 0))
             ->setHeureDebut(!empty($data['heure_debut']) ? (string)$data['heure_debut'] : null)
             ->setHeureFin(!empty($data['heure_fin']) ? (string)$data['heure_fin'] : null)
-            ->setStatut((string)($data['statut'] ?? 'publi�e'))
+            ->setStatut($this->normalizeStatus((string)($data['statut'] ?? 'publiée'), 'publiée'))
             ->setIdCategorie(!empty($data['id_categorie']) ? (int)$data['id_categorie'] : null);
     }
 
@@ -192,25 +202,56 @@ class AdminOfferController
         }
 
         if (!isset($data['prix']) || !is_numeric($data['prix']) || (float)$data['prix'] <= 0) {
-            $errors[] = 'Le prix r�duit doit �tre un nombre positif.';
+            $errors[] = 'Le prix réduit doit être un nombre positif.';
         }
 
         if (!isset($data['prix_original']) || !is_numeric($data['prix_original']) || (float)$data['prix_original'] <= 0) {
-            $errors[] = 'Le prix original doit �tre un nombre positif.';
+            $errors[] = 'Le prix original doit être un nombre positif.';
         }
 
         if (isset($data['prix'], $data['prix_original']) && (float)$data['prix'] >= (float)$data['prix_original']) {
-            $errors[] = 'Le prix r�duit doit �tre inf�rieur au prix original.';
+            $errors[] = 'Le prix réduit doit être inférieur au prix original.';
         }
 
         if (!isset($data['quantite']) || (int)$data['quantite'] < 1) {
-            $errors[] = 'La quantit� doit �tre au moins 1.';
+            $errors[] = 'La quantité doit être au moins 1.';
         }
 
         if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {
-            $errors[] = 'La cat�gorie est obligatoire.';
+            $errors[] = 'La catégorie est obligatoire.';
         }
 
         return $errors;
+    }
+
+    private function normalizeStatus(?string $status, string $default = 'brouillon'): string
+    {
+        $s = trim((string)$status);
+        if ($s === '') {
+            return $default;
+        }
+
+        $s = mb_strtolower($s, 'UTF-8');
+
+        $map = [
+            'publiee' => 'publiée',
+            'publiée' => 'publiée',
+            'publiã©e' => 'publiée',
+            'publiãƒâ©e' => 'publiée',
+            'active' => 'publiée',
+            'actif' => 'publiée',
+            'expiree' => 'expirée',
+            'expirée' => 'expirée',
+            'expirã©e' => 'expirée',
+            'expirãƒâ©e' => 'expirée',
+            'archivee' => 'archivée',
+            'archivée' => 'archivée',
+            'archivã©e' => 'archivée',
+            'archivãƒâ©e' => 'archivée',
+            'draft' => 'brouillon',
+            'brouillon' => 'brouillon',
+        ];
+
+        return $map[$s] ?? $default;
     }
 }
