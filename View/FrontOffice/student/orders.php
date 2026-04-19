@@ -21,13 +21,13 @@
           <div class="sidebar-section-title">Menu</div>
           <a href="dashboard.html" class="sidebar-link"><span class="link-icon">ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â </span> Accueil</a>
           <a href="profile.html" class="sidebar-link"><span class="link-icon">ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¤</span> Mon Profil</a>
-          <a href="preferences.html" class="sidebar-link"><span class="link-icon">ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â½ÃƒÂ¯Ã‚Â¸Ã‚Â</span> PrÃƒÆ’Ã‚Â©fÃƒÆ’Ã‚Â©rences</a>
+          <a href="preferences.html" class="sidebar-link"><span class="link-icon">ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â½ÃƒÂ¯Ã‚Â¸Ã‚Â</span> Préferences</a>
           <a href="orders.html" class="sidebar-link active"><span class="link-icon">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¦</span> Mes Commandes</a>
           <a href="points.html" class="sidebar-link"><span class="link-icon">Ã¢Ã‚Â­Ã‚Â</span> Mes Points</a>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-section-title">ParamÃƒÆ’Ã‚Â¨tres</div>
-          <a href="settings.html" class="sidebar-link"><span class="link-icon">Ã¢Ã…Â¡Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â</span> ParamÃƒÆ’Ã‚Â¨tres</a>
+          <div class="sidebar-section-title">Paramètres</div>
+          <a href="settings.html" class="sidebar-link"><span class="link-icon">Ã¢Ã…Â¡Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â</span> Paramètres</a>
         </div>
       </nav>
       <div class="sidebar-footer">

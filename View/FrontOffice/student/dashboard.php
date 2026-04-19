@@ -28,7 +28,7 @@
             <span class="link-icon">ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¤</span> Mon Profil
           </a>
           <a href="preferences.html" class="sidebar-link">
-            <span class="link-icon">ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â½ÃƒÂ¯Ã‚Â¸Ã‚Â</span> PrÃƒÆ’Ã‚Â©fÃƒÆ’Ã‚Â©rences
+            <span class="link-icon">ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â½ÃƒÂ¯Ã‚Â¸Ã‚Â</span> Préferences 
           </a>
           <a href="orders.html" class="sidebar-link">
             <span class="link-icon">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¦</span> Mes Commandes
@@ -38,9 +38,9 @@
           </a>
         </div>
         <div class="sidebar-section">
-          <div class="sidebar-section-title">ParamÃƒÆ’Ã‚Â¨tres</div>
+          <div class="sidebar-section-title">Paramètres</div>
           <a href="settings.html" class="sidebar-link">
-            <span class="link-icon">Ã¢Ã…Â¡Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â</span> ParamÃƒÆ’Ã‚Â¨tres
+            <span class="link-icon">Ã¢Ã…Â¡Ã¢â€žÂ¢ÃƒÂ¯Ã‚Â¸Ã‚Â</span> Paramètres
           </a>
         </div>
       </nav>
@@ -65,7 +65,7 @@
           <button class="menu-toggle" id="menu-toggle">Ã¢Ã‹Å“Ã‚Â°</button>
           <div class="page-title">
             <h2>Accueil</h2>
-            <p>DÃƒÆ’Ã‚Â©couvrez les offres du jour</p>
+            <p>Decouvrer les offres du jour</p>
           </div>
         </div>
         <div class="header-right">

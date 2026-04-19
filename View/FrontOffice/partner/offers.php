@@ -122,7 +122,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     <header class="top-header">
       <div class="header-left">
         <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
-        <div class="page-title"><h2>Mes Offres</h2><p>GÃ©rez vos offres anti-gaspillage</p></div>
+        <div class="page-title"><h2>Mes Offres</h2><p>Gérez vos offres anti-gaspillage</p></div>
       </div>
       <div class="header-right">
         <button class="btn btn-primary" onclick="openModal('modal-create')">
@@ -160,8 +160,8 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <div class="card" style="display:flex;align-items:center;gap:16px;">
           <div class="stat-icon yellow" style="width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;"><i class="fa-solid fa-clock"></i></div>
           <div>
-            <div style="font-size:1.5rem;font-weight:700;color:var(--color-text-muted);"><?= (int)(($counts['expirÃ©e'] ?? 0) + ($counts['archivÃ©e'] ?? 0)) ?></div>
-            <div style="font-size:.8rem;color:var(--color-text-muted);">ExpirÃ©es / archivÃ©es</div>
+            <div style="font-size:1.5rem;font-weight:700;color:var(--color-text-muted);"><?= (int)(($counts['expirée'] ?? 0) + ($counts['archivée'] ?? 0)) ?></div>
+            <div style="font-size:.8rem;color:var(--color-text-muted);">Expirées / archivées</div>
           </div>
         </div>
       </div>
@@ -171,11 +171,11 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <div class="section-header"><h3><i class="fa-solid fa-check"></i> Offres actives</h3></div>
         <div class="grid grid-3 gap-6">
           <?php if (empty($active)): ?>
-            <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre active. Publiez votre premiÃ¨re offre !</p></div>
+            <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre active. Publiez votre première offre !</p></div>
           <?php else: foreach ($active as $o): ?>
             <?php
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-              $sCls = ['publiÃ©e'=>'s-publiee','brouillon'=>'s-brouillon','expirÃ©e'=>'s-expiree','archivÃ©e'=>'s-archivee'][$o['statut']] ?? '';
+              $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
             ?>
             <div class="offer-card">
               <div style="position:relative;">
@@ -217,16 +217,16 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
       </div>
 
-      <!-- Offres expirÃ©es / archivÃ©es -->
+      <!-- Offres expirées / archivées -->
       <div class="section animate-fade-in-up stagger-2" style="margin-top:32px;">
-        <div class="section-header"><h3><i class="fa-solid fa-clock"></i> ExpirÃ©es / ArchivÃ©es</h3></div>
+        <div class="section-header"><h3><i class="fa-solid fa-clock"></i> Expirées / Archivées</h3></div>
         <div class="grid grid-3 gap-6">
           <?php if (empty($expired)): ?>
-            <div class="empty-state"><i class="fa-solid fa-clock"></i><p>Aucune offre expirÃ©e.</p></div>
+            <div class="empty-state"><i class="fa-solid fa-clock"></i><p>Aucune offre expirée.</p></div>
           <?php else: foreach ($expired as $o): ?>
             <?php
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-              $sCls = ['publiÃ©e'=>'s-publiee','brouillon'=>'s-brouillon','expirÃ©e'=>'s-expiree','archivÃ©e'=>'s-archivee'][$o['statut']] ?? '';
+              $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
             ?>
             <div class="offer-card">
               <div style="position:relative;">
@@ -287,7 +287,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create')">Annuler</button>
         <button type="submit" class="btn btn-primary">
-          <i class="fa-solid fa-plus"></i> CrÃ©er l'offre
+          <i class="fa-solid fa-plus"></i> Créer l'offre
         </button>
       </div>
     </form>
@@ -324,7 +324,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   <div class="delete-confirm">
     <i class="fa-solid fa-trash" style="font-size:2.5rem;color:#f87171;margin-bottom:12px;display:block;"></i>
     <h3 style="color:var(--color-white);margin:0;">Supprimer l'offre ?</h3>
-    <p id="delete-label">Cette action est irrÃ©versible.</p>
+    <p id="delete-label">Cette action est irreversible.</p>
     <form method="POST" action="offers.php" style="display:flex;gap:12px;justify-content:center;">
       <input type="hidden" name="action"   value="delete">
       <input type="hidden" name="id_offre" id="delete-id_offre">
