@@ -8,8 +8,11 @@ function redirectStudent($result) {
     $idUser = isset($result['id_user']) ? (int)$result['id_user'] : 1;
     $status = urlencode($result['status'] ?? 'error_unknown');
     $location = '../student/preferences.php?status=' . $status . '&id_user=' . $idUser;
-    if (($result['status'] ?? '') === 'success_updated' && isset($result['id_pref'])) {
-        $location .= '&edit_id=' . (int)$result['id_pref'];
+    if (isset($result['id_pref']) && in_array(($result['status'] ?? ''), ['success_created', 'success_updated'], true)) {
+        $location .= '&selected_id=' . (int)$result['id_pref'];
+    }
+    if (in_array(($result['status'] ?? ''), ['success_created', 'success_updated', 'success_deleted'], true)) {
+        $location .= '#saved-preferences-card';
     }
     header('Location: ' . $location);
     exit;
@@ -18,8 +21,17 @@ function redirectStudent($result) {
 function redirectAdmin($result) {
     $status = urlencode($result['status'] ?? 'error_unknown');
     $location = '../admin/preferences.php?status=' . $status;
+    if (isset($result['id_user']) && (int)$result['id_user'] > 0) {
+        $location .= '&id_user=' . (int)$result['id_user'];
+    }
     if (($result['status'] ?? '') === 'success_updated' && isset($result['id_pref'])) {
         $location .= '&edit_id=' . (int)$result['id_pref'];
+    }
+    if (isset($result['id_pref']) && in_array(($result['status'] ?? ''), ['success_created', 'success_updated'], true)) {
+        $location .= '&selected_id=' . (int)$result['id_pref'];
+    }
+    if (in_array(($result['status'] ?? ''), ['success_created', 'success_updated', 'success_deleted'], true)) {
+        $location .= '#user-preferences-card';
     }
     header('Location: ' . $location);
     exit;
@@ -49,6 +61,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 'admin_delete':
             $result = $controller->adminDelete($_POST);
+            redirectAdmin($result);
+            break;
+
+        case 'admin_add_regime_option':
+            $result = $controller->adminAddRegimeOption($_POST, $_FILES);
+            redirectAdmin($result);
+            break;
+
+        case 'admin_update_regime_option':
+            $result = $controller->adminUpdateRegimeOption($_POST, $_FILES);
+            redirectAdmin($result);
+            break;
+
+        case 'admin_delete_regime_option':
+            $result = $controller->adminDeleteRegimeOption($_POST);
             redirectAdmin($result);
             break;
 

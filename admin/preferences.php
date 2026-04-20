@@ -1,28 +1,113 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../Controller/PreferenceController.php';
 
 $controller = new PreferenceController();
-$rows = $controller->getAllForAdmin();
+$allRows = $controller->getAllForAdmin();
 $status = $_GET['status'] ?? '';
 
 $editId = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
+$selectedId = isset($_GET['selected_id']) ? (int)$_GET['selected_id'] : 0;
+$focusUserId = isset($_GET['id_user']) ? (int)$_GET['id_user'] : 0;
+
 $editRow = $editId > 0 ? $controller->getById($editId) : null;
+if ($editRow && $focusUserId <= 0) {
+    $focusUserId = (int)$editRow['id_user'];
+}
+
+$selectedRow = null;
+if ($selectedId > 0) {
+    foreach ($allRows as $row) {
+        if ((int)$row['id_pref'] === $selectedId) {
+            $selectedRow = $row;
+            break;
+        }
+    }
+}
+
+if ($selectedRow && $focusUserId <= 0) {
+    $focusUserId = (int)$selectedRow['id_user'];
+}
+
+if (!$selectedRow && $editRow) {
+    foreach ($allRows as $row) {
+        if ((int)$row['id_pref'] === (int)$editRow['id_pref']) {
+            $selectedRow = $row;
+            break;
+        }
+    }
+}
+
+$userRows = [];
+if ($focusUserId > 0) {
+    foreach ($allRows as $row) {
+        if ((int)$row['id_user'] === $focusUserId) {
+            $userRows[] = $row;
+        }
+    }
+}
+
+if ($selectedRow && $focusUserId > 0 && (int)$selectedRow['id_user'] !== $focusUserId) {
+    $selectedRow = null;
+}
+
+$regimeOptions = $controller->getRegimeOptions();
+$iconOptions = $controller->getAvailableRegimeIcons();
+
+if (empty($regimeOptions)) {
+    $regimeOptions = [
+        ['id' => 1, 'value' => 'halal', 'label' => 'Halal', 'icon' => 'fa-star-and-crescent', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 2, 'value' => 'vegetarien', 'label' => 'Vegetarien', 'icon' => 'fa-leaf', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 3, 'value' => 'vegan', 'label' => 'Vegan', 'icon' => 'fa-seedling', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 4, 'value' => 'sans-gluten', 'label' => 'Sans gluten', 'icon' => 'fa-wheat-awn', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 5, 'value' => 'bio', 'label' => 'Bio', 'icon' => 'fa-spa', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 6, 'value' => 'sans-lactose', 'label' => 'Sans lactose', 'icon' => 'fa-glass-water', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 7, 'value' => 'budget', 'label' => 'Petit budget', 'icon' => 'fa-coins', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['id' => 8, 'value' => 'equilibre', 'label' => 'Equilibre', 'icon' => 'fa-scale-balanced', 'icon_type' => 'fa', 'icon_image' => ''],
+    ];
+}
+
+if (empty($iconOptions)) {
+    $iconOptions = ['fa-star-and-crescent', 'fa-leaf', 'fa-seedling', 'fa-wheat-awn', 'fa-spa', 'fa-glass-water', 'fa-coins', 'fa-scale-balanced', 'fa-bowl-food', 'fa-carrot', 'fa-utensils', 'fa-apple-whole'];
+}
+
+$regimeOptionsJson = json_encode(array_values($regimeOptions), JSON_UNESCAPED_UNICODE);
+
+$selectedRegimes = [];
+if ($editRow && !empty($editRow['regime_alimentaire'])) {
+    $selectedRegimes = array_values(array_filter(array_map('trim', preg_split('/[,;]+/', (string)$editRow['regime_alimentaire']))));
+}
 
 $formAction = $editRow ? 'admin_update' : 'admin_create';
-$formTitle = $editRow ? 'Edit Preference #' . (int)$editRow['id_pref'] : 'Create Preference';
+$formTitle = $editRow
+    ? 'Edit Preference #' . (int)$editRow['id_pref']
+    : ($focusUserId > 0 ? 'Add Preference for User #' . $focusUserId : 'Add Preference');
+$formIdUser = $editRow['id_user'] ?? ($focusUserId > 0 ? $focusUserId : '');
 
 $statusMessages = [
-    'success_created' => ['class' => 'success', 'text' => 'Preference created successfully.'],
+    'success_created' => ['class' => 'success', 'text' => 'Preference saved. User table refreshed.'],
     'success_updated' => ['class' => 'success', 'text' => 'Preference updated successfully.'],
     'success_deleted' => ['class' => 'success', 'text' => 'Preference deleted successfully.'],
+    'success_option_added' => ['class' => 'success', 'text' => 'New regime option added successfully.'],
+    'success_option_updated' => ['class' => 'success', 'text' => 'Regime option updated successfully.'],
+    'success_option_deleted' => ['class' => 'success', 'text' => 'Regime option deleted successfully.'],
     'error_validation' => ['class' => 'error', 'text' => 'Validation failed. Please check your input values.'],
     'error_duplicate_preference' => ['class' => 'error', 'text' => 'This preference already exists for this user.'],
+    'error_option_invalid' => ['class' => 'error', 'text' => 'Invalid option label. Use letters and spaces only.'],
+    'error_option_icon_invalid' => ['class' => 'error', 'text' => 'Invalid icon. Choose an available icon or upload a valid image.'],
+    'error_option_exists' => ['class' => 'error', 'text' => 'This option already exists.'],
+    'error_option_not_found' => ['class' => 'error', 'text' => 'Regime option not found.'],
+    'error_option_in_use' => ['class' => 'error', 'text' => 'This option is used in preferences and cannot be deleted.'],
+    'error_forbidden' => ['class' => 'error', 'text' => 'Forbidden operation for this preference.'],
     'error_missing_fields' => ['class' => 'error', 'text' => 'Missing required fields.'],
     'error_not_found' => ['class' => 'error', 'text' => 'Preference not found.'],
     'error_db' => ['class' => 'error', 'text' => 'Database error.'],
     'error_unknown_action' => ['class' => 'error', 'text' => 'Unknown action.'],
     'error_invalid_request' => ['class' => 'error', 'text' => 'Invalid request.'],
 ];
+
+function isRegimeChecked($value, $selectedRegimes) {
+    return in_array($value, $selectedRegimes, true);
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -39,7 +124,7 @@ $statusMessages = [
     .pref-alert {
       border-radius: var(--radius-md);
       padding: 12px 14px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
       font-size: 0.9rem;
       border: 1px solid transparent;
     }
@@ -53,7 +138,22 @@ $statusMessages = [
       background: rgba(220, 53, 69, 0.16);
       border-color: rgba(220, 53, 69, 0.4);
     }
-    .pref-input {
+    .pref-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .pref-inline-form {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pref-input,
+    .pref-select,
+    .pref-textarea {
       width: 100%;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--color-dark-border);
@@ -61,72 +161,167 @@ $statusMessages = [
       color: var(--color-white);
       padding: 11px 12px;
       margin-top: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
-    .pref-input::placeholder { color: var(--color-text-muted); }
-    .pref-textarea { min-height: 90px; resize: vertical; }
-    .pref-actions { display:flex; gap:8px; flex-wrap:wrap; }
-    .pref-muted { color: var(--color-text-muted); font-size: 0.82rem; }
+    .pref-select option {
+      color: #111;
+    }
+    .pref-textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+    .pref-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .pref-muted {
+      color: var(--color-text-muted);
+      font-size: 0.82rem;
+    }
     .pref-layout {
       display: grid;
-      grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
-      gap: 18px;
+      grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+      gap: 16px;
     }
-    .pref-client-error {
-      color: #842029;
-      background: rgba(220, 53, 69, 0.16);
-      border: 1px solid rgba(220, 53, 69, 0.4);
-      border-radius: var(--radius-md);
-      padding: 10px 12px;
-      margin-bottom: 14px;
-      font-size: 0.88rem;
+    .pref-field-error {
+      color: #ff9da7;
+      font-size: 0.82rem;
+      min-height: 18px;
+      margin-top: -4px;
+      margin-bottom: 8px;
       display: none;
     }
     .pref-input-error {
       border-color: rgba(220, 53, 69, 0.7) !important;
       box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.25);
     }
+    .tags-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--color-dark-border);
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 0.86rem;
+      cursor: pointer;
+    }
+    .tag input[type="checkbox"] {
+      display: none;
+    }
+    .tag.selected {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      background: rgba(249, 115, 22, 0.12);
+    }
+    .tag-emoji img {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      object-fit: cover;
+      display: inline-block;
+    }
+    .pref-row-click {
+      cursor: pointer;
+    }
+    .pref-row-click:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .pref-row-selected {
+      background: rgba(249, 115, 22, 0.16);
+    }
+    .pref-icon-mode {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin: 4px 0 8px;
+      color: var(--color-text-muted);
+      font-size: 0.84rem;
+    }
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .icon-choice {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      border: 1px solid var(--color-dark-border);
+      border-radius: 10px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.03);
+      min-height: 40px;
+    }
+    .icon-choice input[type="radio"] {
+      display: none;
+    }
+    .icon-choice.selected {
+      border-color: var(--color-primary);
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--color-primary);
+    }
+    .icon-upload-preview {
+      margin-top: 4px;
+      max-width: 78px;
+      max-height: 78px;
+      border-radius: 8px;
+      border: 1px solid var(--color-dark-border);
+      display: none;
+      object-fit: cover;
+      background: #fff;
+    }
+    .pref-section-gap {
+      margin-top: 16px;
+    }
+    .pref-card-title-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .pref-small {
+      font-size: 0.8rem;
+    }
     @media (max-width: 1100px) {
-      .pref-layout { grid-template-columns: 1fr; }
+      .pref-layout {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="dashboard-layout">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-logo"><img src="../assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
-        <div class="sidebar-brand">Care<span>Meal</span></div>
-      </div>
-      <nav class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Administration</div>
-          <a href="dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
-          <a href="users.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
-          <a href="partners.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-          <a href="preferences.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-sliders"></i></span> Preferences</a>
-          <a href="events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
-          <a href="logs.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activite</a>
-        </div>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
-            <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
-          </div>
-          <button class="sidebar-logout" data-action="logout" title="Deconnexion"><i class="fa-solid fa-door-open"></i></button>
-        </div>
-      </div>
-    </aside>
+    <?php
+      $activePage = 'preferences';
+      require __DIR__ . '/_admin_sidebar.php';
+    ?>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="main-content">
       <header class="top-header">
         <div class="header-left">
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
-          <div class="page-title"><h2>Preferences Management</h2><p>Full CRUD with id_pref and id_user tracking</p></div>
+          <div class="page-title">
+            <h2>Preferences Management</h2>
+            <p>
+              <?php if ($focusUserId > 0): ?>
+                User #<?= (int)$focusUserId ?> table is active. Submit refreshes this table immediately.
+              <?php else: ?>
+                Choose a User ID to open and manage that user's preference table.
+              <?php endif; ?>
+            </p>
+          </div>
         </div>
         <div class="header-right">
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
@@ -140,8 +335,23 @@ $statusMessages = [
           </div>
         <?php endif; ?>
 
+        <div class="card" style="margin-bottom: 16px;">
+          <div class="pref-toolbar">
+            <form method="get" action="preferences.php" class="pref-inline-form">
+              <label for="focus_user_id" style="margin:0;">User ID:</label>
+              <input id="focus_user_id" type="text" name="id_user" class="pref-input" style="width:140px; margin:0;" value="<?= $focusUserId > 0 ? (int)$focusUserId : '' ?>" placeholder="Ex: 1">
+              <button type="submit" class="btn btn-outline btn-sm"><i class="fa-solid fa-magnifying-glass"></i> Load user table</button>
+            </form>
+            <a href="preferences.php" class="btn btn-outline btn-sm">Reset view</a>
+            <?php if ($focusUserId > 0): ?>
+              <a href="preferences.php?id_user=<?= (int)$focusUserId ?>" class="btn btn-outline btn-sm"><i class="fa-solid fa-plus"></i> Add another pref</a>
+            <?php endif; ?>
+          </div>
+          <p class="pref-muted" style="margin: 0;">Workflow: submit preference -> refreshed user table -> select a row -> edit/delete/start matching.</p>
+        </div>
+
         <div class="pref-layout">
-          <div class="card animate-fade-in-up">
+          <section class="card animate-fade-in-up">
             <div class="card-header">
               <h3 class="card-title"><i class="fa-solid fa-pen-to-square"></i> <?= htmlspecialchars($formTitle, ENT_QUOTES, 'UTF-8') ?></h3>
             </div>
@@ -151,68 +361,99 @@ $statusMessages = [
                 <input type="hidden" name="id_pref" value="<?= (int)$editRow['id_pref'] ?>">
               <?php endif; ?>
 
-              <div id="admin-pref-error" class="pref-client-error"></div>
-
               <label for="id_user">User ID (required)</label>
-              <input id="id_user" name="id_user" class="pref-input" type="text" value="<?= htmlspecialchars((string)($editRow['id_user'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <input id="id_user" name="id_user" class="pref-input" type="text" value="<?= htmlspecialchars((string)$formIdUser, ENT_QUOTES, 'UTF-8') ?>">
+              <div id="id_user-error" class="pref-field-error"></div>
 
-              <label for="regime_alimentaire">Regime alimentaire (required)</label>
-              <input id="regime_alimentaire" name="regime_alimentaire" class="pref-input" type="text" placeholder="halal, sans-gluten" value="<?= htmlspecialchars((string)($editRow['regime_alimentaire'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <label style="display:block;margin-top:6px;">Regimes alimentaires</label>
+              <div class="tags-grid">
+                <?php foreach ($regimeOptions as $regime): ?>
+                  <?php $checked = isRegimeChecked($regime['value'], $selectedRegimes); ?>
+                  <label class="tag<?= $checked ? ' selected' : '' ?>">
+                    <input type="checkbox" name="regimes[]" value="<?= htmlspecialchars((string)$regime['value'], ENT_QUOTES, 'UTF-8') ?>"<?= $checked ? ' checked' : '' ?>>
+                    <span class="tag-emoji">
+                      <?php if (($regime['icon_type'] ?? 'fa') === 'image' && !empty($regime['icon_image'])): ?>
+                        <img src="../<?= htmlspecialchars((string)$regime['icon_image'], ENT_QUOTES, 'UTF-8') ?>" alt="icon">
+                      <?php else: ?>
+                        <i class="fa-solid <?= htmlspecialchars((string)($regime['icon'] ?: 'fa-utensils'), ENT_QUOTES, 'UTF-8') ?>"></i>
+                      <?php endif; ?>
+                    </span>
+                    <?= htmlspecialchars((string)$regime['label'], ENT_QUOTES, 'UTF-8') ?>
+                  </label>
+                <?php endforeach; ?>
+              </div>
+              <div id="regimes-error" class="pref-field-error"></div>
 
-              <label for="allergies">Allergies (required)</label>
-              <textarea id="allergies" name="allergies" class="pref-input pref-textarea"><?= htmlspecialchars((string)($editRow['allergies'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+              <label for="allergies">Allergies</label>
+              <textarea id="allergies" name="allergies" class="pref-textarea"><?= htmlspecialchars((string)($editRow['allergies'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+              <div id="allergies-error" class="pref-field-error"></div>
 
-              <label for="localisation">Localisation (required)</label>
+              <label for="localisation">Localisation</label>
               <input id="localisation" name="localisation" class="pref-input" type="text" value="<?= htmlspecialchars((string)($editRow['localisation'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <div id="localisation-error" class="pref-field-error"></div>
 
               <div class="pref-actions">
-                <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> <?= $editRow ? 'Update' : 'Create' ?></button>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> <?= $editRow ? 'Update' : 'Submit Pref' ?></button>
                 <?php if ($editRow): ?>
-                  <a href="preferences.php" class="btn btn-outline btn-sm">Cancel</a>
+                  <a href="preferences.php?id_user=<?= (int)$focusUserId ?>" class="btn btn-outline btn-sm">Cancel edit</a>
                 <?php endif; ?>
               </div>
             </form>
-          </div>
 
-          <div class="card animate-fade-in-up stagger-1">
+            <?php if ($selectedRow): ?>
+              <div class="pref-section-gap">
+                <div class="pref-card-title-line" style="margin-bottom:8px;">
+                  <strong>Selected Preference #<?= (int)$selectedRow['id_pref'] ?></strong>
+                  <span class="pref-muted pref-small">User #<?= (int)$selectedRow['id_user'] ?></span>
+                </div>
+                <a href="../Controller/MatchingController.php?action=student_matches&id_user=<?= (int)$selectedRow['id_user'] ?>" target="_blank" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-play"></i> Start Matching
+                </a>
+                <p class="pref-muted" style="margin-top:8px;">Current endpoint opens JSON (API placeholder).</p>
+              </div>
+            <?php endif; ?>
+          </section>
+
+          <section class="card animate-fade-in-up stagger-1" id="user-preferences-card">
             <div class="card-header" style="justify-content:space-between;align-items:center;">
-              <h3 class="card-title"><i class="fa-solid fa-table"></i> All Preferences</h3>
-              <span class="badge badge-info"><?= count($rows) ?> rows</span>
+              <h3 class="card-title"><i class="fa-solid fa-table"></i> User Preferences Table</h3>
+              <?php if ($focusUserId > 0): ?>
+                <span class="badge badge-info">User #<?= (int)$focusUserId ?> - <?= count($userRows) ?> rows</span>
+              <?php else: ?>
+                <span class="badge badge-info">Choose a user</span>
+              <?php endif; ?>
             </div>
 
-            <div class="table-container">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>ID Pref</th>
-                    <th>ID User</th>
-                    <th>Regime</th>
-                    <th>Allergies</th>
-                    <th>Localisation</th>
-                    <th>Date Demande</th>
-                    <th>User</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php if (empty($rows)): ?>
-                    <tr><td colspan="8" class="pref-muted">No preference records.</td></tr>
-                  <?php else: ?>
-                    <?php foreach ($rows as $row): ?>
-                      <tr>
+            <?php if ($focusUserId <= 0): ?>
+              <p class="pref-muted">Enter a User ID above to display that user's preferences.</p>
+            <?php elseif (empty($userRows)): ?>
+              <p class="pref-muted">No preferences found for user #<?= (int)$focusUserId ?>. You can create one from the form.</p>
+            <?php else: ?>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID Pref</th>
+                      <th>Regime</th>
+                      <th>Allergies</th>
+                      <th>Localisation</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($userRows as $row): ?>
+                      <?php $isSelected = $selectedRow && (int)$selectedRow['id_pref'] === (int)$row['id_pref']; ?>
+                      <tr class="pref-row-click<?= $isSelected ? ' pref-row-selected' : '' ?>" data-href="preferences.php?id_user=<?= (int)$focusUserId ?>&selected_id=<?= (int)$row['id_pref'] ?>#user-preferences-card">
                         <td><?= (int)$row['id_pref'] ?></td>
-                        <td><?= (int)$row['id_user'] ?></td>
                         <td><?= htmlspecialchars((string)$row['regime_alimentaire'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['allergies'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['localisation'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['date_demande'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
-                          <strong><?= htmlspecialchars((string)($row['user_nom'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></strong><br>
-                          <span class="pref-muted"><?= htmlspecialchars((string)($row['user_email'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></span>
-                        </td>
-                        <td>
                           <div class="pref-actions">
-                            <a class="btn btn-outline btn-sm" href="preferences.php?edit_id=<?= (int)$row['id_pref'] ?>">Edit</a>
+                            <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$focusUserId ?>&selected_id=<?= (int)$row['id_pref'] ?>#user-preferences-card">Select</a>
+                            <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$focusUserId ?>&edit_id=<?= (int)$row['id_pref'] ?>&selected_id=<?= (int)$row['id_pref'] ?>">Edit</a>
                             <form method="post" action="../Controller/preference.php?action=admin_delete" style="display:inline;" onsubmit="return confirm('Delete preference #<?= (int)$row['id_pref'] ?>?');">
                               <input type="hidden" name="id_pref" value="<?= (int)$row['id_pref'] ?>">
                               <button type="submit" class="btn btn-danger btn-sm">Delete</button>
@@ -221,140 +462,189 @@ $statusMessages = [
                         </td>
                       </tr>
                     <?php endforeach; ?>
-                  <?php endif; ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            <?php endif; ?>
+          </section>
         </div>
+
+        <div class="grid grid-3 gap-4 pref-section-gap">
+          <section class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fa-solid fa-plus"></i> Add Regime Option</h3>
+            </div>
+            <form method="post" action="../Controller/preference.php?action=admin_add_regime_option" id="admin-regime-option-form" enctype="multipart/form-data" novalidate>
+              <label for="option_label">Option label</label>
+              <input id="option_label" name="option_label" class="pref-input" type="text" placeholder="Ex: Mediterraneen">
+              <div id="option_label-error" class="pref-field-error"></div>
+
+              <div class="pref-icon-mode">
+                <label><input type="radio" name="icon_mode" value="fa" checked> Built-in icon</label>
+                <label><input type="radio" name="icon_mode" value="upload"> Upload image</label>
+              </div>
+
+              <div id="add-fa-picker">
+                <div class="icon-grid">
+                  <?php foreach ($iconOptions as $index => $iconClass): ?>
+                    <label class="icon-choice<?= $index === 0 ? ' selected' : '' ?>">
+                      <input type="radio" name="icon_class" value="<?= htmlspecialchars((string)$iconClass, ENT_QUOTES, 'UTF-8') ?>"<?= $index === 0 ? ' checked' : '' ?>>
+                      <i class="fa-solid <?= htmlspecialchars((string)$iconClass, ENT_QUOTES, 'UTF-8') ?>"></i>
+                    </label>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+
+              <div id="add-upload-picker" style="display:none;">
+                <label for="option_icon_file">Upload icon image</label>
+                <input id="option_icon_file" name="icon_file" class="pref-input" type="file" accept="image/*">
+                <img id="option_icon_preview" class="icon-upload-preview" alt="icon preview">
+              </div>
+              <div id="option_icon_class-error" class="pref-field-error"></div>
+
+              <button type="submit" class="btn btn-outline btn-sm"><i class="fa-solid fa-plus"></i> Add option</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fa-solid fa-pen"></i> Edit Regime Option</h3>
+            </div>
+            <form method="post" action="../Controller/preference.php?action=admin_update_regime_option" id="admin-regime-option-edit-form" enctype="multipart/form-data" novalidate>
+              <label for="edit_option_id">Choose option</label>
+              <select id="edit_option_id" name="option_id" class="pref-select">
+                <?php foreach ($regimeOptions as $regime): ?>
+                  <option value="<?= (int)($regime['id'] ?? 0) ?>"><?= htmlspecialchars((string)$regime['label'], ENT_QUOTES, 'UTF-8') ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div id="edit_option_id-error" class="pref-field-error"></div>
+
+              <label for="edit_option_label">New label</label>
+              <input id="edit_option_label" name="option_label" class="pref-input" type="text" placeholder="Ex: Mediterraneen">
+              <div id="edit_option_label-error" class="pref-field-error"></div>
+
+              <div class="pref-icon-mode">
+                <label><input type="radio" name="icon_mode" value="fa" checked> Built-in icon</label>
+                <label><input type="radio" name="icon_mode" value="upload"> Upload image</label>
+              </div>
+
+              <div id="edit-fa-picker">
+                <div class="icon-grid">
+                  <?php foreach ($iconOptions as $index => $iconClass): ?>
+                    <label class="icon-choice<?= $index === 0 ? ' selected' : '' ?>">
+                      <input type="radio" name="icon_class" value="<?= htmlspecialchars((string)$iconClass, ENT_QUOTES, 'UTF-8') ?>"<?= $index === 0 ? ' checked' : '' ?>>
+                      <i class="fa-solid <?= htmlspecialchars((string)$iconClass, ENT_QUOTES, 'UTF-8') ?>"></i>
+                    </label>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+
+              <div id="edit-upload-picker" style="display:none;">
+                <label for="edit_option_icon_file">Upload icon image</label>
+                <input id="edit_option_icon_file" name="icon_file" class="pref-input" type="file" accept="image/*">
+                <img id="edit_option_icon_preview" class="icon-upload-preview" alt="icon preview">
+              </div>
+              <div id="edit_option_icon_class-error" class="pref-field-error"></div>
+
+              <button type="submit" class="btn btn-outline btn-sm"><i class="fa-solid fa-floppy-disk"></i> Update option</button>
+            </form>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fa-solid fa-trash"></i> Delete Regime Option</h3>
+            </div>
+            <form method="post" action="../Controller/preference.php?action=admin_delete_regime_option" id="admin-regime-option-delete-form" onsubmit="return confirm('Delete this regime option?');" novalidate>
+              <label for="delete_option_id">Choose option</label>
+              <select id="delete_option_id" name="option_id" class="pref-select">
+                <?php foreach ($regimeOptions as $regime): ?>
+                  <option value="<?= (int)($regime['id'] ?? 0) ?>"><?= htmlspecialchars((string)$regime['label'], ENT_QUOTES, 'UTF-8') ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div id="delete_option_id-error" class="pref-field-error"></div>
+
+              <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash"></i> Delete option</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="card pref-section-gap">
+          <div class="card-header" style="justify-content:space-between;align-items:center;">
+            <h3 class="card-title"><i class="fa-solid fa-table-list"></i> All Preferences Snapshot</h3>
+            <span class="badge badge-info"><?= count($allRows) ?> total</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID Pref</th>
+                  <th>ID User</th>
+                  <th>Regime</th>
+                  <th>Allergies</th>
+                  <th>Localisation</th>
+                  <th>User</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php if (empty($allRows)): ?>
+                  <tr><td colspan="6" class="pref-muted">No preference records.</td></tr>
+                <?php else: ?>
+                  <?php foreach ($allRows as $row): ?>
+                    <tr>
+                      <td><?= (int)$row['id_pref'] ?></td>
+                      <td><?= (int)$row['id_user'] ?></td>
+                      <td><?= htmlspecialchars((string)$row['regime_alimentaire'], ENT_QUOTES, 'UTF-8') ?></td>
+                      <td><?= htmlspecialchars((string)$row['allergies'], ENT_QUOTES, 'UTF-8') ?></td>
+                      <td><?= htmlspecialchars((string)$row['localisation'], ENT_QUOTES, 'UTF-8') ?></td>
+                      <td>
+                        <strong><?= htmlspecialchars((string)($row['user_nom'] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') ?></strong><br>
+                        <span class="pref-muted"><?= htmlspecialchars((string)($row['user_email'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></span>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </main>
   </div>
 
-  <script src="../js/app.js"></script>
-  <script src="../js/components.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      App.requireAuth(['admin']);
-
-      const form = document.getElementById('admin-pref-form');
-      if (!form) return;
-
-      const errorBox = document.getElementById('admin-pref-error');
-      const idUserField = document.getElementById('id_user');
-      const regimeField = document.getElementById('regime_alimentaire');
-      const allergiesField = document.getElementById('allergies');
-      const localisationField = document.getElementById('localisation');
-      const allergyTokenPattern = /^[A-Za-z\u00C0-\u024F\s'-]+$/u;
-
-      function parseCommaList(value) {
-        return String(value || '')
-          .split(/[;,]+/)
-          .map((part) => part.trim())
-          .filter((part) => part.length > 0);
+    window.REGIME_OPTIONS = <?= $regimeOptionsJson ?: '[]' ?>;
+  </script>
+  <script src="../js/app.js?v=20260420c"></script>
+  <script src="../js/components.js?v=20260420j"></script>
+  <script src="../js/admin-preferences-validation.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.App && typeof window.App.requireAuth === 'function') {
+        App.requireAuth(['admin']);
       }
 
-      function clearErrors() {
-        [idUserField, regimeField, allergiesField, localisationField].forEach((field) => {
-          if (field) field.classList.remove('pref-input-error');
+      document.querySelectorAll('.pref-row-click').forEach(function (row) {
+        row.addEventListener('click', function (event) {
+          if (event.target.closest('a') || event.target.closest('button') || event.target.closest('form')) {
+            return;
+          }
+          var href = row.getAttribute('data-href');
+          if (href) {
+            window.location.href = href;
+          }
         });
-      }
-
-      form.addEventListener('submit', (event) => {
-        clearErrors();
-        const errors = [];
-
-        const idUser = (idUserField ? idUserField.value : '').trim();
-        const regime = (regimeField ? regimeField.value : '').trim();
-        const allergies = (allergiesField ? allergiesField.value : '').trim();
-        const localisation = (localisationField ? localisationField.value : '').trim();
-        const regimeItems = parseCommaList(regime);
-        const allergyItems = parseCommaList(allergies);
-
-        if (!/^\d+$/.test(idUser) || parseInt(idUser, 10) <= 0) {
-          errors.push('User ID must be a positive integer.');
-          if (idUserField) idUserField.classList.add('pref-input-error');
-        }
-
-        if (regime.length === 0) {
-          errors.push('Regime alimentaire is required.');
-          if (regimeField) regimeField.classList.add('pref-input-error');
-        }
-
-        if (allergies.length === 0) {
-          errors.push('Allergies field is required.');
-          if (allergiesField) allergiesField.classList.add('pref-input-error');
-        }
-
-        if (/\d/.test(allergies)) {
-          errors.push('Allergies cannot contain numbers.');
-          if (allergiesField) allergiesField.classList.add('pref-input-error');
-        }
-
-        if (regimeItems.length > 4) {
-          errors.push('At most 4 regime items are allowed.');
-          if (regimeField) regimeField.classList.add('pref-input-error');
-        }
-
-        if (allergies.length > 0) {
-          if (allergyItems.length === 0) {
-            errors.push('Add at least one valid allergy item.');
-            if (allergiesField) allergiesField.classList.add('pref-input-error');
-          }
-
-          const seenAllergies = new Set();
-          for (const token of allergyItems) {
-            const normalized = token.toLocaleLowerCase();
-            if (seenAllergies.has(normalized)) {
-              errors.push('Duplicate allergy items are not allowed.');
-              if (allergiesField) allergiesField.classList.add('pref-input-error');
-              break;
-            }
-            seenAllergies.add(normalized);
-
-            if (!allergyTokenPattern.test(token)) {
-              errors.push('Each allergy must contain only letters, spaces, apostrophe or hyphen.');
-              if (allergiesField) allergiesField.classList.add('pref-input-error');
-              break;
-            }
-          }
-        }
-
-        if (localisation.length === 0) {
-          errors.push('Localisation field is required.');
-          if (localisationField) localisationField.classList.add('pref-input-error');
-        }
-
-        if (regime.length > 1000) {
-          errors.push('Regime alimentaire must be 1000 characters or less.');
-          if (regimeField) regimeField.classList.add('pref-input-error');
-        }
-
-        if (allergies.length > 1000) {
-          errors.push('Allergies must be 1000 characters or less.');
-          if (allergiesField) allergiesField.classList.add('pref-input-error');
-        }
-
-        if (localisation.length > 1000) {
-          errors.push('Localisation must be 1000 characters or less.');
-          if (localisationField) localisationField.classList.add('pref-input-error');
-        }
-
-        if (errors.length > 0) {
-          event.preventDefault();
-          if (errorBox) {
-            errorBox.innerHTML = errors.join('<br>');
-            errorBox.style.display = 'block';
-          }
-          return;
-        }
-
-        if (errorBox) {
-          errorBox.innerHTML = '';
-          errorBox.style.display = 'none';
-        }
       });
     });
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+

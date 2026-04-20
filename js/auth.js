@@ -1,6 +1,6 @@
-/* ============================================
-   CAREMEAL — AUTH
-   auth.js — Login, Register, Validation
+﻿/* ============================================
+   CAREMEAL â€” AUTH
+   auth.js â€” Login, Register, Validation
    ============================================ */
 
 const Auth = {
@@ -25,7 +25,7 @@ const Auth = {
     // Find user
     const user = App.findUserByEmail(email);
     if (!user) {
-      Auth.showError('login-email', 'Aucun compte trouvé avec cet email');
+      Auth.showError('login-email', 'Aucun compte trouvÃ© avec cet email');
       return;
     }
 
@@ -35,7 +35,7 @@ const Auth = {
     }
 
     if (user.status === 'banned') {
-      Auth.showAlert('error', 'Votre compte a été suspendu. Contactez le support.');
+      Auth.showAlert('error', 'Votre compte a Ã©tÃ© suspendu. Contactez le support.');
       return;
     }
 
@@ -46,13 +46,13 @@ const Auth = {
 
     // Success - login
     App.setCurrentUser(user);
-    App.addLog('Connexion réussie');
+    App.addLog('Connexion rÃ©ussie');
 
     // Redirect based on role
     switch (user.role) {
       case 'student': window.location.href = 'student/dashboard.html'; break;
       case 'partner': window.location.href = 'partner/dashboard.html'; break;
-      case 'admin': window.location.href = 'admin/dashboard.html'; break;
+      case 'admin': window.location.href = 'admin/dashboard.php'; break;
     }
   },
 
@@ -102,17 +102,17 @@ const Auth = {
       const password = document.getElementById('reg-password')?.value;
       const confirm = document.getElementById('reg-confirm')?.value;
 
-      if (!name || name.length < 3) { Auth.showError('reg-name', 'Nom complet requis (min. 3 caractères)'); valid = false; }
+      if (!name || name.length < 3) { Auth.showError('reg-name', 'Nom complet requis (min. 3 caractÃ¨res)'); valid = false; }
       if (!email) { Auth.showError('reg-email', 'Email requis'); valid = false; }
       else if (!Auth.isValidEmail(email)) { Auth.showError('reg-email', 'Format d\'email invalide'); valid = false; }
-      else if (App.findUserByEmail(email)) { Auth.showError('reg-email', 'Cet email est déjà utilisé'); valid = false; }
-      if (!password || password.length < 6) { Auth.showError('reg-password', 'Minimum 6 caractères'); valid = false; }
+      else if (App.findUserByEmail(email)) { Auth.showError('reg-email', 'Cet email est dÃ©jÃ  utilisÃ©'); valid = false; }
+      if (!password || password.length < 6) { Auth.showError('reg-password', 'Minimum 6 caractÃ¨res'); valid = false; }
       if (password !== confirm) { Auth.showError('reg-confirm', 'Les mots de passe ne correspondent pas'); valid = false; }
     }
 
     if (step === 2) {
       const university = document.getElementById('reg-university')?.value;
-      if (!university) { Auth.showError('reg-university', 'Veuillez sélectionner votre université'); valid = false; }
+      if (!university) { Auth.showError('reg-university', 'Veuillez sÃ©lectionner votre universitÃ©'); valid = false; }
     }
 
     return valid;
@@ -160,13 +160,13 @@ const Auth = {
     const description = document.getElementById('partner-description')?.value.trim();
 
     if (!name || name.length < 2) { Auth.showError('partner-name', 'Nom requis'); valid = false; }
-    if (!type) { Auth.showError('partner-type', 'Sélectionnez un type'); valid = false; }
+    if (!type) { Auth.showError('partner-type', 'SÃ©lectionnez un type'); valid = false; }
     if (!address) { Auth.showError('partner-address', 'Adresse requise'); valid = false; }
     if (!email) { Auth.showError('partner-email', 'Email requis'); valid = false; }
     else if (!Auth.isValidEmail(email)) { Auth.showError('partner-email', 'Format invalide'); valid = false; }
-    else if (App.findUserByEmail(email)) { Auth.showError('partner-email', 'Email déjà utilisé'); valid = false; }
-    if (!phone) { Auth.showError('partner-phone', 'Téléphone requis'); valid = false; }
-    if (!password || password.length < 6) { Auth.showError('partner-password', 'Min. 6 caractères'); valid = false; }
+    else if (App.findUserByEmail(email)) { Auth.showError('partner-email', 'Email dÃ©jÃ  utilisÃ©'); valid = false; }
+    if (!phone) { Auth.showError('partner-phone', 'TÃ©lÃ©phone requis'); valid = false; }
+    if (!password || password.length < 6) { Auth.showError('partner-password', 'Min. 6 caractÃ¨res'); valid = false; }
 
     if (!valid) return;
 
@@ -175,7 +175,7 @@ const Auth = {
       role: 'partner',
       type, address, phone,
       description: description || '',
-      horaires: { lun: '08:00-18:00', mar: '08:00-18:00', mer: '08:00-18:00', jeu: '08:00-18:00', ven: '08:00-18:00', sam: '09:00-14:00', dim: 'Fermé' },
+      horaires: { lun: '08:00-18:00', mar: '08:00-18:00', mer: '08:00-18:00', jeu: '08:00-18:00', ven: '08:00-18:00', sam: '09:00-14:00', dim: 'FermÃ©' },
       mealsSaved: 0, avgRating: 0, reviewCount: 0
     });
 
@@ -193,7 +193,7 @@ const Auth = {
     if (!Auth.isValidEmail(email)) { Auth.showError('forgot-email', 'Format invalide'); return; }
 
     // Show success regardless (security)
-    Auth.showAlert('success', 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.');
+    Auth.showAlert('success', 'Si un compte existe avec cet email, un lien de rÃ©initialisation a Ã©tÃ© envoyÃ©.');
     document.getElementById('forgot-form')?.classList.add('hidden');
     document.getElementById('forgot-success')?.classList.remove('hidden');
   },
@@ -365,3 +365,4 @@ const Auth = {
 
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => Auth.init());
+

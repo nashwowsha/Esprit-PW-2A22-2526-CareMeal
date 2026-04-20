@@ -9,16 +9,31 @@ if ($idUser <= 0) {
 
 $status = $_GET['status'] ?? '';
 $editId = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
+$selectedId = isset($_GET['selected_id']) ? (int)$_GET['selected_id'] : 0;
 
 $preferenceController = new PreferenceController();
 $preferenceRows = $preferenceController->getListByUserId($idUser);
 $editingPreference = null;
+$selectedPreference = null;
 
 if ($editId > 0) {
     $candidate = $preferenceController->getById($editId);
     if ($candidate && (int)$candidate['id_user'] === $idUser) {
         $editingPreference = $candidate;
     }
+}
+
+if ($selectedId > 0) {
+    foreach ($preferenceRows as $row) {
+        if ((int)$row['id_pref'] === $selectedId) {
+            $selectedPreference = $row;
+            break;
+        }
+    }
+}
+
+if (!$selectedPreference && $editingPreference) {
+    $selectedPreference = $editingPreference;
 }
 
 $selectedRegimes = [];
@@ -46,16 +61,19 @@ $statusMessages = [
     'error_not_found' => ['class' => 'error', 'text' => 'Selected preference was not found.'],
 ];
 
-$regimeOptions = [
-    ['value' => 'halal', 'label' => 'Halal', 'icon' => 'fa-star-and-crescent'],
-    ['value' => 'vegetarien', 'label' => 'Vegetarien', 'icon' => 'fa-leaf'],
-    ['value' => 'vegan', 'label' => 'Vegan', 'icon' => 'fa-seedling'],
-    ['value' => 'sans-gluten', 'label' => 'Sans gluten', 'icon' => 'fa-wheat-awn'],
-    ['value' => 'bio', 'label' => 'Bio', 'icon' => 'fa-spa'],
-    ['value' => 'sans-lactose', 'label' => 'Sans lactose', 'icon' => 'fa-glass-water'],
-    ['value' => 'budget', 'label' => 'Petit budget', 'icon' => 'fa-coins'],
-    ['value' => 'equilibre', 'label' => 'Equilibre', 'icon' => 'fa-scale-balanced'],
-];
+$regimeOptions = $preferenceController->getRegimeOptions();
+if (empty($regimeOptions)) {
+    $regimeOptions = [
+        ['value' => 'halal', 'label' => 'Halal', 'icon' => 'fa-star-and-crescent', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'vegetarien', 'label' => 'Vegetarien', 'icon' => 'fa-leaf', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'vegan', 'label' => 'Vegan', 'icon' => 'fa-seedling', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'sans-gluten', 'label' => 'Sans gluten', 'icon' => 'fa-wheat-awn', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'bio', 'label' => 'Bio', 'icon' => 'fa-spa', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'sans-lactose', 'label' => 'Sans lactose', 'icon' => 'fa-glass-water', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'budget', 'label' => 'Petit budget', 'icon' => 'fa-coins', 'icon_type' => 'fa', 'icon_image' => ''],
+        ['value' => 'equilibre', 'label' => 'Equilibre', 'icon' => 'fa-scale-balanced', 'icon_type' => 'fa', 'icon_image' => ''],
+    ];
+}
 
 function isRegimeChecked($value, $selectedRegimes) {
     return in_array($value, $selectedRegimes, true);
@@ -73,6 +91,7 @@ function isRegimeChecked($value, $selectedRegimes) {
   <link rel="stylesheet" href="../css/components.css">
   <link rel="stylesheet" href="../css/dashboard.css">
   <style>
+    html { scroll-behavior: smooth; }
     .pref-alert {
       border-radius: var(--radius-md);
       padding: 12px 14px;
@@ -104,31 +123,50 @@ function isRegimeChecked($value, $selectedRegimes) {
       resize: vertical;
     }
     .tag input[type="checkbox"] { display: none; }
+    .tag-emoji img {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      object-fit: cover;
+      display: inline-block;
+    }
     .pref-meta {
       color: var(--color-text-muted);
       font-size: 0.82rem;
     }
+    .pref-page-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    .pref-form-card {
+      min-height: calc(100vh - 175px);
+    }
     .pref-row-click { cursor: pointer; }
     .pref-row-click:hover { background: rgba(255, 255, 255, 0.03); }
+    .pref-row-selected { background: rgba(249, 115, 22, 0.14); }
     .pref-actions-inline {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
       align-items: center;
     }
-    .pref-client-error {
-      color: #842029;
-      background: rgba(220, 53, 69, 0.16);
-      border: 1px solid rgba(220, 53, 69, 0.4);
-      border-radius: var(--radius-md);
-      padding: 10px 12px;
-      margin-bottom: 14px;
-      font-size: 0.88rem;
+    .pref-field-error {
+      color: #ff9da7;
+      font-size: 0.82rem;
+      min-height: 18px;
+      margin-top: 6px;
+      margin-bottom: 8px;
       display: none;
     }
     .pref-input-error {
       border-color: rgba(220, 53, 69, 0.7) !important;
       box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.25);
+    }
+    @media (max-width: 900px) {
+      .pref-form-card {
+        min-height: auto;
+      }
     }
   </style>
 </head>
@@ -185,12 +223,12 @@ function isRegimeChecked($value, $selectedRegimes) {
           </div>
         <?php endif; ?>
 
-        <div class="grid grid-2 gap-6 animate-fade-in-up">
-          <div class="card">
+        <div class="pref-page-stack animate-fade-in-up">
+          <div class="card pref-form-card" id="pref-form-card">
             <div class="card-header" style="justify-content:space-between;align-items:center;">
               <h3 class="card-title"><i class="fa-solid fa-sliders"></i> <?= $editingPreference ? 'Edit Selected Preference' : 'Add New Preference' ?></h3>
               <?php if ($editingPreference): ?>
-                <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$idUser ?>">New Preference</a>
+                <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$idUser ?>#pref-form-card">New Preference</a>
               <?php endif; ?>
             </div>
 
@@ -200,28 +238,35 @@ function isRegimeChecked($value, $selectedRegimes) {
                 <input type="hidden" name="id_pref" value="<?= (int)$editingPreference['id_pref'] ?>">
               <?php endif; ?>
 
-              <div id="student-pref-error" class="pref-client-error"></div>
-
               <label style="display:block;font-weight:500;margin-bottom:12px;color:var(--color-white);">Regimes alimentaires (required)</label>
               <div class="tags-grid" style="margin-bottom:20px;">
                 <?php foreach ($regimeOptions as $regime): ?>
                   <?php $checked = isRegimeChecked($regime['value'], $selectedRegimes); ?>
                   <label class="tag<?= $checked ? ' selected' : '' ?>" style="cursor:pointer;">
                     <input type="checkbox" name="regimes[]" value="<?= htmlspecialchars($regime['value'], ENT_QUOTES, 'UTF-8') ?>"<?= $checked ? ' checked' : '' ?>>
-                    <span class="tag-emoji"><i class="fa-solid <?= htmlspecialchars($regime['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span>
+                    <span class="tag-emoji">
+                      <?php if (($regime['icon_type'] ?? 'fa') === 'image' && !empty($regime['icon_image'])): ?>
+                        <img src="../<?= htmlspecialchars((string)$regime['icon_image'], ENT_QUOTES, 'UTF-8') ?>" alt="icon">
+                      <?php else: ?>
+                        <i class="fa-solid <?= htmlspecialchars((string)$regime['icon'], ENT_QUOTES, 'UTF-8') ?>"></i>
+                      <?php endif; ?>
+                    </span>
                     <?= htmlspecialchars($regime['label'], ENT_QUOTES, 'UTF-8') ?>
                   </label>
                 <?php endforeach; ?>
               </div>
+              <div id="regimes-error" class="pref-field-error"></div>
 
               <div style="margin-bottom:18px;">
                 <label for="pref-allergies" style="display:block;font-weight:500;margin-bottom:8px;color:var(--color-white);">Allergies (required)</label>
                 <textarea id="pref-allergies" name="allergies" class="pref-form-input pref-form-textarea" placeholder="Ex: soja, arachide"><?= htmlspecialchars($allergiesValue, ENT_QUOTES, 'UTF-8') ?></textarea>
+                <div id="allergies-error" class="pref-field-error"></div>
               </div>
 
               <div style="margin-bottom:20px;">
                 <label for="pref-localisation" style="display:block;font-weight:500;margin-bottom:8px;color:var(--color-white);">Localisation (required, exact match)</label>
                 <input type="text" id="pref-localisation" name="localisation" class="pref-form-input" value="<?= htmlspecialchars($localisationValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="Ex: Ariana">
+                <div id="localisation-error" class="pref-field-error"></div>
               </div>
 
               <div class="pref-actions-inline">
@@ -238,7 +283,7 @@ function isRegimeChecked($value, $selectedRegimes) {
             <?php endif; ?>
           </div>
 
-          <div class="card">
+          <div class="card" id="saved-preferences-card">
             <div class="card-header" style="justify-content:space-between;align-items:center;">
               <h3 class="card-title"><i class="fa-solid fa-list"></i> Your Saved Preferences</h3>
               <span class="badge badge-info"><?= count($preferenceRows) ?> items</span>
@@ -260,13 +305,13 @@ function isRegimeChecked($value, $selectedRegimes) {
                   </thead>
                   <tbody>
                     <?php foreach ($preferenceRows as $row): ?>
-                      <?php $isActiveRow = $editingPreference && (int)$editingPreference['id_pref'] === (int)$row['id_pref']; ?>
-                      <tr class="pref-row-click<?= $isActiveRow ? ' active' : '' ?>" data-href="preferences.php?id_user=<?= (int)$idUser ?>&edit_id=<?= (int)$row['id_pref'] ?>">
+                      <?php $isActiveRow = $selectedPreference && (int)$selectedPreference['id_pref'] === (int)$row['id_pref']; ?>
+                      <tr class="pref-row-click<?= $isActiveRow ? ' pref-row-selected' : '' ?>" data-href="preferences.php?id_user=<?= (int)$idUser ?>&selected_id=<?= (int)$row['id_pref'] ?>#saved-preferences-card">
                         <td><?= (int)$row['id_pref'] ?></td>
                         <td><?= htmlspecialchars((string)$row['regime_alimentaire'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['localisation'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['date_demande'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$idUser ?>&edit_id=<?= (int)$row['id_pref'] ?>">Edit</a></td>
+                        <td><a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$idUser ?>&edit_id=<?= (int)$row['id_pref'] ?>&selected_id=<?= (int)$row['id_pref'] ?>#pref-form-card">Edit</a></td>
                       </tr>
                     <?php endforeach; ?>
                   </tbody>
@@ -319,6 +364,7 @@ function isRegimeChecked($value, $selectedRegimes) {
 
   <script src="../js/app.js"></script>
   <script src="../js/components.js"></script>
+  <script src="../js/student-preferences-validation.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (!App.requireAuth(['student'])) return;
@@ -333,6 +379,8 @@ function isRegimeChecked($value, $selectedRegimes) {
         if (!queryId || queryId !== resolvedId) {
           url.searchParams.set('id_user', String(resolvedId));
           url.searchParams.delete('edit_id');
+          url.searchParams.delete('selected_id');
+          url.hash = '';
           window.location.replace(url.toString());
           return;
         }
@@ -362,107 +410,6 @@ function isRegimeChecked($value, $selectedRegimes) {
         });
       });
 
-      const studentForm = document.getElementById('student-pref-form');
-      const errorBox = document.getElementById('student-pref-error');
-      const allergiesField = document.getElementById('pref-allergies');
-      const localisationField = document.getElementById('pref-localisation');
-      const allergyTokenPattern = /^[A-Za-z\u00C0-\u024F\s'-]+$/u;
-
-      function parseCommaList(value) {
-        return String(value || '')
-          .split(/[;,]+/)
-          .map((part) => part.trim())
-          .filter((part) => part.length > 0);
-      }
-
-      function clearStudentFieldErrors() {
-        [allergiesField, localisationField].forEach((field) => {
-          if (field) field.classList.remove('pref-input-error');
-        });
-      }
-
-      if (studentForm) {
-        studentForm.addEventListener('submit', (event) => {
-          clearStudentFieldErrors();
-          const errors = [];
-
-          const selectedRegimes = studentForm.querySelectorAll('input[name="regimes[]"]:checked');
-          const allergiesValue = (allergiesField ? allergiesField.value : '').trim();
-          const localisationValue = (localisationField ? localisationField.value : '').trim();
-          const allergyItems = parseCommaList(allergiesValue);
-
-          if (selectedRegimes.length === 0) {
-            errors.push('Select at least one regime alimentaire.');
-          }
-
-          if (selectedRegimes.length > 4) {
-            errors.push('You can select at most 4 regimes alimentaires.');
-          }
-
-          if (allergiesValue.length === 0) {
-            errors.push('Allergies field is required.');
-            if (allergiesField) allergiesField.classList.add('pref-input-error');
-          }
-
-          if (allergiesValue.length > 0) {
-            if (/\d/.test(allergiesValue)) {
-              errors.push('Allergies cannot contain numbers.');
-              if (allergiesField) allergiesField.classList.add('pref-input-error');
-            }
-
-            if (allergyItems.length === 0) {
-              errors.push('Add at least one valid allergy item.');
-              if (allergiesField) allergiesField.classList.add('pref-input-error');
-            }
-
-            const seenAllergies = new Set();
-            for (const token of allergyItems) {
-              const normalized = token.toLocaleLowerCase();
-              if (seenAllergies.has(normalized)) {
-                errors.push('Duplicate allergy items are not allowed.');
-                if (allergiesField) allergiesField.classList.add('pref-input-error');
-                break;
-              }
-              seenAllergies.add(normalized);
-
-              if (!allergyTokenPattern.test(token)) {
-                errors.push('Each allergy must contain only letters, spaces, apostrophe or hyphen.');
-                if (allergiesField) allergiesField.classList.add('pref-input-error');
-                break;
-              }
-            }
-          }
-
-          if (localisationValue.length === 0) {
-            errors.push('Localisation field is required.');
-            if (localisationField) localisationField.classList.add('pref-input-error');
-          }
-
-          if (localisationValue.length > 1000) {
-            errors.push('Localisation must be 1000 characters or less.');
-            if (localisationField) localisationField.classList.add('pref-input-error');
-          }
-
-          if (allergiesValue.length > 1000) {
-            errors.push('Allergies must be 1000 characters or less.');
-            if (allergiesField) allergiesField.classList.add('pref-input-error');
-          }
-
-          if (errors.length > 0) {
-            event.preventDefault();
-            if (errorBox) {
-              errorBox.innerHTML = errors.join('<br>');
-              errorBox.style.display = 'block';
-            }
-            return;
-          }
-
-          if (errorBox) {
-            errorBox.innerHTML = '';
-            errorBox.style.display = 'none';
-          }
-        });
-      }
     });
   </script>
 </body>

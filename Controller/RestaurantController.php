@@ -1,0 +1,417 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+
+class RestaurantController
+{
+    private function db()
+    {
+        return config::getConnexion();
+    }
+
+    private function norm($v)
+    {
+        $v = trim((string)$v);
+        $v = preg_replace('/\s+/', ' ', $v);
+        return $v ?? '';
+    }
+
+    private function normList($v)
+    {
+        $parts = preg_split('/[,;]+/', (string)$v);
+        if (!$parts) {
+            return '';
+        }
+        $out = [];
+        foreach ($parts as $p) {
+            $p = strtolower($this->norm($p));
+            if ($p !== '') {
+                $out[] = $p;
+            }
+        }
+        return implode(', ', array_values(array_unique($out)));
+    }
+
+    private function ensureTable()
+    {
+        $this->db()->exec(
+            "CREATE TABLE IF NOT EXISTS restaurant (
+                id_restaurant INT AUTO_INCREMENT PRIMARY KEY,
+                id_owner INT NOT NULL,
+                nom VARCHAR(120) NOT NULL,
+                localisation VARCHAR(180) NOT NULL,
+                image_path VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                telephone VARCHAR(30) NOT NULL,
+                horaires VARCHAR(120) NOT NULL,
+                meals_json LONGTEXT DEFAULT NULL,
+                actif TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_owner (id_owner),
+                INDEX idx_nom (nom)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+    }
+
+    private function mealsDecode($json)
+    {
+        $json = trim((string)$json);
+        if ($json === '') {
+            return [];
+        }
+        $arr = json_decode($json, true);
+        return is_array($arr) ? $arr : [];
+    }
+
+    private function mealsEncode($arr)
+    {
+        return json_encode(array_values($arr), JSON_UNESCAPED_UNICODE);
+    }
+
+    private function uploadDir()
+    {
+        return __DIR__ . '/../assets/restaurant-signs';
+    }
+
+    private function uploadImage($file)
+    {
+        if (!is_array($file) || !isset($file['tmp_name']) || (int)($file['error'] ?? 1) !== UPLOAD_ERR_OK) {
+            return ['ok' => false, 'status' => 'error_restaurant_image_invalid'];
+        }
+        if (!is_uploaded_file($file['tmp_name'])) {
+            return ['ok' => false, 'status' => 'error_restaurant_image_invalid'];
+        }
+        $ext = strtolower(pathinfo((string)($file['name'] ?? ''), PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+            return ['ok' => false, 'status' => 'error_restaurant_image_invalid'];
+        }
+        if ((int)($file['size'] ?? 0) > 3 * 1024 * 1024) {
+            return ['ok' => false, 'status' => 'error_restaurant_image_invalid'];
+        }
+        $dir = $this->uploadDir();
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        if (!is_dir($dir)) {
+            return ['ok' => false, 'status' => 'error_db'];
+        }
+        $name = 'restaurant_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $path = $dir . '/' . $name;
+        if (!move_uploaded_file($file['tmp_name'], $path)) {
+            return ['ok' => false, 'status' => 'error_db'];
+        }
+        return ['ok' => true, 'path' => 'assets/restaurant-signs/' . $name];
+    }
+
+    private function deleteImage($webPath)
+    {
+        $webPath = trim((string)$webPath);
+        if (strpos($webPath, 'assets/restaurant-signs/') !== 0) {
+            return;
+        }
+        $file = basename($webPath);
+        $abs = $this->uploadDir() . '/' . $file;
+        if (is_file($abs)) {
+            @unlink($abs);
+        }
+    }
+
+    private function findById($id)
+    {
+        $this->ensureTable();
+        $q = $this->db()->prepare(
+            "SELECT r.*, u.nom AS owner_nom, u.email AS owner_email
+             FROM restaurant r
+             LEFT JOIN utilisateur u ON u.id = r.id_owner
+             WHERE r.id_restaurant = :id
+             LIMIT 1"
+        );
+        $q->execute(['id' => (int)$id]);
+        $row = $q->fetch();
+        if (!$row) {
+            return null;
+        }
+        $row['meals'] = $this->mealsDecode($row['meals_json'] ?? '[]');
+        return $row;
+    }
+
+    private function existsSameName($idOwner, $nom, $exclude = 0)
+    {
+        $sql = "SELECT id_restaurant FROM restaurant WHERE id_owner = :id_owner AND LOWER(TRIM(nom)) = LOWER(TRIM(:nom))";
+        if ($exclude > 0) {
+            $sql .= " AND id_restaurant <> :exclude";
+        }
+        $sql .= " LIMIT 1";
+        $q = $this->db()->prepare($sql);
+        $params = ['id_owner' => (int)$idOwner, 'nom' => $nom];
+        if ($exclude > 0) {
+            $params['exclude'] = (int)$exclude;
+        }
+        $q->execute($params);
+        return $q->fetch() ? true : false;
+    }
+
+    private function validateRestaurant($src, $files, $isUpdate = false, $existing = null, $isAdmin = false)
+    {
+        $idOwner = (int)($src['id_owner'] ?? 0);
+        $nom = $this->norm($src['nom'] ?? '');
+        $loc = $this->norm($src['localisation'] ?? '');
+        $desc = $this->norm($src['description'] ?? '');
+        $tel = $this->norm($src['telephone'] ?? '');
+        $hours = $this->norm($src['horaires'] ?? '');
+        $openTime = $this->norm($src['open_time'] ?? '');
+        $closeTime = $this->norm($src['close_time'] ?? '');
+        if ($openTime !== '' || $closeTime !== '') {
+            $hours = $openTime . '-' . $closeTime;
+        }
+        $actif = isset($src['actif']) ? 1 : 0;
+        $errors = [];
+
+        if ($idOwner <= 0) { $errors[] = 'id_owner'; }
+        if ($nom === '' || strlen($nom) < 2 || strlen($nom) > 100 || !preg_match("/^[\\p{L}\\p{N}\\s'\\-]+$/u", $nom)) { $errors[] = 'nom'; }
+        if ($loc === '' || strlen($loc) < 2 || strlen($loc) > 150) { $errors[] = 'localisation'; }
+        if ($desc === '' || strlen($desc) < 10 || strlen($desc) > 1000) { $errors[] = 'description'; }
+        if ($tel === '' || !preg_match('/^\+?[0-9 ]{8,15}$/', $tel)) { $errors[] = 'telephone'; }
+        if ($hours === '' || !preg_match('/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/', $hours, $matches)) {
+            $errors[] = 'horaires';
+        } else {
+            $start = $matches[1];
+            $end = $matches[2];
+            if ($start < '09:00' || $end > '22:00' || $start >= $end) {
+                $errors[] = 'horaires';
+            }
+        }
+
+        $img = $files['image_file'] ?? null;
+        $hasNewImg = is_array($img) && isset($img['error']) && (int)$img['error'] !== UPLOAD_ERR_NO_FILE;
+        $needImg = !$isUpdate || empty($existing['image_path']);
+        if ($needImg && !$hasNewImg) { $errors[] = 'image_file'; }
+        if (!empty($errors)) {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => array_values(array_unique($errors)), 'id_owner' => $idOwner];
+        }
+        return [
+            'ok' => true,
+            'payload' => [
+                'id_owner' => $idOwner,
+                'nom' => $nom,
+                'localisation' => $loc,
+                'description' => $desc,
+                'telephone' => $tel,
+                'horaires' => $hours,
+                'actif' => $isAdmin ? $actif : 1,
+            ],
+            'has_new_image' => $hasNewImg,
+            'image_info' => $img,
+        ];
+    }
+
+    private function validateMeal($src)
+    {
+        $name = $this->norm($src['meal_name'] ?? '');
+        $ing = $this->norm($src['ingredients'] ?? '');
+        $qty = (int)($src['quantity'] ?? 0);
+        $mode = $src['pricing_mode'] ?? '';
+        $price = (float)($src['price'] ?? 0);
+        $regInput = $src['regime_tags'] ?? '';
+        if (is_array($regInput)) {
+            $regParts = [];
+            foreach ($regInput as $item) {
+                $clean = strtolower($this->norm($item));
+                if ($clean !== '') {
+                    $regParts[] = $clean;
+                }
+            }
+            $reg = implode(', ', array_values(array_unique($regParts)));
+        } else {
+            $reg = $this->normList($regInput);
+        }
+        $alg = $this->normList($src['allergens'] ?? '');
+        $errors = [];
+        if ($name === '' || strlen($name) < 2 || strlen($name) > 100 || !preg_match("/^[\\p{L}\\p{N}\\s'\\-]+$/u", $name)) { $errors[] = 'meal_name'; }
+        if ($ing === '' || strlen($ing) < 2 || strlen($ing) > 1000 || !preg_match("/^[\\p{L}\\s,'\\-]+$/u", $ing)) { $errors[] = 'ingredients'; }
+        if ($qty <= 0 || $qty > 1000) { $errors[] = 'quantity'; }
+        if ($reg === '') { $errors[] = 'regime_tags'; }
+        if ($alg === '') { $errors[] = 'allergens'; }
+        if (!in_array($mode, ['free', 'paid'], true)) { $errors[] = 'pricing_mode'; }
+        if ($mode === 'paid' && ($price <= 0 || $price > 500)) { $errors[] = 'price'; }
+        if ($mode === 'free') { $price = 0; }
+        if (!empty($errors)) {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => array_values(array_unique($errors))];
+        }
+        return ['ok' => true, 'meal' => ['meal_name' => $name, 'ingredients' => $ing, 'quantity' => $qty, 'pricing_mode' => $mode, 'price' => $price, 'regime_tags' => $reg, 'allergens' => $alg]];
+    }
+
+    public function getPartnerRestaurants($idOwner)
+    {
+        $this->ensureTable();
+        $q = $this->db()->prepare(
+            "SELECT r.*, u.nom AS owner_nom, u.email AS owner_email
+             FROM restaurant r LEFT JOIN utilisateur u ON u.id = r.id_owner
+             WHERE r.id_owner = :id_owner
+             ORDER BY r.id_restaurant DESC"
+        );
+        $q->execute(['id_owner' => (int)$idOwner]);
+        $rows = $q->fetchAll();
+        foreach ($rows as &$r) { $r['meals'] = $this->mealsDecode($r['meals_json'] ?? '[]'); }
+        return $rows;
+    }
+
+    public function getAllRestaurantsForAdmin($search = '')
+    {
+        $this->ensureTable();
+        $search = $this->norm($search);
+        if ($search === '') {
+            $rows = $this->db()->query(
+                "SELECT r.*, u.nom AS owner_nom, u.email AS owner_email
+                 FROM restaurant r LEFT JOIN utilisateur u ON u.id = r.id_owner
+                 ORDER BY r.id_restaurant DESC"
+            )->fetchAll();
+        } else {
+            $q = $this->db()->prepare(
+                "SELECT r.*, u.nom AS owner_nom, u.email AS owner_email
+                 FROM restaurant r LEFT JOIN utilisateur u ON u.id = r.id_owner
+                 WHERE LOWER(r.nom) LIKE LOWER(:q) OR CAST(r.id_owner AS CHAR) LIKE :q
+                 ORDER BY r.id_restaurant DESC"
+            );
+            $q->execute(['q' => '%' . $search . '%']);
+            $rows = $q->fetchAll();
+        }
+        foreach ($rows as &$r) { $r['meals'] = $this->mealsDecode($r['meals_json'] ?? '[]'); }
+        return $rows;
+    }
+
+    public function getRestaurantById($idRestaurant)
+    {
+        return $this->findById((int)$idRestaurant);
+    }
+
+    private function createOrUpdateRestaurant($src, $files, $isAdmin, $isUpdate)
+    {
+        $idRestaurant = (int)($src['id_restaurant'] ?? 0);
+        $existing = $isUpdate ? $this->findById($idRestaurant) : null;
+        if ($isUpdate && !$existing) { return ['ok' => false, 'status' => 'error_not_found']; }
+        if ($isUpdate && !$isAdmin && (int)($src['id_owner'] ?? 0) !== (int)$existing['id_owner']) { return ['ok' => false, 'status' => 'error_forbidden']; }
+
+        $valid = $this->validateRestaurant($src, $files, $isUpdate, $existing, $isAdmin);
+        if (!$valid['ok']) { return $valid; }
+        $p = $valid['payload'];
+        if (!$isAdmin && $isUpdate) { $p['id_owner'] = (int)$existing['id_owner']; }
+
+        if ($this->existsSameName($p['id_owner'], $p['nom'], $isUpdate ? $idRestaurant : 0)) {
+            return ['ok' => false, 'status' => 'error_restaurant_exists', 'id_owner' => (int)$p['id_owner']];
+        }
+
+        $imgPath = $isUpdate ? (string)$existing['image_path'] : '';
+        if ($valid['has_new_image']) {
+            $upload = $this->uploadImage($valid['image_info']);
+            if (!$upload['ok']) { return ['ok' => false, 'status' => $upload['status'], 'id_owner' => (int)$p['id_owner']]; }
+            $imgPath = $upload['path'];
+        }
+
+        try {
+            if ($isUpdate) {
+                $q = $this->db()->prepare(
+                    "UPDATE restaurant
+                     SET id_owner=:id_owner, nom=:nom, localisation=:localisation, image_path=:image_path, description=:description, telephone=:telephone, horaires=:horaires, actif=:actif
+                     WHERE id_restaurant=:id_restaurant"
+                );
+                $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'actif' => $p['actif'], 'id_restaurant' => $idRestaurant]);
+                if ($valid['has_new_image'] && $imgPath !== (string)$existing['image_path']) { $this->deleteImage((string)$existing['image_path']); }
+                return ['ok' => true, 'status' => 'success_restaurant_updated', 'id_owner' => (int)$p['id_owner'], 'selected_id' => $idRestaurant];
+            }
+
+            $q = $this->db()->prepare(
+                "INSERT INTO restaurant (id_owner, nom, localisation, image_path, description, telephone, horaires, meals_json, actif)
+                 VALUES (:id_owner,:nom,:localisation,:image_path,:description,:telephone,:horaires,:meals_json,:actif)"
+            );
+            $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'meals_json' => '[]', 'actif' => $p['actif']]);
+            $id = (int)$this->db()->lastInsertId();
+            return ['ok' => true, 'status' => 'success_restaurant_created', 'id_owner' => (int)$p['id_owner'], 'selected_id' => $id];
+        } catch (Exception $e) {
+            return ['ok' => false, 'status' => 'error_db', 'id_owner' => (int)$p['id_owner']];
+        }
+    }
+
+    public function partnerCreateRestaurant($src, $files = []) { return $this->createOrUpdateRestaurant($src, $files, false, false); }
+    public function partnerUpdateRestaurant($src, $files = []) { return $this->createOrUpdateRestaurant($src, $files, false, true); }
+    public function adminCreateRestaurant($src, $files = []) { return $this->createOrUpdateRestaurant($src, $files, true, false); }
+    public function adminUpdateRestaurant($src, $files = []) { return $this->createOrUpdateRestaurant($src, $files, true, true); }
+
+    private function deleteRestaurant($src, $isAdmin)
+    {
+        $idRestaurant = (int)($src['id_restaurant'] ?? 0);
+        $idOwnerSource = (int)($src['id_owner'] ?? 0);
+        $existing = $this->findById($idRestaurant);
+        if (!$existing) { return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => $idOwnerSource]; }
+        if (!$isAdmin && $idOwnerSource !== (int)$existing['id_owner']) { return ['ok' => false, 'status' => 'error_forbidden', 'id_owner' => $idOwnerSource]; }
+        try {
+            $q = $this->db()->prepare("DELETE FROM restaurant WHERE id_restaurant = :id");
+            $q->execute(['id' => $idRestaurant]);
+            if ($q->rowCount() > 0) { $this->deleteImage((string)$existing['image_path']); }
+            return ['ok' => true, 'status' => 'success_restaurant_deleted', 'id_owner' => (int)$existing['id_owner']];
+        } catch (Exception $e) {
+            return ['ok' => false, 'status' => 'error_db', 'id_owner' => (int)$existing['id_owner']];
+        }
+    }
+
+    public function partnerDeleteRestaurant($src) { return $this->deleteRestaurant($src, false); }
+    public function adminDeleteRestaurant($src) { return $this->deleteRestaurant($src, true); }
+
+    private function saveMeals($idRestaurant, $meals)
+    {
+        $q = $this->db()->prepare("UPDATE restaurant SET meals_json = :meals_json WHERE id_restaurant = :id");
+        $q->execute(['meals_json' => $this->mealsEncode($meals), 'id' => (int)$idRestaurant]);
+    }
+
+    private function mealCrud($src, $isAdmin, $mode)
+    {
+        $idRestaurant = (int)($src['id_restaurant'] ?? 0);
+        $idOwnerSource = (int)($src['id_owner'] ?? 0);
+        $mealId = $this->norm($src['meal_id'] ?? '');
+        $restaurant = $this->findById($idRestaurant);
+        if (!$restaurant) { return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => $idOwnerSource, 'selected_id' => $idRestaurant]; }
+        if (!$isAdmin && $idOwnerSource !== (int)$restaurant['id_owner']) { return ['ok' => false, 'status' => 'error_forbidden', 'id_owner' => $idOwnerSource, 'selected_id' => $idRestaurant]; }
+
+        $meals = $restaurant['meals'] ?? [];
+        if ($mode === 'delete') {
+            $newMeals = [];
+            $deleted = false;
+            foreach ($meals as $m) { if (($m['meal_id'] ?? '') === $mealId) { $deleted = true; continue; } $newMeals[] = $m; }
+            if (!$deleted) { return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant]; }
+            $this->saveMeals($idRestaurant, $newMeals);
+            return ['ok' => true, 'status' => 'success_meal_deleted', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant];
+        }
+
+        $valid = $this->validateMeal($src);
+        if (!$valid['ok']) { return ['ok' => false, 'status' => $valid['status'], 'errors' => $valid['errors'], 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant]; }
+        $meal = $valid['meal'];
+
+        if ($mode === 'add') {
+            $meal['meal_id'] = 'meal_' . date('YmdHis') . '_' . substr(md5(uniqid((string)mt_rand(), true)), 0, 6);
+            $meal['created_at'] = date('Y-m-d H:i:s');
+            $meals[] = $meal;
+            $this->saveMeals($idRestaurant, $meals);
+            return ['ok' => true, 'status' => 'success_meal_added', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant];
+        }
+
+        $updated = false;
+        foreach ($meals as $i => $m) {
+            if (($m['meal_id'] ?? '') !== $mealId) { continue; }
+            $meal['meal_id'] = $mealId;
+            $meal['created_at'] = $m['created_at'] ?? date('Y-m-d H:i:s');
+            $meals[$i] = $meal;
+            $updated = true;
+            break;
+        }
+        if (!$updated) { return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant]; }
+        $this->saveMeals($idRestaurant, $meals);
+        return ['ok' => true, 'status' => 'success_meal_updated', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant];
+    }
+
+    public function partnerAddMeal($src) { return $this->mealCrud($src, false, 'add'); }
+    public function partnerUpdateMeal($src) { return $this->mealCrud($src, false, 'update'); }
+    public function partnerDeleteMeal($src) { return $this->mealCrud($src, false, 'delete'); }
+    public function adminAddMeal($src) { return $this->mealCrud($src, true, 'add'); }
+    public function adminUpdateMeal($src) { return $this->mealCrud($src, true, 'update'); }
+    public function adminDeleteMeal($src) { return $this->mealCrud($src, true, 'delete'); }
+}

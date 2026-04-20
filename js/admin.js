@@ -1,9 +1,17 @@
-/* ============================================
-   CAREMEAL — ADMIN MODULE
-   admin.js — Admin-specific logic
+﻿/* ============================================
+   CAREMEAL â€” ADMIN MODULE
+   admin.js â€” Admin-specific logic
    ============================================ */
 
 const Admin = {
+  pageExt() {
+    return window.location.pathname.toLowerCase().endsWith('.html') ? '.html' : '.php';
+  },
+
+  adminPage(name) {
+    return `${name}${this.pageExt()}`;
+  },
+
   init() {
     if (!App.requireAuth(['admin'])) return;
     this.loadDashboard();
@@ -40,7 +48,7 @@ const Admin = {
               </div>
             </div>
           </td>
-          <td><span class="badge badge-${u.role === 'student' ? 'info' : 'primary'}">${u.role === 'student' ? '<i class="fa-solid fa-graduation-cap"></i> Étudiant' : '<i class="fa-solid fa-store"></i> Partenaire'}</span></td>
+          <td><span class="badge badge-${u.role === 'student' ? 'info' : 'primary'}">${u.role === 'student' ? '<i class="fa-solid fa-graduation-cap"></i> Ã‰tudiant' : '<i class="fa-solid fa-store"></i> Partenaire'}</span></td>
           <td>${Admin.statusBadge(u.status)}</td>
           <td>${App.formatDate(u.createdAt)}</td>
         </tr>
@@ -55,7 +63,7 @@ const Admin = {
         <div class="timeline-item">
           <div class="timeline-time">${App.timeAgo(log.timestamp)}</div>
           <div class="timeline-content">
-            <strong>${log.userName}</strong> — ${log.action}
+            <strong>${log.userName}</strong> â€” ${log.action}
           </div>
         </div>
       `).join('');
@@ -111,7 +119,7 @@ const Admin = {
     document.getElementById('users-count').textContent = users.length + ' utilisateur' + (users.length > 1 ? 's' : '');
 
     if (users.length === 0) {
-      container.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--color-text-muted);">Aucun utilisateur trouvé</td></tr>';
+      container.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--color-text-muted);">Aucun utilisateur trouvÃ©</td></tr>';
       return;
     }
 
@@ -126,15 +134,15 @@ const Admin = {
             </div>
           </div>
         </td>
-        <td><span class="badge badge-${u.role === 'student' ? 'info' : 'primary'}">${u.role === 'student' ? '<i class="fa-solid fa-graduation-cap"></i> Étudiant' : '<i class="fa-solid fa-store"></i> Partenaire'}</span></td>
+        <td><span class="badge badge-${u.role === 'student' ? 'info' : 'primary'}">${u.role === 'student' ? '<i class="fa-solid fa-graduation-cap"></i> Ã‰tudiant' : '<i class="fa-solid fa-store"></i> Partenaire'}</span></td>
         <td>${Admin.statusBadge(u.status)}</td>
         <td>${App.formatDate(u.createdAt)}</td>
         <td>${u.ordersCount || u.mealsSaved || 0}</td>
         <td>
           <div class="table-actions">
-            <button class="table-action-btn" title="Voir détail" onclick="window.location.href='user-detail.html?id=${u.id}'"><i class="fa-solid fa-eye"></i></button>
+            <button class="table-action-btn" title="Voir dÃ©tail" onclick="window.location.href='${Admin.adminPage('user-detail')}?id=${u.id}'"><i class="fa-solid fa-eye"></i></button>
             ${u.status === 'active' ? `<button class="table-action-btn danger" title="Bannir" onclick="Admin.toggleBan('${u.id}', true)"><i class="fa-solid fa-ban"></i></button>` : ''}
-            ${u.status === 'banned' ? `<button class="table-action-btn" title="Réactiver" onclick="Admin.toggleBan('${u.id}', false)"><i class="fa-solid fa-check"></i></button>` : ''}
+            ${u.status === 'banned' ? `<button class="table-action-btn" title="RÃ©activer" onclick="Admin.toggleBan('${u.id}', false)"><i class="fa-solid fa-check"></i></button>` : ''}
             ${u.status === 'pending' ? `<button class="table-action-btn" title="Valider" onclick="Admin.validatePartner('${u.id}', true)"><i class="fa-solid fa-check"></i></button>` : ''}
             <button class="table-action-btn danger" title="Supprimer" onclick="Admin.confirmDelete('${u.id}')"><i class="fa-solid fa-trash"></i></button>
           </div>
@@ -144,15 +152,15 @@ const Admin = {
   },
 
   toggleBan(userId, ban) {
-    const action = ban ? 'bannir' : 'réactiver';
+    const action = ban ? 'bannir' : 'rÃ©activer';
     const user = App.getUserById(userId);
     Components.confirm(
-      ban ? 'Bannir l\'utilisateur' : 'Réactiver l\'utilisateur',
+      ban ? 'Bannir l\'utilisateur' : 'RÃ©activer l\'utilisateur',
       `Voulez-vous ${action} <strong>${user.name}</strong> ?`,
       () => {
         App.updateUser(userId, { status: ban ? 'banned' : 'active' });
-        App.addLog(`Utilisateur ${ban ? 'banni' : 'réactivé'}: ${user.name}`);
-        Components.showToast('Succès', `${user.name} a été ${ban ? 'banni' : 'réactivé'}.`, ban ? 'warning' : 'success');
+        App.addLog(`Utilisateur ${ban ? 'banni' : 'rÃ©activÃ©'}: ${user.name}`);
+        Components.showToast('SuccÃ¨s', `${user.name} a Ã©tÃ© ${ban ? 'banni' : 'rÃ©activÃ©'}.`, ban ? 'warning' : 'success');
         this.loadUsers();
       }
     );
@@ -162,10 +170,10 @@ const Admin = {
     const user = App.getUserById(userId);
     Components.confirm(
       'Supprimer l\'utilisateur',
-      `Cette action est irréversible. Supprimer <strong>${user.name}</strong> ?`,
+      `Cette action est irrÃ©versible. Supprimer <strong>${user.name}</strong> ?`,
       () => {
         App.deleteUser(userId);
-        Components.showToast('Supprimé', `${user.name} a été supprimé.`, 'error');
+        Components.showToast('SupprimÃ©', `${user.name} a Ã©tÃ© supprimÃ©.`, 'error');
         this.loadUsers();
       }
     );
@@ -176,15 +184,15 @@ const Admin = {
     if (!App.requireAuth(['admin'])) return;
     const params = new URLSearchParams(window.location.search);
     const userId = params.get('id');
-    if (!userId) { window.location.href = 'users.html'; return; }
+    if (!userId) { window.location.href = this.adminPage('users'); return; }
 
     const user = App.getUserById(userId);
-    if (!user) { window.location.href = 'users.html'; return; }
+    if (!user) { window.location.href = this.adminPage('users'); return; }
 
     document.getElementById('detail-avatar').textContent = App.getInitials(user.name);
     document.getElementById('detail-name').textContent = user.name;
     document.getElementById('detail-email').textContent = user.email;
-    document.getElementById('detail-role').innerHTML = `<span class="badge badge-${user.role === 'student' ? 'info' : 'primary'}">${user.role === 'student' ? '<i class="fa-solid fa-graduation-cap"></i> Étudiant' : '<i class="fa-solid fa-store"></i> Partenaire'}</span>`;
+    document.getElementById('detail-role').innerHTML = `<span class="badge badge-${user.role === 'student' ? 'info' : 'primary'}">${user.role === 'student' ? '<i class="fa-solid fa-graduation-cap"></i> Ã‰tudiant' : '<i class="fa-solid fa-store"></i> Partenaire'}</span>`;
     document.getElementById('detail-status').innerHTML = this.statusBadge(user.status);
     document.getElementById('detail-joined').textContent = App.formatDate(user.createdAt);
 
@@ -193,21 +201,21 @@ const Admin = {
     if (user.role === 'student') {
       extraContainer.innerHTML = `
         <div class="impact-grid">
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-school"></i></div><div class="impact-value">${user.university || '—'}</div><div class="impact-label">Université</div></div>
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-location-dot"></i></div><div class="impact-value">${user.quartier || '—'}</div><div class="impact-label">Quartier</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-school"></i></div><div class="impact-value">${user.university || 'â€”'}</div><div class="impact-label">UniversitÃ©</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-location-dot"></i></div><div class="impact-value">${user.quartier || 'â€”'}</div><div class="impact-label">Quartier</div></div>
           <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-star"></i></div><div class="impact-value">${user.points || 0}</div><div class="impact-label">Points</div></div>
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-utensils"></i></div><div class="impact-value">${user.mealsSaved || 0}</div><div class="impact-label">Repas sauvés</div></div>
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-leaf"></i></div><div class="impact-value">${(user.co2Saved || 0).toFixed(1)} kg</div><div class="impact-label">CO₂ évité</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-utensils"></i></div><div class="impact-value">${user.mealsSaved || 0}</div><div class="impact-label">Repas sauvÃ©s</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-leaf"></i></div><div class="impact-value">${(user.co2Saved || 0).toFixed(1)} kg</div><div class="impact-label">COâ‚‚ Ã©vitÃ©</div></div>
           <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-box"></i></div><div class="impact-value">${user.ordersCount || 0}</div><div class="impact-label">Commandes</div></div>
         </div>
       `;
     } else if (user.role === 'partner') {
       extraContainer.innerHTML = `
         <div class="impact-grid">
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-clipboard"></i></div><div class="impact-value">${user.type || '—'}</div><div class="impact-label">Type</div></div>
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-location-dot"></i></div><div class="impact-value" style="font-size:1rem;">${user.address || '—'}</div><div class="impact-label">Adresse</div></div>
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-mobile-screen"></i></div><div class="impact-value" style="font-size:1rem;">${user.phone || '—'}</div><div class="impact-label">Téléphone</div></div>
-          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-utensils"></i></div><div class="impact-value">${user.mealsSaved || 0}</div><div class="impact-label">Repas sauvés</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-clipboard"></i></div><div class="impact-value">${user.type || 'â€”'}</div><div class="impact-label">Type</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-location-dot"></i></div><div class="impact-value" style="font-size:1rem;">${user.address || 'â€”'}</div><div class="impact-label">Adresse</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-mobile-screen"></i></div><div class="impact-value" style="font-size:1rem;">${user.phone || 'â€”'}</div><div class="impact-label">TÃ©lÃ©phone</div></div>
+          <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-utensils"></i></div><div class="impact-value">${user.mealsSaved || 0}</div><div class="impact-label">Repas sauvÃ©s</div></div>
           <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-star"></i></div><div class="impact-value">${user.avgRating || 0}</div><div class="impact-label">Note moyenne</div></div>
           <div class="impact-card"><div class="impact-icon"><i class="fa-solid fa-message"></i></div><div class="impact-value">${user.reviewCount || 0}</div><div class="impact-label">Avis</div></div>
         </div>
@@ -220,7 +228,7 @@ const Admin = {
     if (user.status === 'active') {
       actionsHtml += `<button class="btn btn-danger btn-sm btn-full" onclick="Admin.toggleBan('${user.id}', true)"><i class="fa-solid fa-ban"></i> Bannir</button>`;
     } else if (user.status === 'banned') {
-      actionsHtml += `<button class="btn btn-success btn-sm btn-full" onclick="Admin.toggleBan('${user.id}', false)"><i class="fa-solid fa-check"></i> Réactiver</button>`;
+      actionsHtml += `<button class="btn btn-success btn-sm btn-full" onclick="Admin.toggleBan('${user.id}', false)"><i class="fa-solid fa-check"></i> RÃ©activer</button>`;
     } else if (user.status === 'pending') {
       actionsHtml += `<button class="btn btn-success btn-sm btn-full" onclick="Admin.validatePartner('${user.id}', true)"><i class="fa-solid fa-check"></i> Valider</button>`;
       actionsHtml += `<button class="btn btn-danger btn-sm btn-full" onclick="Admin.validatePartner('${user.id}', false)"><i class="fa-solid fa-xmark"></i> Refuser</button>`;
@@ -238,7 +246,7 @@ const Admin = {
         historyContainer.innerHTML = orders.map(o => `
           <div class="timeline-item">
             <div class="timeline-time">${App.formatDate(o.date)}</div>
-            <div class="timeline-content"><strong>${o.items}</strong> — ${o.partnerName} — ${o.price.toFixed(1)} DT</div>
+            <div class="timeline-content"><strong>${o.items}</strong> â€” ${o.partnerName} â€” ${o.price.toFixed(1)} DT</div>
           </div>
         `).join('');
       }
@@ -267,13 +275,13 @@ const Admin = {
             </div>
           </div>
         </td>
-        <td>${p.type || '—'}</td>
+        <td>${p.type || 'â€”'}</td>
         <td>${Admin.statusBadge(p.status)}</td>
         <td>${p.mealsSaved || 0}</td>
-        <td>${p.avgRating ? '<i class="fa-solid fa-star"></i> ' + p.avgRating : '—'}</td>
+        <td>${p.avgRating ? '<i class="fa-solid fa-star"></i> ' + p.avgRating : 'â€”'}</td>
         <td>
           <div class="table-actions">
-            <button class="table-action-btn" title="Voir détail" onclick="window.location.href='user-detail.html?id=${p.id}'"><i class="fa-solid fa-eye"></i></button>
+            <button class="table-action-btn" title="Voir dÃ©tail" onclick="window.location.href='${Admin.adminPage('user-detail')}?id=${p.id}'"><i class="fa-solid fa-eye"></i></button>
             ${p.status === 'pending' ? `
               <button class="table-action-btn" title="Valider" onclick="Admin.validatePartner('${p.id}', true)" style="color:var(--color-success);"><i class="fa-solid fa-check"></i></button>
               <button class="table-action-btn danger" title="Refuser" onclick="Admin.validatePartner('${p.id}', false)"><i class="fa-solid fa-xmark"></i></button>
@@ -293,8 +301,8 @@ const Admin = {
       `Voulez-vous ${action} <strong>${partner.name}</strong> ?`,
       () => {
         App.updateUser(partnerId, { status: approve ? 'active' : 'banned' });
-        App.addLog(`Partenaire ${approve ? 'validé' : 'refusé'}: ${partner.name}`);
-        Components.showToast('Succès', `${partner.name} a été ${approve ? 'validé' : 'refusé'}.`, approve ? 'success' : 'warning');
+        App.addLog(`Partenaire ${approve ? 'validÃ©' : 'refusÃ©'}: ${partner.name}`);
+        Components.showToast('SuccÃ¨s', `${partner.name} a Ã©tÃ© ${approve ? 'validÃ©' : 'refusÃ©'}.`, approve ? 'success' : 'warning');
         if (typeof this.loadPartners === 'function') this.loadPartners();
         if (typeof this.loadUsers === 'function') this.loadUsers();
       }
@@ -313,7 +321,7 @@ const Admin = {
     if (!container) return;
 
     if (logs.length === 0) {
-      container.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:40px;">Aucune activité enregistrée</p>';
+      container.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;padding:40px;">Aucune activitÃ© enregistrÃ©e</p>';
       return;
     }
 
@@ -347,3 +355,4 @@ const Admin = {
     if (el) el.textContent = value;
   }
 };
+

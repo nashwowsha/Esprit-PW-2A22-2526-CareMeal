@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Logs d'activité — CareMeal Admin.">
-  <title>Logs d'activité — CareMeal Admin</title>
+  <meta name="description" content="Gestion des partenaires CareMeal � Validation et suivi.">
+  <title>Gestion Partenaires � CareMeal Admin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
@@ -22,11 +22,11 @@
           <div class="sidebar-section-title">Administration</div>
           <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
           <a href="users.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
-          <a href="partners.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+          <a href="partners.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
           <a href="restaurants.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-shop"></i></span> Restaurants</a>
           <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-sliders"></i></span> Preferences</a>
                       <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
-            <a href="logs.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
+            <a href="logs.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -46,7 +46,7 @@
       <header class="top-header">
         <div class="header-left">
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
-          <div class="page-title"><h2>Logs d'activité</h2><p>Qui a fait quoi, quand</p></div>
+          <div class="page-title"><h2>Gestion Partenaires</h2><p>Validation et suivi des établissements</p></div>
         </div>
         <div class="header-right">
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
@@ -54,13 +54,34 @@
       </header>
 
       <div class="page-content">
-        <div class="card animate-fade-in-up">
-          <div class="card-header">
-            <h3 class="card-title"><i class="fa-solid fa-clipboard-list"></i> Toute l'activité</h3>
-            <span class="badge badge-info" id="logs-count">0 entrées</span>
+        <!-- Pending Alert -->
+        <div id="pending-alert" class="animate-fade-in-up" style="display:none;">
+          <div class="auth-alert info" style="margin-bottom:24px;">
+            <span><i class="fa-solid fa-hourglass-half"></i></span> <span id="pending-count">0</span> partenaire(s) en attente de validation.
           </div>
-          <div class="timeline" id="logs-timeline" style="padding:16px 16px 16px 40px;">
-            <!-- Loaded dynamically -->
+        </div>
+
+        <!-- Partners Table -->
+        <div class="card animate-fade-in-up stagger-1">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fa-solid fa-store"></i> Tous les partenaires</h3>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>�Établissement</th>
+                  <th>Type</th>
+                  <th>Statut</th>
+                  <th>Repas sauvés</th>
+                  <th>Note</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="partners-table-body">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -72,16 +93,39 @@
   <script src="../js/admin.js?v=20260420c"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      Admin.initLogs();
-      const logs = App.getLogs();
-      document.getElementById('logs-count').textContent = logs.length + ' entrée' + (logs.length > 1 ? 's' : '');
+      const ensureRestaurantsInSidebar = () => {
+        const section = document.querySelector('.sidebar-nav .sidebar-section');
+        if (!section) return;
+        if (section.querySelector('.sidebar-link[href="restaurants.php"]')) return;
+
+        const partnersLink = section.querySelector('.sidebar-link[href$="partners.html"], .sidebar-link[href$="partners.php"]');
+        const restaurantsLink = document.createElement('a');
+        restaurantsLink.href = 'restaurants.php';
+        restaurantsLink.className = 'sidebar-link';
+        restaurantsLink.innerHTML = '<span class="link-icon"><i class="fa-solid fa-shop"></i></span> Restaurants';
+
+        if (partnersLink) {
+          partnersLink.insertAdjacentElement('afterend', restaurantsLink);
+        } else {
+          section.appendChild(restaurantsLink);
+        }
+      };
+
+      ensureRestaurantsInSidebar();
+      setTimeout(ensureRestaurantsInSidebar, 300);
+      setTimeout(ensureRestaurantsInSidebar, 1200);
+
+      Admin.initPartners();
+      // Show pending alert
+      const pending = App.getUsers().filter(u => u.role === 'partner' && u.status === 'pending');
+      if (pending.length > 0) {
+        document.getElementById('pending-alert').style.display = 'block';
+        document.getElementById('pending-count').textContent = pending.length;
+      }
     });
   </script>
 </body>
 </html>
-
-
-
 
 
 

@@ -3,7 +3,35 @@
     currentFilter: 'Tous',
     searchQuery: '',
 
+    ensureSidebarRestaurantsLink() {
+        const section = document.querySelector('.sidebar-nav .sidebar-section');
+        if (!section) return;
+
+        const hasRestaurants = !!section.querySelector('.sidebar-link[href="restaurants.php"]');
+        if (hasRestaurants) return;
+
+        const partnersLink = section.querySelector('.sidebar-link[href$="partners.html"], .sidebar-link[href$="partners.php"]');
+        const preferencesLink = section.querySelector('.sidebar-link[href$="preferences.php"], .sidebar-link[href$="preferences.html"]');
+
+        const restaurantsLink = document.createElement('a');
+        restaurantsLink.href = 'restaurants.php';
+        restaurantsLink.className = 'sidebar-link';
+        restaurantsLink.innerHTML = '<span class="link-icon"><i class="fa-solid fa-shop"></i></span> Restaurants';
+
+        if (partnersLink) {
+            partnersLink.insertAdjacentElement('afterend', restaurantsLink);
+            return;
+        }
+
+        if (preferencesLink) {
+            preferencesLink.insertAdjacentElement('beforebegin', restaurantsLink);
+            return;
+        }
+
+        section.appendChild(restaurantsLink);
+    },
     init() {
+        this.ensureSidebarRestaurantsLink();
         const user = App.getCurrentUser();
         if (!user || user.role !== 'admin') {
             window.location.href = '../login.html';
@@ -251,6 +279,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     EventsAdmin.init();
 });
+
 
 
 

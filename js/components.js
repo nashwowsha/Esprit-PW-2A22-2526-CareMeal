@@ -1,14 +1,122 @@
-/* ============================================
-   CAREMEAL â€” COMPONENTS JS
-   components.js â€” Sidebar, Modals, Toasts
+﻿/* ============================================
+   CAREMEAL Ã¢â‚¬â€ COMPONENTS JS
+   components.js Ã¢â‚¬â€ Sidebar, Modals, Toasts
    ============================================ */
 
 const Components = {
+  adminSidebarObserver: null,
+  adminSidebarRepairing: false,
+
+  getAdminLinkExtension() {
+    return '.php';
+  },
+
+  normalizeAdminSidebarLabels() {
+    const path = window.location.pathname.toLowerCase();
+    if (!path.includes('/admin/')) return;
+
+    const labelByRoute = {
+      'preferences.php': 'Pr&eacute;f&eacute;rences',
+      'preferences.html': 'Pr&eacute;f&eacute;rences',
+      'events.php': '&Eacute;v&eacute;nements',
+      'events.html': '&Eacute;v&eacute;nements',
+      'logs.php': "Logs d'activit&eacute;",
+      'logs.html': "Logs d'activit&eacute;"
+    };
+
+    document.querySelectorAll('.sidebar-nav .sidebar-link').forEach((link) => {
+      const href = (link.getAttribute('href') || '').toLowerCase();
+      const label = labelByRoute[href];
+      if (!label) return;
+
+      const icon = link.querySelector('.link-icon');
+      if (!icon) return;
+
+      link.innerHTML = `${icon.outerHTML} ${label}`;
+    });
+  },
+
+  ensureAdminSidebarCompleteness() {
+    const path = window.location.pathname.toLowerCase();
+    if (!path.includes('/admin/')) return;
+
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    if (!sidebarNav) return;
+
+    const ext = this.getAdminLinkExtension();
+    const section = sidebarNav.querySelector('.sidebar-section');
+    if (!section) return;
+
+    const currentPage = path.split('/').pop();
+    const currentBase = (currentPage || '').replace(/\.php$|\.html$/i, '');
+    const routes = [
+      { base: 'dashboard', label: 'Vue globale', icon: 'fa-chart-column' },
+      { base: 'users', label: 'Utilisateurs', icon: 'fa-users' },
+      { base: 'partners', label: 'Partenaires', icon: 'fa-store' },
+      { base: 'restaurants', label: 'Restaurants', icon: 'fa-shop', forcePhp: true },
+      { base: 'preferences', label: 'Pr&eacute;f&eacute;rences', icon: 'fa-sliders', forcePhp: true },
+      { base: 'events', label: '&Eacute;v&eacute;nements', icon: 'fa-calendar-day', forcePhp: true },
+      { base: 'logs', label: "Logs d'activit&eacute;", icon: 'fa-clipboard-list' }
+    ];
+
+    const restaurantsLink = section.querySelector('.sidebar-link[href="restaurants.php"], .sidebar-link[href$="/restaurants.php"], .sidebar-link[href$="restaurants.php"]');
+    if (restaurantsLink) {
+      restaurantsLink.classList.remove('hidden');
+      restaurantsLink.removeAttribute('hidden');
+      restaurantsLink.style.display = '';
+    }
+
+    const hasRestaurants = !!restaurantsLink;
+    const linksCount = section.querySelectorAll('.sidebar-link').length;
+    if (hasRestaurants && linksCount >= 7) return;
+
+    let html = '<div class="sidebar-section-title">Administration</div>';
+    routes.forEach((route) => {
+      const href = route.forcePhp ? `${route.base}.php` : `${route.base}${ext}`;
+      const isActive = currentBase === route.base ? ' active' : '';
+      html += `<a href="${href}" class="sidebar-link${isActive}"><span class="link-icon"><i class="fa-solid ${route.icon}"></i></span> ${route.label}</a>`;
+    });
+    section.innerHTML = html;
+  },
+
+  setupAdminSidebarWatcher() {
+    const path = window.location.pathname.toLowerCase();
+    if (!path.includes('/admin/')) return;
+
+    const section = document.querySelector('.sidebar-nav .sidebar-section');
+    if (!section) return;
+
+    if (this.adminSidebarObserver) {
+      this.adminSidebarObserver.disconnect();
+      this.adminSidebarObserver = null;
+    }
+
+    this.adminSidebarObserver = new MutationObserver(() => {
+      if (this.adminSidebarRepairing) return;
+      this.adminSidebarRepairing = true;
+
+      setTimeout(() => {
+        this.ensureAdminSidebarCompleteness();
+        this.normalizeAdminSidebarLabels();
+        this.adminSidebarRepairing = false;
+      }, 0);
+    });
+
+    this.adminSidebarObserver.observe(section, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+  },
+
   // --- Sidebar ---
   initSidebar() {
     const toggle = document.getElementById('menu-toggle');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
+
+    this.ensureAdminSidebarCompleteness();
+    setTimeout(() => this.ensureAdminSidebarCompleteness(), 0);
+    setTimeout(() => this.ensureAdminSidebarCompleteness(), 250);
+    setTimeout(() => this.ensureAdminSidebarCompleteness(), 1000);
+    this.normalizeAdminSidebarLabels();
+    this.setupAdminSidebarWatcher();
 
     if (toggle && sidebar) {
       toggle.addEventListener('click', () => {
@@ -46,7 +154,7 @@ const Components = {
 
     if (userName) userName.textContent = user.name;
     if (userRole) {
-      const roleLabels = { student: 'Étudiant', partner: 'Partenaire', admin: 'Administrateur' };
+      const roleLabels = { student: 'Etudiant', partner: 'Partenaire', admin: 'Administrateur' };
       userRole.textContent = roleLabels[user.role] || user.role;
     }
     if (userAvatar) userAvatar.textContent = App.getInitials(user.name);
@@ -61,7 +169,7 @@ const Components = {
     document.querySelectorAll('[data-action="logout"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
-        App.addLog('Déconnexion');
+        App.addLog('Deconnexion');
         App.logout();
       });
     });
@@ -118,7 +226,7 @@ const Components = {
       success: '<i class="fa-solid fa-check"></i>',
       error: '<i class="fa-solid fa-xmark"></i>',
       warning: '<i class="fa-solid fa-triangle-exclamation"></i>',
-      info: 'â„¹'
+      info: '<i class="fa-solid fa-circle-info"></i>'
     };
 
     const toast = document.createElement('div');
@@ -187,13 +295,13 @@ const Components = {
 
     let html = `<span class="pagination-info">Page ${currentPage} sur ${totalPages}</span>`;
     html += '<div class="pagination-controls">';
-    html += `<button class="pagination-btn" ${currentPage <= 1 ? 'disabled' : ''} data-page="${currentPage - 1}">â€¹</button>`;
+    html += `<button class="pagination-btn" ${currentPage <= 1 ? 'disabled' : ''} data-page="${currentPage - 1}">Ã¢â‚¬Â¹</button>`;
 
     for (let i = 1; i <= totalPages; i++) {
       html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
     }
 
-    html += `<button class="pagination-btn" ${currentPage >= totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">â€º</button>`;
+    html += `<button class="pagination-btn" ${currentPage >= totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Ã¢â‚¬Âº</button>`;
     html += '</div>';
 
     container.innerHTML = html;
@@ -253,3 +361,4 @@ const Components = {
 
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => Components.init());
+
