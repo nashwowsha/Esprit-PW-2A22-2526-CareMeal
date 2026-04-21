@@ -264,19 +264,19 @@ class OfferController
         }
 
         if (!isset($data['prix']) || !is_numeric($data['prix']) || (float)$data['prix'] <= 0) {
-            $errors[] = 'Le prix réduit doit ÃÂªtre un nombre positif.';
+            $errors[] = 'Le prix réduit doit être un nombre positif.';
         }
 
         if (!isset($data['prix_original']) || !is_numeric($data['prix_original']) || (float)$data['prix_original'] <= 0) {
-            $errors[] = 'Le prix original doit ÃÂªtre un nombre positif.';
+            $errors[] = 'Le prix original doit être un nombre positif.';
         }
 
         if (isset($data['prix'], $data['prix_original']) && (float)$data['prix'] >= (float)$data['prix_original']) {
-            $errors[] = 'Le prix réduit doit ÃÂªtre inférieur au prix original.';
+            $errors[] = 'Le prix réduit doit être inférieur au prix original.';
         }
 
         if (!isset($data['quantite']) || (int)$data['quantite'] < 1) {
-            $errors[] = 'La quantité doit ÃÂªtre au moins 1.';
+            $errors[] = 'La quantité doit être au moins 1.';
         }
 
         if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {

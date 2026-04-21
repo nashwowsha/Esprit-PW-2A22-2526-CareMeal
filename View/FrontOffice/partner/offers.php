@@ -287,7 +287,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create')">Annuler</button>
         <button type="submit" class="btn btn-primary">
-          <i class="fa-solid fa-plus"></i> CrÃÂ©er l'offre
+          <i class="fa-solid fa-plus"></i> Créer l'offre
         </button>
       </div>
     </form>
