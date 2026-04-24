@@ -34,10 +34,33 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
     .modal-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-dark-border); padding: 16px 18px; }
     .modal-body { padding: 16px 18px; }
     .modal-foot { border-top: 1px solid var(--color-dark-border); padding: 14px 18px; display: flex; justify-content: flex-end; gap: 8px; }
-    .table-wrap { overflow-x: auto; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--color-dark-border); border-radius: 12px; }
     .offers-table { width: 100%; border-collapse: collapse; }
-    .offers-table th, .offers-table td { padding: 10px 12px; border-bottom: 1px solid var(--color-dark-border); font-size: .86rem; }
-    .offers-table th { text-align: left; font-size: .75rem; text-transform: uppercase; color: var(--color-text-muted); }
+    .offers-table th, .offers-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-dark-border); font-size: .86rem; }
+    .offers-table th { text-align: left; font-size: .75rem; text-transform: uppercase; color: var(--color-text-muted); background: rgba(255,255,255,.03); letter-spacing: .06em; }
+    .offers-table tr:last-child td { border-bottom: none; }
+    .offers-table tr:hover td { background: var(--color-dark-hover); }
+    .modal-body .form-input,
+    .modal-body .form-textarea {
+      width: 100%;
+      border: 1px solid var(--color-dark-border);
+      border-radius: 12px;
+      background: rgba(255,255,255,.05);
+      color: var(--color-white);
+      font-size: .92rem;
+      padding: 12px 14px;
+      outline: none;
+    }
+    .modal-body .form-input:focus,
+    .modal-body .form-textarea:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), .22);
+      background: rgba(255,255,255,.07);
+    }
+    .modal-body .form-input::placeholder,
+    .modal-body .form-textarea::placeholder {
+      color: rgba(255,255,255,.45);
+    }
   </style>
 </head>
 <body>
@@ -55,6 +78,8 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
         <a href="/caremeal/admin/partners.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
         <a href="/caremeal/admin/categorie.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Categorie offres</a>
         <a href="/caremeal/admin/offers.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
+        <a href="/caremeal/admin/events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
+        <a href="/caremeal/admin/logs.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activites</a>
       </div>
     </nav>
   </aside>

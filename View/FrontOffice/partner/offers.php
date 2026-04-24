@@ -85,6 +85,38 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert { padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-size: .9rem; }
     .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
     .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+    .category-choice-board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .category-choice-btn {
+      border: 1px solid var(--color-dark-border);
+      background: rgba(255,255,255,.04);
+      color: var(--color-white);
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: .82rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all .2s ease;
+    }
+    .category-choice-btn .cat-count {
+      font-size: .72rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      color: var(--color-text-muted);
+    }
+    .category-choice-btn.active,
+    .category-choice-btn:hover {
+      background: rgba(var(--color-primary-rgb), .18);
+      border-color: rgba(var(--color-primary-rgb), .5);
+      color: var(--color-primary);
+    }
   </style>
 </head>
 <body>
@@ -166,6 +198,14 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
       </div>
 
+      <div class="card animate-fade-in-up" style="padding:16px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+          <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-tags"></i> Table de choix des categories</h3>
+          <small style="color:var(--color-text-muted);">Le choix ici pre-remplit la categorie dans "Nouvelle offre".</small>
+        </div>
+        <div id="partner-category-board" class="category-choice-board" style="margin-top:12px;"></div>
+      </div>
+
       <!-- Offres actives -->
       <div class="section animate-fade-in-up stagger-1">
         <div class="section-header"><h3><i class="fa-solid fa-check"></i> Offres actives</h3></div>
@@ -177,7 +217,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
               $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
             ?>
-            <div class="offer-card">
+            <div class="offer-card" data-cat-id="<?= (int)($o['id_categorie'] ?? 0) ?>">
               <div style="position:relative;">
                 <?php if (!empty($o['photo_url'])): ?>
                   <img src="<?= e($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
@@ -228,7 +268,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
               $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
             ?>
-            <div class="offer-card">
+            <div class="offer-card" data-cat-id="<?= (int)($o['id_categorie'] ?? 0) ?>">
               <div style="position:relative;">
                 <?php if (!empty($o['photo_url'])): ?>
                   <img src="<?= e($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
@@ -339,13 +379,22 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 <!-- DonnÃÂ©es des offres injectÃÂ©es en PHP pour l'ÃÂÃÂÃÂÃÂ©dition JS -->
 <script>
 const allOffersData = <?= json_encode(array_values($offers ?? []), JSON_UNESCAPED_UNICODE) ?>;
+const allCategoriesData = <?= json_encode(array_values($categories ?? []), JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <script src="/caremeal/js/app.js"></script>
 <script src="/caremeal/js/components.js"></script>
 <script>
 /* ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ Helpers modal ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ */
-function openModal(id)  { const el=document.getElementById(id); el.classList.add('active'); el.style.display='flex'; document.body.style.overflow='hidden'; }
+function openModal(id)  {
+  const el=document.getElementById(id);
+  el.classList.add('active');
+  el.style.display='flex';
+  document.body.style.overflow='hidden';
+  if (id === 'modal-create') {
+    syncCreateCategoryWithSelection();
+  }
+}
 function closeModal(id) {
   const el=document.getElementById(id);
   el.classList.remove('active');
@@ -504,6 +553,12 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit ÃÂÃÂÃÂÃÂªtre au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
+  // Catégorie
+  const cat = form.querySelector('[name="id_categorie"]');
+  if (cat) {
+    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une categorie.'); valid = false; }
+    else clearFieldError(cat);
+  }
   // Heures ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂÃÂ¬ÃÂ¢Ã¢ÂÂ¬ÃÂ format HH:MM et cohÃÂ©rence
   const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
   const hd = form.querySelector('[name="heure_debut"]');
@@ -535,6 +590,9 @@ function attachTitreRealtime(form) {
 
 // Attacher la validation au formulaire de crÃÂÃÂÃÂÃÂ©ation
 document.addEventListener('DOMContentLoaded', () => {
+  renderPartnerCategoryBoard();
+  syncCreateCategoryWithSelection();
+
   const createForm = document.querySelector('#modal-create form');
   if (createForm) {
     createForm.addEventListener('submit', e => {
@@ -641,6 +699,57 @@ document.querySelectorAll('[data-action="logout"]').forEach(btn => {
 });
 
 /* ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ Menu mobile ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ */
+let selectedPartnerCategory = 'all';
+
+function renderPartnerCategoryBoard() {
+  const board = document.getElementById('partner-category-board');
+  if (!board) return;
+
+  const counts = {};
+  (allOffersData || []).forEach(o => {
+    const key = String(o.id_categorie || 0);
+    counts[key] = (counts[key] || 0) + 1;
+  });
+
+  const html = [
+    `<button type="button" class="category-choice-btn active" data-cat="all" onclick="selectPartnerCategory('all', this)"><i class="fa-solid fa-border-all"></i> Toutes <span class="cat-count">${allOffersData.length}</span></button>`
+  ];
+
+  (allCategoriesData || []).forEach(cat => {
+    const id = String(cat.id_categorie);
+    const icon = cat.icone ? `<i class="fa-solid ${esc(cat.icone)}"></i>` : '<i class="fa-solid fa-tag"></i>';
+    html.push(
+      `<button type="button" class="category-choice-btn" data-cat="${id}" onclick="selectPartnerCategory('${id}', this)">${icon} ${esc(cat.nom_categorie)} <span class="cat-count">${counts[id] || 0}</span></button>`
+    );
+  });
+
+  board.innerHTML = html.join('');
+}
+
+function selectPartnerCategory(catId, btn) {
+  selectedPartnerCategory = String(catId || 'all');
+  document.querySelectorAll('.category-choice-btn').forEach(el => el.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  document.querySelectorAll('.offer-card[data-cat-id]').forEach(card => {
+    const cardCat = String(card.getAttribute('data-cat-id') || '0');
+    card.style.display = (selectedPartnerCategory === 'all' || cardCat === selectedPartnerCategory) ? '' : 'none';
+  });
+
+  syncCreateCategoryWithSelection();
+}
+
+function syncCreateCategoryWithSelection() {
+  const form = document.getElementById('form-create');
+  if (!form) return;
+  const select = form.querySelector('[name="id_categorie"]');
+  if (!select) return;
+
+  if (selectedPartnerCategory !== 'all') {
+    select.value = selectedPartnerCategory;
+  }
+}
+
 const mt = document.getElementById('menu-toggle');
 const sb = document.getElementById('sidebar');
 const ov = document.getElementById('sidebar-overlay');

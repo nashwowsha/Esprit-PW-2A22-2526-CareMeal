@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../Controller/StudentController.php';
 $studentController = new StudentController();
 $offers = $studentController->getPublishedOffers();
+$categoriesWithOffers = $studentController->getPublishedOffersByCategory();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -93,57 +94,92 @@ $offers = $studentController->getPublishedOffers();
         </div>
 
         <div class="section animate-fade-in-up stagger-2">
-          <div class="section-header">
+          <div class="section-header" style="margin-bottom:16px;">
             <h3><i class="fa-solid fa-fire"></i> Offres du jour</h3>
             <span class="badge badge-primary" id="user-level">Niveau 1</span>
           </div>
 
-          <div class="grid grid-3 gap-6" id="offers-grid">
-            <?php if (empty($offers)): ?>
-              <div class="empty-state" style="grid-column:1/-1;">
-                <div class="empty-icon"><i class="fa-solid fa-utensils"></i></div>
-                <h3>Aucune offre disponible</h3>
-                <p>Revenez plus tard pour découvrir de nouvelles offres !</p>
-              </div>
-            <?php else: ?>
-              <?php foreach ($offers as $o):
-                $disc    = ($o['prix_original'] > 0) ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-                $resto   = htmlspecialchars($o['nom_categorie'] ?? '');
-                $titre   = htmlspecialchars($o['titre'] ?? '');
-                $desc    = htmlspecialchars($o['description'] ?? '');
-                $restant = (int)($o['quantite_restante'] ?? $o['quantite'] ?? 0);
-              ?>
-              <div class="offer-card animate-fade-in-up">
-                <div class="offer-card-image" style="position:relative;overflow:hidden;border-radius:12px 12px 0 0;">
-                  <?php if (!empty($o['photo_url'])): ?>
-                    <img src="<?= htmlspecialchars($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;\'><i class=\'fa-solid fa-utensils\'></i></div>'">
-                  <?php else: ?>
-                    <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;"><i class="fa-solid fa-utensils"></i></div>
-                  <?php endif; ?>
-                  <span class="offer-card-discount">-<?= $disc ?>%</span>
-                  <?php if ($restant > 0 && $restant <= 2): ?>
-                    <span class="offer-card-badge"><span class="badge badge-danger badge-dot">Plus que <?= $restant ?> !</span></span>
-                  <?php endif; ?>
-                </div>
-                <div class="offer-card-body">
-                  <h4><?= $titre ?></h4>
-                  <?php if ($resto): ?><p class="offer-restaurant"><i class="fa-solid fa-location-dot"></i> <?= $resto ?></p><?php endif; ?>
-                  <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
-                  <div class="offer-card-footer">
-                    <div class="offer-card-price">
-                      <span class="original"><?= number_format($o['prix_original'], 1) ?> DT</span>
-                      <span class="discounted"><?= number_format($o['prix'], 1) ?> DT</span>
-                    </div>
-                    <?php if (!empty($o['heure_debut'])): ?>
-                      <span class="offer-card-time"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars($o['heure_debut']) ?> - <?= htmlspecialchars($o['heure_fin'] ?? '') ?></span>
+          <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
+            <button class="btn btn-primary cat-filter-btn" data-cat="all" onclick="filterByCategory('all', this)">
+              <i class="fa-solid fa-border-all"></i> Toutes
+            </button>
+            <?php foreach ($categoriesWithOffers as $cat): ?>
+              <button class="btn btn-secondary cat-filter-btn"
+                      data-cat="<?= (int)$cat['id_categorie'] ?>"
+                      onclick="filterByCategory('<?= (int)$cat['id_categorie'] ?>', this)">
+                <?php if (!empty($cat['icone'])): ?>
+                  <i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i>
+                <?php endif; ?>
+                <?= htmlspecialchars($cat['nom_categorie']) ?>
+                <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
+                  <?= count($cat['offres']) ?>
+                </span>
+              </button>
+            <?php endforeach; ?>
+          </div>
+
+          <?php if (empty($categoriesWithOffers)): ?>
+            <div class="empty-state">
+              <div class="empty-icon"><i class="fa-solid fa-utensils"></i></div>
+              <h3>Aucune offre disponible</h3>
+              <p>Revenez plus tard pour découvrir de nouvelles offres !</p>
+            </div>
+          <?php else: ?>
+            <?php foreach ($categoriesWithOffers as $cat): ?>
+              <div class="cat-section" data-cat-id="<?= (int)$cat['id_categorie'] ?>" style="margin-bottom:32px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                  <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--color-primary),#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.9rem;">
+                    <?php if (!empty($cat['icone'])): ?>
+                      <i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i>
+                    <?php else: ?>
+                      <i class="fa-solid fa-tag"></i>
                     <?php endif; ?>
                   </div>
-                  <button class="btn btn-primary" style="width:100%;margin-top:12px;"><i class="fa-solid fa-basket-shopping"></i> Commander</button>
+                  <h4 style="margin:0;font-size:1rem;color:var(--color-white);"><?= htmlspecialchars($cat['nom_categorie']) ?></h4>
+                  <span style="font-size:.75rem;color:var(--color-text-muted);"><?= count($cat['offres']) ?> offre<?= count($cat['offres']) > 1 ? 's' : '' ?></span>
+                </div>
+
+                <div class="grid grid-3 gap-6">
+                  <?php foreach ($cat['offres'] as $o):
+                    $disc    = ($o['prix_original'] > 0) ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
+                    $titre   = htmlspecialchars($o['titre'] ?? '');
+                    $desc    = htmlspecialchars($o['description'] ?? '');
+                    $restant = (int)($o['quantite_restante'] ?? $o['quantite'] ?? 0);
+                  ?>
+                  <div class="offer-card animate-fade-in-up">
+                    <div class="offer-card-image" style="position:relative;overflow:hidden;border-radius:12px 12px 0 0;">
+                      <?php if (!empty($o['photo_url'])): ?>
+                        <img src="<?= htmlspecialchars($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
+                      <?php else: ?>
+                        <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">
+                          <i class="fa-solid fa-utensils"></i>
+                        </div>
+                      <?php endif; ?>
+                      <span class="offer-card-discount">-<?= $disc ?>%</span>
+                      <?php if ($restant > 0 && $restant <= 2): ?>
+                        <span class="offer-card-badge"><span class="badge badge-danger badge-dot">Plus que <?= $restant ?> !</span></span>
+                      <?php endif; ?>
+                    </div>
+                    <div class="offer-card-body">
+                      <h4><?= $titre ?></h4>
+                      <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
+                      <div class="offer-card-footer">
+                        <div class="offer-card-price">
+                          <span class="original"><?= number_format($o['prix_original'], 1) ?> DT</span>
+                          <span class="discounted"><?= number_format($o['prix'], 1) ?> DT</span>
+                        </div>
+                        <?php if (!empty($o['heure_debut'])): ?>
+                          <span class="offer-card-time"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars(substr($o['heure_debut'],0,5)) ?> - <?= htmlspecialchars(substr($o['heure_fin'] ?? '',0,5)) ?></span>
+                        <?php endif; ?>
+                      </div>
+                      <button class="btn btn-primary" style="width:100%;margin-top:12px;"><i class="fa-solid fa-basket-shopping"></i> Commander</button>
+                    </div>
+                  </div>
+                  <?php endforeach; ?>
                 </div>
               </div>
-              <?php endforeach; ?>
-            <?php endif; ?>
-          </div>
+            <?php endforeach; ?>
+          <?php endif; ?>
         </div>
       </div>
     </main>
@@ -152,6 +188,22 @@ $offers = $studentController->getPublishedOffers();
   <script src="../js/app.js"></script>
   <script src="../js/components.js"></script>
   <script src="../js/student.js"></script>
+  <script>
+    function filterByCategory(catId, btn) {
+      document.querySelectorAll('.cat-filter-btn').forEach(b => {
+        b.classList.remove('btn-primary'); b.classList.add('btn-secondary');
+      });
+      btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+
+      document.querySelectorAll('.cat-section').forEach(section => {
+        if (catId === 'all' || section.dataset.catId === catId) {
+          section.style.display = '';
+        } else {
+          section.style.display = 'none';
+        }
+      });
+    }
+  </script>
   <script>
     Student.loadOffers = function() {};
     document.addEventListener('DOMContentLoaded', () => {

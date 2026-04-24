@@ -37,6 +37,32 @@ class StudentController
         return $stmt->fetchAll();
     }
 
+    public function getPublishedOffersByCategory(): array
+    {
+        $offers = $this->getPublishedOffers();
+        $grouped = [];
+
+        foreach ($offers as $offer) {
+            $id = (int)($offer['id_categorie'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            if (!isset($grouped[$id])) {
+                $grouped[$id] = [
+                    'id_categorie' => $id,
+                    'nom_categorie' => (string)($offer['nom_categorie'] ?? 'Sans categorie'),
+                    'icone' => (string)($offer['icone'] ?? 'fa-tag'),
+                    'offres' => [],
+                ];
+            }
+
+            $grouped[$id]['offres'][] = $offer;
+        }
+
+        return array_values($grouped);
+    }
+
     public function dashboard()
     {
         $offers = $this->getPublishedOffers();
