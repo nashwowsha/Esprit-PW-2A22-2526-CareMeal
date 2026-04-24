@@ -1,8 +1,8 @@
 ﻿<?php
 require_once __DIR__ . '/../Controller/StudentController.php';
-$studentController = new StudentController();
-$offers = $studentController->getPublishedOffers();
-$categoriesWithOffers = $studentController->getPublishedOffersByCategory();
+$studentController        = new StudentController();
+$offers                   = $studentController->getPublishedOffers();
+$categoriesWithOffers     = $studentController->getPublishedOffersByCategory();
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -22,7 +22,6 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
         <div class="sidebar-logo"><img src="../assets/logo.png" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;"></div>
         <div class="sidebar-brand">Care<span>Meal</span></div>
       </div>
-
       <nav class="sidebar-nav">
         <div class="sidebar-section">
           <div class="sidebar-section-title">Menu</div>
@@ -37,7 +36,6 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
           <a href="settings.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
         </div>
       </nav>
-
       <div class="sidebar-footer">
         <div class="sidebar-user">
           <div class="avatar" id="sidebar-user-avatar">AA</div>
@@ -93,15 +91,20 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
           </div>
         </div>
 
+        <!-- ── OFFRES DU JOUR ── -->
         <div class="section animate-fade-in-up stagger-2">
           <div class="section-header" style="margin-bottom:16px;">
             <h3><i class="fa-solid fa-fire"></i> Offres du jour</h3>
             <span class="badge badge-primary" id="user-level">Niveau 1</span>
           </div>
 
+          <!-- Boutons filtre par catégorie (jointure simple) -->
           <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
             <button class="btn btn-primary cat-filter-btn" data-cat="all" onclick="filterByCategory('all', this)">
               <i class="fa-solid fa-border-all"></i> Toutes
+              <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
+                <?= count($offers) ?>
+              </span>
             </button>
             <?php foreach ($categoriesWithOffers as $cat): ?>
               <button class="btn btn-secondary cat-filter-btn"
@@ -118,6 +121,7 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
             <?php endforeach; ?>
           </div>
 
+          <!-- Grille d'offres -->
           <?php if (empty($offers)): ?>
             <div class="empty-state">
               <div class="empty-icon"><i class="fa-solid fa-utensils"></i></div>
@@ -131,16 +135,16 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
                 $titre   = htmlspecialchars($o['titre'] ?? '');
                 $desc    = htmlspecialchars($o['description'] ?? '');
                 $restant = (int)($o['quantite_restante'] ?? $o['quantite'] ?? 0);
-                // Toutes les catégories de l'offre (multi-catégorie)
-                $catIds  = implode(',', $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []));
-                $catNoms = !empty($o['cat_noms'])
-                  ? array_filter(array_map('trim', explode(',', $o['cat_noms'])))
-                  : ($o['nom_categorie'] ? [htmlspecialchars($o['nom_categorie'])] : []);
+                $catId   = (int)$o['id_categorie'];
+                $catNom  = htmlspecialchars($o['nom_categorie'] ?? '');
+                $catIcon = htmlspecialchars($o['icone'] ?? 'fa-tag');
               ?>
-              <div class="offer-card animate-fade-in-up student-offer-card" data-cat-ids="<?= htmlspecialchars($catIds) ?>">
+              <div class="offer-card animate-fade-in-up student-offer-card" data-cat-id="<?= $catId ?>">
                 <div class="offer-card-image" style="position:relative;overflow:hidden;border-radius:12px 12px 0 0;">
                   <?php if (!empty($o['photo_url'])): ?>
-                    <img src="<?= htmlspecialchars($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
+                    <img src="<?= htmlspecialchars($o['photo_url']) ?>"
+                         style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;"
+                         onerror="this.style.display='none'">
                   <?php else: ?>
                     <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">
                       <i class="fa-solid fa-utensils"></i>
@@ -153,15 +157,12 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
                 </div>
                 <div class="offer-card-body">
                   <h4><?= $titre ?></h4>
-                  <?php if (!empty($catNoms)): ?>
-                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px;">
-                    <?php foreach ($catNoms as $cn): ?>
-                      <span style="display:inline-block;background:var(--color-primary);color:#fff;border-radius:20px;padding:2px 10px;font-size:.7rem;font-weight:700;">
-                        <i class="fa-solid fa-tag" style="font-size:.6rem;margin-right:3px;"></i><?= htmlspecialchars($cn) ?>
-                      </span>
-                    <?php endforeach; ?>
+                  <!-- Badge catégorie orangé (jointure simple) -->
+                  <div style="margin:0 0 8px;">
+                    <span style="display:inline-block;background:var(--color-primary);color:#fff;border-radius:20px;padding:3px 12px;font-size:.72rem;font-weight:700;">
+                      <i class="fa-solid <?= $catIcon ?>" style="margin-right:4px;font-size:.65rem;"></i><?= $catNom ?>
+                    </span>
                   </div>
-                  <?php endif; ?>
                   <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
                   <div class="offer-card-footer">
                     <div class="offer-card-price">
@@ -169,10 +170,15 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
                       <span class="discounted"><?= number_format($o['prix'], 1) ?> DT</span>
                     </div>
                     <?php if (!empty($o['heure_debut'])): ?>
-                      <span class="offer-card-time"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars(substr($o['heure_debut'],0,5)) ?> - <?= htmlspecialchars(substr($o['heure_fin'] ?? '',0,5)) ?></span>
+                      <span class="offer-card-time">
+                        <i class="fa-solid fa-clock"></i>
+                        <?= htmlspecialchars(substr($o['heure_debut'],0,5)) ?> - <?= htmlspecialchars(substr($o['heure_fin'] ?? '',0,5)) ?>
+                      </span>
                     <?php endif; ?>
                   </div>
-                  <button class="btn btn-primary" style="width:100%;margin-top:12px;"><i class="fa-solid fa-basket-shopping"></i> Commander</button>
+                  <button class="btn btn-primary" style="width:100%;margin-top:12px;">
+                    <i class="fa-solid fa-basket-shopping"></i> Commander
+                  </button>
                 </div>
               </div>
               <?php endforeach; ?>
@@ -187,20 +193,21 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
   <script src="../js/components.js"></script>
   <script src="../js/student.js"></script>
   <script>
+    // Filtre par catégorie — jointure simple (data-cat-id = un seul ID)
     function filterByCategory(catId, btn) {
       document.querySelectorAll('.cat-filter-btn').forEach(b => {
-        b.classList.remove('btn-primary'); b.classList.add('btn-secondary');
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-secondary');
       });
-      btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+      btn.classList.remove('btn-secondary');
+      btn.classList.add('btn-primary');
 
       document.querySelectorAll('.student-offer-card').forEach(card => {
         if (catId === 'all') {
           card.style.display = '';
-          return;
+        } else {
+          card.style.display = (card.dataset.catId === String(catId)) ? '' : 'none';
         }
-        // data-cat-ids contient "1,2,3" — on vérifie si catId est dedans
-        const ids = (card.dataset.catIds || '').split(',').map(s => s.trim()).filter(Boolean);
-        card.style.display = ids.includes(String(catId)) ? '' : 'none';
       });
 
       // Message si aucune offre visible
