@@ -17,7 +17,7 @@ class AdminCategoryController
 
     public function index(): void
     {
-        $categories = $this->getCategoriesWithCounts();
+        $categories         = $this->getCategoriesWithCounts();
         $selectedCategoryId = isset($_GET['id_categorie']) ? (int)$_GET['id_categorie'] : 0;
 
         if ($selectedCategoryId <= 0 && !empty($categories)) {
@@ -26,9 +26,9 @@ class AdminCategoryController
 
         $offers = $selectedCategoryId > 0 ? $this->getOffersByCategory($selectedCategoryId) : [];
 
-        $flash = $_SESSION['flash'] ?? null;
+        $flash  = $_SESSION['flash']  ?? null;
         $errors = $_SESSION['errors'] ?? [];
-        $old = $_SESSION['old'] ?? [];
+        $old    = $_SESSION['old']    ?? [];
         unset($_SESSION['flash'], $_SESSION['errors'], $_SESSION['old']);
 
         require_once __DIR__ . '/../View/BackOffice/admin/categorie.php';
@@ -37,11 +37,11 @@ class AdminCategoryController
     public function createCategory(): void
     {
         $payload = $this->sanitizeCategoryPayload($_POST);
-        $errors = $this->validateCategory($payload);
+        $errors  = $this->validateCategory($payload);
 
         if (!empty($errors)) {
             $_SESSION['errors'] = $errors;
-            $_SESSION['old'] = $_POST;
+            $_SESSION['old']    = $_POST;
             $this->redirect();
         }
 
@@ -50,9 +50,9 @@ class AdminCategoryController
         );
 
         $stmt->execute([
-            ':nom' => $payload['nom_categorie'],
+            ':nom'         => $payload['nom_categorie'],
             ':description' => $payload['description'],
-            ':icone' => $payload['icone'],
+            ':icone'       => $payload['icone'],
         ]);
 
         $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie creee avec succes.'];
@@ -61,9 +61,9 @@ class AdminCategoryController
 
     public function updateCategory(): void
     {
-        $id = (int)($_POST['id_categorie'] ?? 0);
+        $id      = (int)($_POST['id_categorie'] ?? 0);
         $payload = $this->sanitizeCategoryPayload($_POST);
-        $errors = $this->validateCategory($payload);
+        $errors  = $this->validateCategory($payload);
 
         if ($id <= 0) {
             $errors[] = 'Categorie introuvable.';
@@ -71,7 +71,7 @@ class AdminCategoryController
 
         if (!empty($errors)) {
             $_SESSION['errors'] = $errors;
-            $_SESSION['old'] = $_POST;
+            $_SESSION['old']    = $_POST;
             $this->redirect();
         }
 
@@ -82,16 +82,21 @@ class AdminCategoryController
         );
 
         $stmt->execute([
-            ':nom' => $payload['nom_categorie'],
+            ':nom'         => $payload['nom_categorie'],
             ':description' => $payload['description'],
-            ':icone' => $payload['icone'],
-            ':id' => $id,
+            ':icone'       => $payload['icone'],
+            ':id'          => $id,
         ]);
 
         $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie modifiee avec succes.'];
         $this->redirect('id_categorie=' . $id);
     }
 
+    /**
+     * Supprime une catégorie.
+     * - Les offres liées à d'autres catégories restent intactes.
+     * - Les offres qui n'appartiennent QU'à cette catégorie sont supprimées.
+     */
     public function deleteCategory(): void
     {
         $id = (int)($_POST['id_categorie'] ?? 0);
@@ -99,18 +104,60 @@ class AdminCategoryController
             $this->redirect();
         }
 
-        $this->pdo->prepare('UPDATE offre SET id_categorie = NULL WHERE id_categorie = ?')->execute([$id]);
+        // 1. Trouver les offres qui n'ont que cette catégorie (elles vont être orphelines)
+        $stmt = $this->pdo->prepare(
+            "SELECT oc.id_offre
+             FROM offre_categorie oc
+             WHERE oc.id_categorie = ?
+               AND (
+                   SELECT COUNT(*)
+                   FROM offre_categorie oc2
+                   WHERE oc2.id_offre = oc.id_offre
+               ) = 1"
+        );
+        $stmt->execute([$id]);
+        $orphanIds = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        // 2. Supprimer les offres orphelines (et leurs liaisons pivot via CASCADE)
+        if (!empty($orphanIds)) {
+            $placeholders = implode(',', array_fill(0, count($orphanIds), '?'));
+            $this->pdo->prepare("DELETE FROM offre WHERE id_offre IN ($placeholders)")
+                      ->execute($orphanIds);
+        }
+
+        // 3. Supprimer la catégorie
+        //    Les FK ON DELETE CASCADE suppriment automatiquement les lignes restantes de offre_categorie.
         $this->pdo->prepare('DELETE FROM categorie_offre WHERE id_categorie = ?')->execute([$id]);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie supprimee. Les offres restent disponibles.'];
+        // 4. Mettre à jour la colonne legacy id_categorie pour les offres encore liées
+        //    (elles avaient cette catégorie comme primaire mais en ont d'autres)
+        $this->pdo->prepare(
+            "UPDATE offre o
+             SET id_categorie = (
+                 SELECT oc.id_categorie
+                 FROM offre_categorie oc
+                 WHERE oc.id_offre = o.id_offre
+                 ORDER BY oc.id_categorie
+                 LIMIT 1
+             )
+             WHERE id_categorie = ? OR id_categorie IS NULL"
+        )->execute([$id]);
+
+        $orphanCount = count($orphanIds);
+        $msg = 'Categorie supprimee.';
+        if ($orphanCount > 0) {
+            $msg .= " $orphanCount offre(s) appartenant uniquement a cette categorie ont ete supprimees.";
+        }
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => $msg];
         $this->redirect();
     }
 
     private function getCategoriesWithCounts(): array
     {
-        $sql = 'SELECT c.id_categorie, c.nom_categorie, c.description, c.icone, COUNT(o.id_offre) AS total_offres
+        $sql = 'SELECT c.id_categorie, c.nom_categorie, c.description, c.icone, COUNT(oc.id_offre) AS total_offres
                 FROM categorie_offre c
-                LEFT JOIN offre o ON o.id_categorie = c.id_categorie
+                LEFT JOIN offre_categorie oc ON oc.id_categorie = c.id_categorie
                 GROUP BY c.id_categorie, c.nom_categorie, c.description, c.icone
                 ORDER BY c.nom_categorie ASC';
 
@@ -121,7 +168,8 @@ class AdminCategoryController
     {
         $sql = 'SELECT o.id_offre, o.titre, o.prix, o.prix_original, o.quantite, o.statut, o.date_creation
                 FROM offre o
-                WHERE o.id_categorie = :id
+                JOIN offre_categorie oc ON oc.id_offre = o.id_offre
+                WHERE oc.id_categorie = :id
                 ORDER BY o.date_creation DESC';
 
         $stmt = $this->pdo->prepare($sql);
@@ -133,15 +181,15 @@ class AdminCategoryController
     {
         return [
             'nom_categorie' => trim((string)($data['nom_categorie'] ?? '')),
-            'description' => trim((string)($data['description'] ?? '')) ?: null,
-            'icone' => trim((string)($data['icone'] ?? '')) ?: null,
+            'description'   => trim((string)($data['description']   ?? '')) ?: null,
+            'icone'         => trim((string)($data['icone']         ?? '')) ?: null,
         ];
     }
 
     private function validateCategory(array $payload): array
     {
         $errors = [];
-        $name = $payload['nom_categorie'];
+        $name   = $payload['nom_categorie'];
 
         if ($name === '') {
             $errors[] = 'Le nom de categorie est obligatoire.';
@@ -158,15 +206,27 @@ class AdminCategoryController
     {
         $this->pdo->exec(
             "CREATE TABLE IF NOT EXISTS categorie_offre (
-                id_categorie INT AUTO_INCREMENT PRIMARY KEY,
+                id_categorie  INT AUTO_INCREMENT PRIMARY KEY,
                 nom_categorie VARCHAR(50) NOT NULL,
-                description TEXT NULL,
-                icone VARCHAR(100) NULL
+                description   TEXT NULL,
+                icone         VARCHAR(100) NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
 
         $this->pdo->exec('ALTER TABLE offre ADD COLUMN IF NOT EXISTS id_categorie INT NULL');
 
+        // Table pivot
+        $this->pdo->exec(
+            "CREATE TABLE IF NOT EXISTS offre_categorie (
+                id_offre     INT NOT NULL,
+                id_categorie INT NOT NULL,
+                PRIMARY KEY (id_offre, id_categorie),
+                CONSTRAINT fk_oc_offre2 FOREIGN KEY (id_offre)     REFERENCES offre(id_offre)               ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT fk_oc_cat2   FOREIGN KEY (id_categorie) REFERENCES categorie_offre(id_categorie) ON DELETE CASCADE ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        // FK legacy sur offre.id_categorie
         $fkExists = $this->pdo->prepare(
             "SELECT CONSTRAINT_NAME
              FROM information_schema.TABLE_CONSTRAINTS
@@ -185,8 +245,8 @@ class AdminCategoryController
                      FOREIGN KEY (id_categorie) REFERENCES categorie_offre(id_categorie)
                      ON DELETE SET NULL ON UPDATE CASCADE'
                 );
-            } catch (Throwable $e) {
-                // The app should continue even if the FK already exists under another name.
+            } catch (\Throwable $e) {
+                // already exists under another name
             }
         }
     }

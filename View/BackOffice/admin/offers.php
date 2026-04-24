@@ -46,6 +46,22 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-success { background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.2); }
     .alert-error   { background:rgba(239,68,68,.12);  color:#f87171; border:1px solid rgba(239,68,68,.2); }
 
+
+    /* Multi-category checkboxes */
+    .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:10px 0; }
+    .cat-checkbox-item label {
+      display:flex; align-items:center; gap:6px; cursor:pointer;
+      background:var(--color-dark-hover); border:1px solid var(--color-dark-border);
+      border-radius:8px; padding:6px 12px; font-size:.82rem; color:var(--color-text);
+      transition:border-color .15s, background .15s;
+    }
+    .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:15px; height:15px; }
+    .cat-checkbox-item input[type=checkbox]:checked + span { color:var(--color-white); font-weight:600; }
+    .cat-checkbox-item label:has(input:checked) { border-color:var(--color-primary); background:rgba(var(--color-primary-rgb,239,68,68),.08); }
+    .cat-tags { display:flex; flex-wrap:wrap; gap:4px; }
+    .cat-tag { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.7rem; font-weight:600;
+               background:rgba(239,68,68,.15); color:#f87171; }
+
     /* Fix select/option dark theme */
     select.form-input option {
       background-color: var(--color-dark-card, #1e2433);
@@ -171,7 +187,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                 <tr data-statut="<?= ea($o['statut']) ?>"
                     data-titre="<?= ea(strtolower($o['titre'])) ?>"
                     data-partenaire="<?= ea(strtolower($o['id_partenaire'] ?? '')) ?>"
-                    data-categorie="<?= (int)($o['id_categorie'] ?? 0) ?>">
+                    data-categorie="<?= ea($o['cat_ids'] ?? '') ?>">
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
                       <?php if (!empty($o['photo_url'])): ?>
@@ -181,7 +197,11 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                       <?php endif; ?>
                       <div>
                         <div style="font-weight:600;color:var(--color-white);font-size:.88rem;"><?= ea($o['titre']) ?></div>
-                        <div style="font-size:.75rem;color:var(--color-text-muted);"><?= ea($o['nom_categorie'] ?? '') ?></div>
+                        <div class="cat-tags" style="margin-top:3px;">
+                          <?php foreach (array_filter(explode(', ', $o['cat_noms'] ?? '')) as $cn): ?>
+                            <span class="cat-tag"><?= ea($cn) ?></span>
+                          <?php endforeach; ?>
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -262,20 +282,27 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                      value="<?= ea($old['quantite'] ?? '') ?>" required>
             </div>
           </div>
-          <div class="form-group">
-            <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
-            <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-              <select name="id_categorie" class="form-input" required>
-                <option value="">-- Choisir --</option>
-                <?php foreach ($categories as $c): ?>
-                  <option value="<?= (int)$c['id_categorie'] ?>"
-                    <?= (($old['id_categorie'] ?? '') == $c['id_categorie']) ? 'selected' : '' ?>>
-                    <?= ea($c['nom_categorie']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
+        </div>
+
+        <div class="form-group">
+          <label>Catégories <span style="color:var(--color-primary)">*</span> <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small></label>
+          <div class="cat-checkbox-list" id="create-cat-list">
+            <?php
+            $oldCats = isset($old['id_categories']) && is_array($old['id_categories'])
+                ? array_map('intval', $old['id_categories'])
+                : [];
+            foreach ($categories as $c):
+              $checked = in_array((int)$c['id_categorie'], $oldCats) ? 'checked' : '';
+            ?>
+              <div class="cat-checkbox-item">
+                <label>
+                  <input type="checkbox" name="id_categories[]" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?>>
+                  <span><?= ea($c['nom_categorie']) ?></span>
+                </label>
+              </div>
+            <?php endforeach; ?>
           </div>
+          <div id="create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner au moins une catégorie.</div>
         </div>
 
         <div class="form-row">
@@ -426,8 +453,15 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Génération du formulaire d'ÃƒÂ©dition Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 function buildEditForm(o) {
-  const catOpts = allCategoriesData.map(c =>
-    `<option value="${c.id_categorie}" ${o.id_categorie == c.id_categorie ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
+  // Tableau des ids catégories de cette offre
+  const offerCatIds = (o.categorie_ids && Array.isArray(o.categorie_ids)) ? o.categorie_ids : (o.cat_ids ? o.cat_ids.split(',').map(Number) : []);
+  const catCheckboxes = allCategoriesData.map(c =>
+    `<div class="cat-checkbox-item">
+      <label>
+        <input type="checkbox" name="id_categories[]" value="${c.id_categorie}" ${offerCatIds.includes(Number(c.id_categorie)) ? 'checked' : ''}>
+        <span>${esc(c.nom_categorie)}</span>
+      </label>
+    </div>`
   ).join('');
   const statuts = ['publiée','brouillon','expirée','archivée'];
   const statutOpts = statuts.map(s =>
@@ -467,12 +501,11 @@ function buildEditForm(o) {
           <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
         </div>
       </div>
-      <div class="form-group">
-        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
-        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-          <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
-        </div>
-      </div>
+    </div>
+    <div class="form-group">
+      <label>Catégories <span style="color:var(--color-primary)">*</span> <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small></label>
+      <div class="cat-checkbox-list" id="edit-cat-list">${catCheckboxes}</div>
+      <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner au moins une catégorie.</div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -576,11 +609,17 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Catégorie obligatoire
-  const cat = form.querySelector('[name="id_categorie"]');
-  if (cat) {
-    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une catégorie.'); valid = false; }
-    else clearFieldError(cat);
+  // Au moins une catégorie obligatoire
+  const catCheckboxesAll = form.querySelectorAll('[name="id_categories[]"]');
+  const catErrorEl = form.querySelector('#create-cat-error, #edit-cat-error');
+  if (catCheckboxesAll.length > 0) {
+    const anyChecked = Array.from(catCheckboxesAll).some(cb => cb.checked);
+    if (!anyChecked) {
+      if (catErrorEl) catErrorEl.style.display = 'block';
+      valid = false;
+    } else {
+      if (catErrorEl) catErrorEl.style.display = 'none';
+    }
   }
   // Heures Ã¢â‚¬â€ format HH:MM et cohérence
   const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -683,7 +722,7 @@ function applyFilters() {
     const partenaire = row.dataset.partenaire || '';
     const categorie  = row.dataset.categorie  || '';
     const matchFilter = currentFilter === 'tous' || statut === currentFilter;
-    const matchCategory = !currentCategoryFilter || currentCategoryFilter === categorie;
+    const matchCategory = !currentCategoryFilter || (categorie && categorie.split(',').includes(currentCategoryFilter));
     const matchSearch = !q || titre.includes(q) || partenaire.includes(q);
     row.style.display = (matchFilter && matchCategory && matchSearch) ? '' : 'none';
   });
