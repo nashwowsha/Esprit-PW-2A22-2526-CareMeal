@@ -85,37 +85,28 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert { padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-size: .9rem; }
     .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
     .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
-    .category-choice-board {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 22px;
-    }
-    .category-choice-btn {
-      border: 1px solid var(--color-dark-border);
-      background: rgba(255,255,255,.04);
+    .category-choice-wrap { margin-top: 12px; }
+    .category-choice-select {
+      width: 100%;
+      max-width: 340px;
+      height: 58px;
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 0;
+      background: rgba(255,255,255,.03);
       color: var(--color-white);
-      border-radius: 999px;
-      padding: 8px 14px;
-      cursor: pointer;
-      font-size: .82rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all .2s ease;
+      font-size: 1.05rem;
+      font-weight: 500;
+      padding: 0 18px;
+      outline: none;
+      transition: border-color .2s ease, box-shadow .2s ease;
     }
-    .category-choice-btn .cat-count {
-      font-size: .72rem;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.12);
-      color: var(--color-text-muted);
+    .category-choice-select:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), .25);
     }
-    .category-choice-btn.active,
-    .category-choice-btn:hover {
-      background: rgba(var(--color-primary-rgb), .18);
-      border-color: rgba(var(--color-primary-rgb), .5);
-      color: var(--color-primary);
+    .category-choice-select option {
+      background: var(--color-dark-card);
+      color: var(--color-white);
     }
   </style>
 </head>
@@ -203,7 +194,14 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-tags"></i> Table de choix des categories</h3>
           <small style="color:var(--color-text-muted);">Le choix ici pre-remplit la categorie dans "Nouvelle offre".</small>
         </div>
-        <div id="partner-category-board" class="category-choice-board" style="margin-top:12px;"></div>
+        <div class="category-choice-wrap">
+          <select id="partner-category-select" class="category-choice-select" onchange="onPartnerCategoryChange()">
+            <option value="all">Toutes les catégories</option>
+            <?php foreach (($categories ?? []) as $cat): ?>
+              <option value="<?= (int)$cat['id_categorie'] ?>"><?= e($cat['nom_categorie']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
       </div>
 
       <!-- Offres actives -->
@@ -429,6 +427,9 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 function buildEditForm(o) {
   const statuts = ['publiée','brouillon','expirée','archivée'];
+  const catOpts = (allCategoriesData || []).map(c =>
+    `<option value="${c.id_categorie}" ${(o.id_categorie == c.id_categorie) ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
+  ).join('');
   const statutOpts = statuts.map(s =>
     `<option value="${s}" ${(o.statut??'publiée')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
   ).join('');
@@ -464,6 +465,15 @@ function buildEditForm(o) {
         <label>Quantité <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
           <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
+          <select name="id_categorie" class="form-input">
+            <option value="">-- Choisir --</option>
+            ${catOpts}
+          </select>
         </div>
       </div>
     </div>
@@ -590,7 +600,7 @@ function attachTitreRealtime(form) {
 
 // Attacher la validation au formulaire de crÃÂÃÂÃÂÃÂ©ation
 document.addEventListener('DOMContentLoaded', () => {
-  renderPartnerCategoryBoard();
+  onPartnerCategoryChange();
   syncCreateCategoryWithSelection();
 
   const createForm = document.querySelector('#modal-create form');
@@ -701,52 +711,29 @@ document.querySelectorAll('[data-action="logout"]').forEach(btn => {
 /* ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ Menu mobile ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ */
 let selectedPartnerCategory = 'all';
 
-function renderPartnerCategoryBoard() {
-  const board = document.getElementById('partner-category-board');
-  if (!board) return;
-
-  const counts = {};
-  (allOffersData || []).forEach(o => {
-    const key = String(o.id_categorie || 0);
-    counts[key] = (counts[key] || 0) + 1;
-  });
-
-  const html = [
-    `<button type="button" class="category-choice-btn active" data-cat="all" onclick="selectPartnerCategory('all', this)"><i class="fa-solid fa-border-all"></i> Toutes <span class="cat-count">${allOffersData.length}</span></button>`
-  ];
-
-  (allCategoriesData || []).forEach(cat => {
-    const id = String(cat.id_categorie);
-    const icon = cat.icone ? `<i class="fa-solid ${esc(cat.icone)}"></i>` : '<i class="fa-solid fa-tag"></i>';
-    html.push(
-      `<button type="button" class="category-choice-btn" data-cat="${id}" onclick="selectPartnerCategory('${id}', this)">${icon} ${esc(cat.nom_categorie)} <span class="cat-count">${counts[id] || 0}</span></button>`
-    );
-  });
-
-  board.innerHTML = html.join('');
+function onPartnerCategoryChange() {
+  const categorySelect = document.getElementById('partner-category-select');
+  selectedPartnerCategory = categorySelect ? String(categorySelect.value || 'all') : 'all';
+  applyPartnerCategoryFilter();
+  syncCreateCategoryWithSelection();
 }
 
-function selectPartnerCategory(catId, btn) {
-  selectedPartnerCategory = String(catId || 'all');
-  document.querySelectorAll('.category-choice-btn').forEach(el => el.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-
+function applyPartnerCategoryFilter() {
   document.querySelectorAll('.offer-card[data-cat-id]').forEach(card => {
     const cardCat = String(card.getAttribute('data-cat-id') || '0');
     card.style.display = (selectedPartnerCategory === 'all' || cardCat === selectedPartnerCategory) ? '' : 'none';
   });
-
-  syncCreateCategoryWithSelection();
 }
 
 function syncCreateCategoryWithSelection() {
-  const form = document.getElementById('form-create');
-  if (!form) return;
-  const select = form.querySelector('[name="id_categorie"]');
-  if (!select) return;
+  const createForm = document.getElementById('form-create');
+  if (!createForm) return;
+
+  const createCategorySelect = createForm.querySelector('[name="id_categorie"]');
+  if (!createCategorySelect) return;
 
   if (selectedPartnerCategory !== 'all') {
-    select.value = selectedPartnerCategory;
+    createCategorySelect.value = selectedPartnerCategory;
   }
 }
 

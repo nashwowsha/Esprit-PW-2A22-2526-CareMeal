@@ -82,7 +82,18 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
         <a href="/caremeal/admin/logs.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activites</a>
       </div>
     </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
+          <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
+        </div>
+        <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+      </div>
+    </div>
   </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <main class="main-content">
     <header class="top-header">
@@ -298,6 +309,23 @@ document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
     if (event.target === overlay) {
       overlay.classList.remove('active');
     }
+  });
+});
+
+const mt = document.getElementById('menu-toggle');
+const sb = document.getElementById('sidebar');
+const ov = document.getElementById('sidebar-overlay');
+if (mt && sb) mt.addEventListener('click', () => sb.classList.toggle('open'));
+if (ov && sb) ov.addEventListener('click', () => sb.classList.remove('open'));
+
+document.querySelectorAll('[data-action="logout"]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    if (typeof App !== 'undefined' && typeof App.logout === 'function') {
+      App.logout();
+      return;
+    }
+    localStorage.removeItem('caremeal_current_user');
+    window.location.href = '/caremeal/login.html';
   });
 });
 </script>

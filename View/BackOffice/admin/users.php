@@ -23,6 +23,7 @@
           <a href="dashboard.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
           <a href="users.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
           <a href="partners.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+          <a href="categorie.php" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Categorie offres</a>
           <a href="offers.php" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
           <a href="events.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
           <a href="logs.html" class="sidebar-link "><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
