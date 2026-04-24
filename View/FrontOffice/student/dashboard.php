@@ -102,105 +102,106 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
 
           <!-- Boutons filtre par catégorie -->
           <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
-            <button class="btn btn-primary cat-filter-btn" data-cat="all" onclick="filterByCategory('all', this)">
+            <button class="btn btn-primary cat-filter-btn active" data-cat="all" onclick="filterByCategory('all', this)">
               <i class="fa-solid fa-border-all"></i> Toutes
+              <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
+                <?= count($offers) ?>
+              </span>
             </button>
-            <?php foreach ($categoriesWithOffers as $cat): ?>
+            <?php
+            // Build unique category list from all offers
+            $allCats = [];
+            foreach ($offers as $o) {
+              $ids  = $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []);
+              $noms = $o['cat_noms'] ? array_map('trim', explode(',', $o['cat_noms'])) : [$o['nom_categorie'] ?? ''];
+              foreach ($ids as $ci => $cid) {
+                if ($cid && !isset($allCats[$cid])) {
+                  $allCats[$cid] = ['id' => $cid, 'nom' => $noms[$ci] ?? $noms[0] ?? '', 'icone' => $o['icone'] ?? ''];
+                }
+              }
+            }
+            foreach ($allCats as $cat):
+              // Count offers that belong to this category
+              $count = count(array_filter($offers, fn($o) => in_array($cat['id'], $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []))));
+            ?>
               <button class="btn btn-secondary cat-filter-btn"
-                      data-cat="<?= (int)$cat['id_categorie'] ?>"
-                      onclick="filterByCategory('<?= (int)$cat['id_categorie'] ?>', this)">
+                      data-cat="<?= (int)$cat['id'] ?>"
+                      onclick="filterByCategory('<?= (int)$cat['id'] ?>', this)">
                 <?php if (!empty($cat['icone'])): ?>
                   <i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i>
                 <?php endif; ?>
-                <?= htmlspecialchars($cat['nom_categorie']) ?>
+                <?= htmlspecialchars($cat['nom']) ?>
                 <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
-                  <?= count($cat['offres']) ?>
+                  <?= $count ?>
                 </span>
               </button>
             <?php endforeach; ?>
           </div>
 
-          <!-- Offres groupées par catégorie -->
-          <?php if (empty($categoriesWithOffers)): ?>
+          <!-- Grille d'offres (filtre multi-catégorie par data-cat-ids) -->
+          <?php if (empty($offers)): ?>
             <div class="empty-state">
               <div class="empty-icon"><i class="fa-solid fa-utensils"></i></div>
               <h3>Aucune offre disponible</h3>
               <p>Revenez plus tard pour découvrir de nouvelles offres !</p>
             </div>
           <?php else: ?>
-            <?php foreach ($categoriesWithOffers as $cat): ?>
-              <div class="cat-section" data-cat-id="<?= (int)$cat['id_categorie'] ?>" style="margin-bottom:32px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-                  <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--color-primary),#f97316);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.9rem;">
-                    <?php if (!empty($cat['icone'])): ?>
-                      <i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i>
-                    <?php else: ?>
-                      <i class="fa-solid fa-tag"></i>
+            <div class="grid grid-3 gap-6" id="student-offers-grid">
+              <?php foreach ($offers as $o):
+                $disc    = ($o['prix_original'] > 0) ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
+                $titre   = htmlspecialchars($o['titre'] ?? '');
+                $desc    = htmlspecialchars($o['description'] ?? '');
+                $restant = (int)($o['quantite'] ?? 0);
+                // data-cat-ids = "1,2,3" for JS filtering
+                $catIds  = implode(',', $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []));
+                $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
+                $catList = $displayCats ? array_filter(array_map('trim', explode(',', $displayCats))) : [];
+              ?>
+              <div class="offer-card animate-fade-in-up" data-cat-ids="<?= htmlspecialchars($catIds) ?>">
+                <div class="offer-card-image" style="position:relative;overflow:hidden;border-radius:12px 12px 0 0;">
+                  <?php if (!empty($o['photo_url'])): ?>
+                    <img src="<?= htmlspecialchars($o['photo_url']) ?>"
+                         style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;"
+                         onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;\'><i class=\'fa-solid fa-utensils\'></i></div>'">
+                  <?php else: ?>
+                    <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">
+                      <i class="fa-solid fa-utensils"></i>
+                    </div>
+                  <?php endif; ?>
+                  <span class="offer-card-discount">-<?= $disc ?>%</span>
+                  <?php if ($restant > 0 && $restant <= 2): ?>
+                    <span class="offer-card-badge"><span class="badge badge-danger badge-dot">Plus que <?= $restant ?> !</span></span>
+                  <?php endif; ?>
+                </div>
+                <div class="offer-card-body">
+                  <h4><?= $titre ?></h4>
+                  <?php if (!empty($catList)): ?>
+                  <p style="font-size:.72rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
+                    <?php foreach ($catList as $ci => $cn): ?>
+                      <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
+                      <span><?= htmlspecialchars($cn) ?></span>
+                    <?php endforeach; ?>
+                  </p>
+                  <?php endif; ?>
+                  <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
+                  <div class="offer-card-footer">
+                    <div class="offer-card-price">
+                      <span class="original"><?= number_format($o['prix_original'], 1) ?> DT</span>
+                      <span class="discounted"><?= number_format($o['prix'], 1) ?> DT</span>
+                    </div>
+                    <?php if (!empty($o['heure_debut'])): ?>
+                      <span class="offer-card-time"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars(substr($o['heure_debut'],0,5)) ?> - <?= htmlspecialchars(substr($o['heure_fin'] ?? '',0,5)) ?></span>
                     <?php endif; ?>
                   </div>
-                  <h4 style="margin:0;font-size:1rem;color:var(--color-white);"><?= htmlspecialchars($cat['nom_categorie']) ?></h4>
-                  <span style="font-size:.75rem;color:var(--color-text-muted);"><?= count($cat['offres']) ?> offre<?= count($cat['offres']) > 1 ? 's' : '' ?></span>
-                </div>
-                <div class="grid grid-3 gap-6">
-                  <?php foreach ($cat['offres'] as $o):
-                    $disc    = ($o['prix_original'] > 0) ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-                    $titre   = htmlspecialchars($o['titre'] ?? '');
-                    $desc    = htmlspecialchars($o['description'] ?? '');
-                    $restant = (int)($o['quantite'] ?? 0);
-                  ?>
-                  <div class="offer-card animate-fade-in-up">
-                    <div class="offer-card-image" style="position:relative;overflow:hidden;border-radius:12px 12px 0 0;">
-                      <?php if (!empty($o['photo_url'])): ?>
-                        <img src="<?= htmlspecialchars($o['photo_url']) ?>"
-                             style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;"
-                             onerror="this.parentElement.innerHTML='<div style='width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;'><i class='fa-solid fa-utensils'></i></div>'">
-                      <?php else: ?>
-                        <div style="width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:var(--color-dark-hover);border-radius:12px 12px 0 0;">
-                          <i class="fa-solid fa-utensils"></i>
-                        </div>
-                      <?php endif; ?>
-                      <span class="offer-card-discount">-<?= $disc ?>%</span>
-                      <?php if ($restant > 0 && $restant <= 2): ?>
-                        <span class="offer-card-badge"><span class="badge badge-danger badge-dot">Plus que <?= $restant ?> !</span></span>
-                      <?php endif; ?>
-                    </div>
-                    <div class="offer-card-body">
-                      <h4><?= $titre ?></h4>
-                      <?php
-                        $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
-                        if (!empty($displayCats)):
-                          $catList = array_filter(array_map('trim', explode(',', $displayCats)));
-                      ?>
-                      <p style="font-size:.72rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
-                        <?php foreach ($catList as $ci => $cn): ?>
-                          <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
-                          <span><?= htmlspecialchars(trim($cn)) ?></span>
-                        <?php endforeach; ?>
-                      </p>
-                      <?php endif; ?>
-                      <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
-                      <div class="offer-card-footer">
-                        <div class="offer-card-price">
-                          <span class="original"><?= number_format($o['prix_original'], 1) ?> DT</span>
-                          <span class="discounted"><?= number_format($o['prix'], 1) ?> DT</span>
-                        </div>
-                        <?php if (!empty($o['heure_debut'])): ?>
-                          <span class="offer-card-time"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars(substr($o['heure_debut'],0,5)) ?> - <?= htmlspecialchars(substr($o['heure_fin'] ?? '',0,5)) ?></span>
-                        <?php endif; ?>
-                      </div>
-                      <button class="btn btn-primary" style="width:100%;margin-top:12px;">
-                        <i class="fa-solid fa-basket-shopping"></i> Commander
-                      </button>
-                    </div>
-                  </div>
-                  <?php endforeach; ?>
+                  <button class="btn btn-primary" style="width:100%;margin-top:12px;">
+                    <i class="fa-solid fa-basket-shopping"></i> Commander
+                  </button>
                 </div>
               </div>
-            <?php endforeach; ?>
+              <?php endforeach; ?>
+            </div>
           <?php endif; ?>
-        </div>
-
-        <style>
+                <style>
           /* Checkbox pill filter */
           .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0; }
           .cat-checkbox-item label {
@@ -216,31 +217,44 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
             color:var(--color-white);
             font-weight:600;
           }
-          .cat-section.hidden { display:none; }
         </style>
         <script>
-        function getStudentCheckedCats() {
-          return Array.from(document.querySelectorAll('.student-cat-check:checked')).map(c => c.value);
-        }
-        function onStudentAllToggle(allCb) {
-          document.querySelectorAll('.student-cat-check').forEach(cb => { cb.checked = allCb.checked; });
-          applyStudentFilter();
-        }
-        function onStudentCatChange() {
-          const allCb = document.getElementById('student-cat-all');
-          const checks = document.querySelectorAll('.student-cat-check');
-          if (allCb) allCb.checked = Array.from(checks).every(cb => cb.checked);
-          applyStudentFilter();
-        }
-        function applyStudentFilter() {
-          const selected = getStudentCheckedCats();
-          const allCb = document.getElementById('student-cat-all');
-          const allChecked = allCb ? allCb.checked : true;
-          document.querySelectorAll('.cat-section').forEach(section => {
-            const catId = section.dataset.catId;
-            const show = allChecked || selected.includes(catId);
-            section.classList.toggle('hidden', !show);
+        function filterByCategory(catId, btn) {
+          // Update active button style
+          document.querySelectorAll('.cat-filter-btn').forEach(b => {
+            b.classList.remove('btn-primary');
+            b.classList.add('btn-secondary');
           });
+          btn.classList.remove('btn-secondary');
+          btn.classList.add('btn-primary');
+
+          // Filter cards by data-cat-ids
+          document.querySelectorAll('#student-offers-grid .offer-card').forEach(card => {
+            if (catId === 'all') {
+              card.style.display = '';
+              return;
+            }
+            const ids = (card.dataset.catIds || '').split(',').map(s => s.trim()).filter(Boolean);
+            card.style.display = ids.includes(String(catId)) ? '' : 'none';
+          });
+
+          // Show empty state if no cards visible
+          const grid = document.getElementById('student-offers-grid');
+          if (grid) {
+            const visible = grid.querySelectorAll('.offer-card:not([style*="display: none"])').length;
+            let emptyEl = document.getElementById('student-empty-filter');
+            if (visible === 0) {
+              if (!emptyEl) {
+                emptyEl = document.createElement('p');
+                emptyEl.id = 'student-empty-filter';
+                emptyEl.style.cssText = 'color:var(--color-text-muted);text-align:center;padding:32px;grid-column:1/-1;';
+                emptyEl.textContent = 'Aucune offre dans cette catégorie.';
+                grid.appendChild(emptyEl);
+              }
+            } else if (emptyEl) {
+              emptyEl.remove();
+            }
+          }
         }
         </script>
         </div>
