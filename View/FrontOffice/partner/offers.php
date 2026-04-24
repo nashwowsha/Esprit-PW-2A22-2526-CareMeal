@@ -86,51 +86,20 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
     .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
 
-    /* Multi-category checkboxes – screenshot style (square box + uppercase) */
-    .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:10px; padding:8px 0; }
-    .cat-pill-label {
-      display:flex; align-items:center; gap:8px; cursor:pointer;
-      background:#1e2433; border:1px solid #2d3748;
-      border-radius:8px; padding:8px 16px;
-      font-size:.82rem; font-weight:700; color:#e2e8f0;
-      letter-spacing:.04em; user-select:none;
-      transition:border-color .15s, background .15s;
-    }
-    .cat-pill-box {
-      width:16px; height:16px; border:2px solid #4a5568;
-      border-radius:3px; background:#252d3d; flex-shrink:0;
-      display:flex; align-items:center; justify-content:center;
-      transition:background .15s, border-color .15s;
-    }
-    .cat-pill-label:has(input:checked) .cat-pill-box {
-      background: var(--color-primary, #ef4444);
-      border-color: var(--color-primary, #ef4444);
-    }
-    .cat-pill-label:has(input:checked) .cat-pill-box::after {
-      content: '';
-      display: block;
-      width: 5px; height: 9px;
-      border: 2px solid #fff;
-      border-top: none; border-left: none;
-      transform: rotate(45deg) translate(-1px,-1px);
-    }
-    .cat-pill-label:has(input:checked) {
-      border-color: var(--color-primary, #ef4444);
-      background: rgba(239,68,68,.1);
-      color: #fff;
-    }
-    .cat-pill-label:hover { border-color:#4a5568; background:#252d3d; }
-    /* keep backward compat for filter pills (rounded) */
-    .cat-checkbox-item label:not(.cat-pill-label) {
+    /* Multi-category checkboxes pill style */
+    .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:8px 0; }
+    .cat-checkbox-item label {
       display:flex; align-items:center; gap:6px; cursor:pointer;
       background:var(--color-dark-hover); border:1px solid var(--color-dark-border);
       border-radius:20px; padding:6px 14px; font-size:.82rem; color:var(--color-text);
       transition:border-color .15s, background .15s; user-select:none;
     }
-    .cat-checkbox-item input[type=checkbox]:not([style]) { accent-color:var(--color-primary); width:14px; height:14px; }
-    .cat-checkbox-item label:not(.cat-pill-label):has(input:checked) {
-      border-color:var(--color-primary); background:rgba(239,68,68,.12);
-      color:var(--color-white); font-weight:600;
+    .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
+    .cat-checkbox-item label:has(input:checked) {
+      border-color:var(--color-primary);
+      background:rgba(239,68,68,.12);
+      color:var(--color-white);
+      font-weight:600;
     }
     .cat-tags { display:flex; flex-wrap:wrap; gap:4px; }
     .cat-tag { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.7rem; font-weight:600;
@@ -287,8 +256,17 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               </div>
               <div class="offer-card-body">
                 <h4 style="margin:0 0 4px;color:var(--color-white);font-size:.95rem;"><?= e($o['titre']) ?></h4>
-                <?php if (!empty($o['nom_categorie'])): ?>
-                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;"><?= e($o['nom_categorie']) ?></p>
+                <?php
+                  $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
+                  if (!empty($displayCats)):
+                    $catList = array_filter(array_map('trim', explode(',', $displayCats)));
+                ?>
+                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
+                    <?php foreach ($catList as $ci => $cn): ?>
+                      <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
+                      <span><?= e($cn) ?></span>
+                    <?php endforeach; ?>
+                  </p>
                 <?php endif; ?>
                 <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= e($o['description']) ?></p>
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -338,8 +316,17 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               </div>
               <div class="offer-card-body">
                 <h4 style="margin:0 0 4px;color:var(--color-white);font-size:.95rem;"><?= e($o['titre']) ?></h4>
-                <?php if (!empty($o['nom_categorie'])): ?>
-                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;"><?= e($o['nom_categorie']) ?></p>
+                <?php
+                  $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
+                  if (!empty($displayCats)):
+                    $catList = array_filter(array_map('trim', explode(',', $displayCats)));
+                ?>
+                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
+                    <?php foreach ($catList as $ci => $cn): ?>
+                      <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
+                      <span><?= e($cn) ?></span>
+                    <?php endforeach; ?>
+                  </p>
                 <?php endif; ?>
                 <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= e($o['description']) ?></p>
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
@@ -492,10 +479,9 @@ function buildEditForm(o) {
     : (o.cat_ids ? o.cat_ids.split(',').map(Number) : (o.id_categorie ? [Number(o.id_categorie)] : []));
   const catCheckboxes = (allCategoriesData || []).map(c =>
     `<div class="cat-checkbox-item">
-      <label class="cat-pill-label">
-        <span class="cat-pill-box"></span>
-        <input type="checkbox" name="id_categories[]" value="${c.id_categorie}" ${offerCatIds.includes(Number(c.id_categorie)) ? 'checked' : ''} style="display:none">
-        <span class="cat-pill-name">${esc(c.nom_categorie).toUpperCase()}</span>
+      <label>
+        <input type="checkbox" name="id_categories[]" value="${c.id_categorie}" ${offerCatIds.includes(Number(c.id_categorie)) ? 'checked' : ''}>
+        <span>${esc(c.nom_categorie)}</span>
       </label>
     </div>`
   ).join('');
