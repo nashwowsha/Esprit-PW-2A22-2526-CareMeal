@@ -1,4 +1,4 @@
-﻿Ã¯»Â¿<?php
+﻿<?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../Model/Offer.php';
 require_once __DIR__ . '/../Model/Categorie.php';
@@ -15,6 +15,7 @@ class OfferController
 
         $this->pdo = Config::getConnexion();
         $this->migrateOfferSchema();
+        $this->migratePivotTable();
     }
 
     public function index()
@@ -49,14 +50,18 @@ class OfferController
 
         if (!empty($errors)) {
             $_SESSION['errors'] = $errors;
-            $_SESSION['old'] = $_POST;
+            $_SESSION['old']    = $_POST;
             $this->redirect();
         }
 
-        $offer = $this->buildOfferFromInput($_POST);
-        $this->insertOffer($offer);
+        $categorieIds = $this->extractCategorieIds($_POST);
+        $offer        = $this->buildOfferFromInput($_POST, $categorieIds);
+        $newId        = $this->insertOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succÃÂ¨s !'];
+        // Sync pivot table with ALL selected categories
+        $this->syncOfferCategories($newId, $categorieIds);
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succès !'];
         $this->redirect();
     }
 
@@ -73,14 +78,18 @@ class OfferController
 
         if (!empty($errors)) {
             $_SESSION['errors'] = $errors;
-            $_SESSION['old'] = $_POST;
+            $_SESSION['old']    = $_POST;
             $this->redirect();
         }
 
-        $offer = $this->buildOfferFromInput($_POST)->setIdOffre($id);
+        $categorieIds = $this->extractCategorieIds($_POST);
+        $offer        = $this->buildOfferFromInput($_POST, $categorieIds)->setIdOffre($id);
         $this->updateOffer($offer);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succÃÂ¨s !'];
+        // Sync pivot table with ALL selected categories
+        $this->syncOfferCategories($id, $categorieIds);
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succès !'];
         $this->redirect();
     }
 
@@ -89,36 +98,115 @@ class OfferController
         $id = (int)($_POST['id_offre'] ?? 0);
 
         if ($id) {
-            $stmt = $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?');
-            $stmt->execute([$id]);
+            $this->pdo->prepare('DELETE FROM offre_categorie WHERE id_offre = ?')->execute([$id]);
+            $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?')->execute([$id]);
             $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprimée.'];
         }
 
         $this->redirect();
     }
 
+    // ─── Pivot helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Extract all category IDs from POST.
+     * Supports id_categories[] (checkboxes) and legacy id_categorie (single select).
+     */
+    private function extractCategorieIds(array $data): array
+    {
+        if (!empty($data['id_categories']) && is_array($data['id_categories'])) {
+            return array_values(array_filter(array_map('intval', $data['id_categories'])));
+        }
+        if (!empty($data['id_categorie'])) {
+            return [(int)$data['id_categorie']];
+        }
+        return [];
+    }
+
+    /**
+     * Replace all offre_categorie rows for this offer.
+     * Also updates the legacy id_categorie column to the first (primary) category.
+     */
+    private function syncOfferCategories(int $idOffre, array $categorieIds): void
+    {
+        $this->pdo->prepare('DELETE FROM offre_categorie WHERE id_offre = ?')->execute([$idOffre]);
+
+        if (!empty($categorieIds)) {
+            $ins = $this->pdo->prepare(
+                'INSERT IGNORE INTO offre_categorie (id_offre, id_categorie) VALUES (?, ?)'
+            );
+            foreach ($categorieIds as $idCat) {
+                if ($idCat > 0) {
+                    $ins->execute([$idOffre, $idCat]);
+                }
+            }
+        }
+
+        // Keep legacy id_categorie in sync (first category = primary)
+        $primaryCat = !empty($categorieIds) ? $categorieIds[0] : null;
+        $this->pdo->prepare('UPDATE offre SET id_categorie = ? WHERE id_offre = ?')
+                  ->execute([$primaryCat, $idOffre]);
+    }
+
+    // ─── Queries ─────────────────────────────────────────────────────────────
+
+    /**
+     * Fetch offers joined via offre_categorie pivot.
+     * Each row has:
+     *   cat_ids      => "1,2"       (comma-separated ids)
+     *   cat_noms     => "plat, proteine"
+     *   categorie_ids => [1, 2]     (PHP array, for JS edit modal)
+     *   nom_categorie => first category name (for card display)
+     */
     private function getAllOffers(?string $partnerId = null): array
     {
-        $where = '';
+        $where  = '';
         $params = [];
 
         if ($partnerId !== null) {
-            $where = ' WHERE o.id_partenaire = :partner_id';
+            $where  = ' WHERE o.id_partenaire = :partner_id';
             $params[':partner_id'] = $partnerId;
         }
 
-        $sql = 'SELECT o.*, c.nom_categorie, c.icone
-                FROM offre o
-                LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie'
-             . $where
-             . ' ORDER BY o.date_creation DESC';
+        $sql = "
+            SELECT
+                o.*,
+                GROUP_CONCAT(DISTINCT c.id_categorie ORDER BY c.nom_categorie SEPARATOR ',') AS cat_ids,
+                GROUP_CONCAT(DISTINCT c.nom_categorie ORDER BY c.nom_categorie SEPARATOR ', ') AS cat_noms,
+                (
+                    SELECT c2.nom_categorie
+                    FROM offre_categorie oc2
+                    JOIN categorie_offre c2 ON oc2.id_categorie = c2.id_categorie
+                    WHERE oc2.id_offre = o.id_offre
+                    ORDER BY c2.nom_categorie
+                    LIMIT 1
+                ) AS nom_categorie,
+                (
+                    SELECT c2.icone
+                    FROM offre_categorie oc2
+                    JOIN categorie_offre c2 ON oc2.id_categorie = c2.id_categorie
+                    WHERE oc2.id_offre = o.id_offre
+                    ORDER BY c2.nom_categorie
+                    LIMIT 1
+                ) AS icone
+            FROM offre o
+            LEFT JOIN offre_categorie oc ON o.id_offre = oc.id_offre
+            LEFT JOIN categorie_offre  c  ON oc.id_categorie = c.id_categorie
+            $where
+            GROUP BY o.id_offre
+            ORDER BY o.date_creation DESC
+        ";
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
 
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {
-            $row['statut'] = $this->normalizeStatus($row['statut'] ?? null);
+            $row['statut']        = $this->normalizeStatus($row['statut'] ?? null);
+            // PHP array of category IDs — used by the JS edit modal
+            $row['categorie_ids'] = $row['cat_ids']
+                ? array_map('intval', explode(',', $row['cat_ids']))
+                : ($row['id_categorie'] ? [(int)$row['id_categorie']] : []);
         }
         unset($row);
 
@@ -137,24 +225,24 @@ class OfferController
             INSERT INTO offre
                 (titre, description, prix, prix_original, photo_url,
                  quantite, heure_debut, heure_fin,
-                 statut, id_categorie, id_partenaire)
+                 statut, id_categorie, id_partenaire, date_creation)
             VALUES
                 (:titre, :description, :prix, :prix_original, :photo_url,
                  :quantite, :heure_debut, :heure_fin,
-                 :statut, :id_categorie, :id_partenaire)
+                 :statut, :id_categorie, :id_partenaire, NOW())
         ');
 
         $stmt->execute([
-            ':titre' => $offer->getTitre(),
-            ':description' => $offer->getDescription(),
-            ':prix' => $offer->getPrix(),
+            ':titre'         => $offer->getTitre(),
+            ':description'   => $offer->getDescription(),
+            ':prix'          => $offer->getPrix(),
             ':prix_original' => $offer->getPrixOriginal(),
-            ':photo_url' => $offer->getPhotoUrl(),
-            ':quantite' => $offer->getQuantite(),
-            ':heure_debut' => $offer->getHeureDebut(),
-            ':heure_fin' => $offer->getHeureFin(),
-            ':statut' => $offer->getStatut(),
-            ':id_categorie' => $offer->getIdCategorie(),
+            ':photo_url'     => $offer->getPhotoUrl(),
+            ':quantite'      => $offer->getQuantite(),
+            ':heure_debut'   => $offer->getHeureDebut(),
+            ':heure_fin'     => $offer->getHeureFin(),
+            ':statut'        => $offer->getStatut(),
+            ':id_categorie'  => $offer->getIdCategorie(),
             ':id_partenaire' => $offer->getIdPartenaire(),
         ]);
 
@@ -165,37 +253,38 @@ class OfferController
     {
         $stmt = $this->pdo->prepare('
             UPDATE offre SET
-                titre = :titre,
-                description = :description,
-                prix = :prix,
+                titre         = :titre,
+                description   = :description,
+                prix          = :prix,
                 prix_original = :prix_original,
-                photo_url = :photo_url,
-                quantite = :quantite,
-                heure_debut = :heure_debut,
-                heure_fin = :heure_fin,
-                statut = :statut,
-                id_categorie = :id_categorie
+                photo_url     = :photo_url,
+                quantite      = :quantite,
+                heure_debut   = :heure_debut,
+                heure_fin     = :heure_fin,
+                statut        = :statut,
+                id_categorie  = :id_categorie
             WHERE id_offre = :id
         ');
 
         $stmt->execute([
-            ':titre' => $offer->getTitre(),
-            ':description' => $offer->getDescription(),
-            ':prix' => $offer->getPrix(),
+            ':titre'         => $offer->getTitre(),
+            ':description'   => $offer->getDescription(),
+            ':prix'          => $offer->getPrix(),
             ':prix_original' => $offer->getPrixOriginal(),
-            ':photo_url' => $offer->getPhotoUrl(),
-            ':quantite' => $offer->getQuantite(),
-            ':heure_debut' => $offer->getHeureDebut(),
-            ':heure_fin' => $offer->getHeureFin(),
-            ':statut' => $offer->getStatut(),
-            ':id_categorie' => $offer->getIdCategorie(),
-            ':id' => $offer->getIdOffre(),
+            ':photo_url'     => $offer->getPhotoUrl(),
+            ':quantite'      => $offer->getQuantite(),
+            ':heure_debut'   => $offer->getHeureDebut(),
+            ':heure_fin'     => $offer->getHeureFin(),
+            ':statut'        => $offer->getStatut(),
+            ':id_categorie'  => $offer->getIdCategorie(),
+            ':id'            => $offer->getIdOffre(),
         ]);
     }
 
-    private function buildOfferFromInput(array $data): OfferModel
+    private function buildOfferFromInput(array $data, array $categorieIds = []): OfferModel
     {
-        $photo = $this->normalizePhotoUrl(trim((string)($data['photo_url'] ?? '')));
+        $photo      = $this->normalizePhotoUrl(trim((string)($data['photo_url'] ?? '')));
+        $primaryCat = !empty($categorieIds) ? $categorieIds[0] : null;
 
         return (new OfferModel())
             ->setTitre((string)($data['titre'] ?? ''))
@@ -207,26 +296,11 @@ class OfferController
             ->setHeureDebut(!empty($data['heure_debut']) ? (string)$data['heure_debut'] : null)
             ->setHeureFin(!empty($data['heure_fin']) ? (string)$data['heure_fin'] : null)
             ->setStatut($this->normalizeStatus((string)($data['statut'] ?? 'publiée'), 'publiée'))
-            ->setIdCategorie(
-                !empty($data['id_categories']) && is_array($data['id_categories'])
-                    ? (int)$data['id_categories'][0]
-                    : (!empty($data['id_categorie']) ? (int)$data['id_categorie'] : null)
-            )
+            ->setIdCategorie($primaryCat)
             ->setIdPartenaire(!empty($data['id_partenaire']) ? (string)$data['id_partenaire'] : null);
     }
 
-    private function normalizePhotoUrl(string $base64): string
-    {
-        if (strpos($base64, 'data:image') !== 0) {
-            return $base64;
-        }
-
-        if (strlen($base64) > 1 * 1024 * 1024) {
-            return '';
-        }
-
-        return $base64;
-    }
+    // ─── Migrations ──────────────────────────────────────────────────────────
 
     private function migrateOfferSchema(): void
     {
@@ -246,6 +320,46 @@ class OfferController
         }
     }
 
+    /**
+     * Create offre_categorie if missing + back-fill offers that only have id_categorie.
+     */
+    private function migratePivotTable(): void
+    {
+        try {
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS offre_categorie (
+                    id_offre     INT NOT NULL,
+                    id_categorie INT NOT NULL,
+                    PRIMARY KEY (id_offre, id_categorie)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ");
+
+            // Back-fill existing offers that have id_categorie but no pivot row
+            $this->pdo->exec("
+                INSERT IGNORE INTO offre_categorie (id_offre, id_categorie)
+                SELECT id_offre, id_categorie
+                FROM offre
+                WHERE id_categorie IS NOT NULL
+                  AND id_offre NOT IN (SELECT DISTINCT id_offre FROM offre_categorie)
+            ");
+        } catch (Exception $e) {
+            // no-op
+        }
+    }
+
+    // ─── Utilities ───────────────────────────────────────────────────────────
+
+    private function normalizePhotoUrl(string $base64): string
+    {
+        if (strpos($base64, 'data:image') !== 0) {
+            return $base64;
+        }
+        if (strlen($base64) > 1 * 1024 * 1024) {
+            return '';
+        }
+        return $base64;
+    }
+
     private function redirect()
     {
         $url = strtok($_SERVER['REQUEST_URI'], '?') . '?action=index';
@@ -253,7 +367,7 @@ class OfferController
         exit;
     }
 
-    private function validate($data)
+    private function validate(array $data): array
     {
         $errors = [];
 
@@ -261,7 +375,7 @@ class OfferController
 
         if (empty($titre)) {
             $errors[] = 'Le titre est obligatoire.';
-        } elseif (!preg_match('/^[\\p{L}\\s\\-\\\']+$/u', $titre)) {
+        } elseif (!preg_match('/^[\p{L}\s\-\']+$/u', $titre)) {
             $errors[] = 'Le titre doit contenir uniquement des lettres (pas de chiffres ni symboles).';
         } elseif (mb_strlen($titre) < 3) {
             $errors[] = 'Le titre doit contenir au moins 3 caractères.';
@@ -283,11 +397,9 @@ class OfferController
             $errors[] = 'La quantité doit être au moins 1.';
         }
 
-        $cats = isset($data['id_categories']) && is_array($data['id_categories'])
-            ? array_filter(array_map('intval', $data['id_categories']))
-            : (isset($data['id_categorie']) ? [(int)$data['id_categorie']] : []);
+        $cats = $this->extractCategorieIds($data);
         if (empty($cats)) {
-            $errors[] = 'La catégorie est obligatoire.';
+            $errors[] = 'Veuillez sélectionner au moins une catégorie.';
         }
 
         return $errors;
@@ -303,21 +415,15 @@ class OfferController
         $s = mb_strtolower($s, 'UTF-8');
 
         $map = [
-            'publiee' => 'publiée',
-            'publiée' => 'publiée',
-            'publiÃÂ£ÃÂ©e' => 'publiée',
-            'publiÃÂ£ÃÂÃÂ¢ÃÂ©e' => 'publiée',
-            'active' => 'publiée',
-            'actif' => 'publiée',
-            'expiree' => 'expirée',
-            'expirée' => 'expirée',
-            'expirÃÂ£ÃÂ©e' => 'expirée',
-            'expirÃÂ£ÃÂÃÂ¢ÃÂ©e' => 'expirée',
-            'archivee' => 'archivée',
-            'archivée' => 'archivée',
-            'archivÃÂ£ÃÂ©e' => 'archivée',
-            'archivÃÂ£ÃÂÃÂ¢ÃÂ©e' => 'archivée',
-            'draft' => 'brouillon',
+            'publiee'   => 'publiée',
+            'publiée'   => 'publiée',
+            'active'    => 'publiée',
+            'actif'     => 'publiée',
+            'expiree'   => 'expirée',
+            'expirée'   => 'expirée',
+            'archivee'  => 'archivée',
+            'archivée'  => 'archivée',
+            'draft'     => 'brouillon',
             'brouillon' => 'brouillon',
         ];
 
