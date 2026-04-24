@@ -57,7 +57,7 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
     }
 
     /* ── Modals ── */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 999; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 999; align-items: center; justify-content: center; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
     .modal-overlay.active { display: flex; animation: fadeInBg .2s ease; }
     @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
     .modal-box {
