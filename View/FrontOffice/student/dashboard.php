@@ -166,6 +166,18 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
                     </div>
                     <div class="offer-card-body">
                       <h4><?= $titre ?></h4>
+                      <?php
+                        $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
+                        if (!empty($displayCats)):
+                          $catList = array_filter(array_map('trim', explode(',', $displayCats)));
+                      ?>
+                      <p style="font-size:.72rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
+                        <?php foreach ($catList as $ci => $cn): ?>
+                          <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
+                          <span><?= htmlspecialchars(trim($cn)) ?></span>
+                        <?php endforeach; ?>
+                      </p>
+                      <?php endif; ?>
                       <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
                       <div class="offer-card-footer">
                         <div class="offer-card-price">
