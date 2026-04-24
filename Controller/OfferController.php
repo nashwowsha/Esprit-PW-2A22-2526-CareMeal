@@ -207,7 +207,11 @@ class OfferController
             ->setHeureDebut(!empty($data['heure_debut']) ? (string)$data['heure_debut'] : null)
             ->setHeureFin(!empty($data['heure_fin']) ? (string)$data['heure_fin'] : null)
             ->setStatut($this->normalizeStatus((string)($data['statut'] ?? 'publiée'), 'publiée'))
-            ->setIdCategorie(!empty($data['id_categorie']) ? (int)$data['id_categorie'] : null)
+            ->setIdCategorie(
+                !empty($data['id_categories']) && is_array($data['id_categories'])
+                    ? (int)$data['id_categories'][0]
+                    : (!empty($data['id_categorie']) ? (int)$data['id_categorie'] : null)
+            )
             ->setIdPartenaire(!empty($data['id_partenaire']) ? (string)$data['id_partenaire'] : null);
     }
 
@@ -279,7 +283,10 @@ class OfferController
             $errors[] = 'La quantité doit être au moins 1.';
         }
 
-        if (empty($data['id_categorie']) || (int)$data['id_categorie'] <= 0) {
+        $cats = isset($data['id_categories']) && is_array($data['id_categories'])
+            ? array_filter(array_map('intval', $data['id_categories']))
+            : (isset($data['id_categorie']) ? [(int)$data['id_categorie']] : []);
+        if (empty($cats)) {
             $errors[] = 'La catégorie est obligatoire.';
         }
 
