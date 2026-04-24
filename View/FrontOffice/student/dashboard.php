@@ -176,12 +176,13 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
                 <div class="offer-card-body">
                   <h4><?= $titre ?></h4>
                   <?php if (!empty($catList)): ?>
-                  <p style="font-size:.72rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
-                    <?php foreach ($catList as $ci => $cn): ?>
-                      <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
-                      <span><?= htmlspecialchars($cn) ?></span>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px;">
+                    <?php foreach ($catList as $cn): ?>
+                      <span style="display:inline-block;background:var(--color-primary);color:#fff;border-radius:20px;padding:2px 10px;font-size:.7rem;font-weight:700;letter-spacing:.02em;">
+                        <?= htmlspecialchars($cn) ?>
+                      </span>
                     <?php endforeach; ?>
-                  </p>
+                  </div>
                   <?php endif; ?>
                   <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
                   <div class="offer-card-footer">
@@ -228,20 +229,23 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
           btn.classList.remove('btn-secondary');
           btn.classList.add('btn-primary');
 
-          // Filter cards by data-cat-ids
+          // Filter cards by data-cat-ids (handle spaces and type coercion)
           document.querySelectorAll('#student-offers-grid .offer-card').forEach(card => {
             if (catId === 'all') {
               card.style.display = '';
               return;
             }
-            const ids = (card.dataset.catIds || '').split(',').map(s => s.trim()).filter(Boolean);
+            const ids = (card.dataset.catIds || '')
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean);
             card.style.display = ids.includes(String(catId)) ? '' : 'none';
           });
 
           // Show empty state if no cards visible
           const grid = document.getElementById('student-offers-grid');
           if (grid) {
-            const visible = grid.querySelectorAll('.offer-card:not([style*="display: none"])').length;
+            const visible = [...grid.querySelectorAll('.offer-card')].filter(c => c.style.display !== 'none').length;
             let emptyEl = document.getElementById('student-empty-filter');
             if (visible === 0) {
               if (!emptyEl) {
