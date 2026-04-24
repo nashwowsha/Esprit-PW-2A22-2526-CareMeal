@@ -66,13 +66,24 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     #view-list   { display: block; }
     #view-form   { display: none; }
 
+    /* Zone formulaire : fond vierge centré */
+    #view-form {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+    }
+
     .form-page-header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
-      padding-bottom: 18px;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
       border-bottom: 1px solid var(--color-dark-border);
+      width: 100%;
+      max-width: 680px;
     }
     .form-page-header h2 {
       margin: 0;
@@ -97,14 +108,25 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     }
     .btn-back:hover { background: rgba(255,255,255,.1); color: var(--color-white); }
 
+    /* Wraps centrés */
+    #form-create-wrap,
+    #form-edit-wrap,
+    #form-delete-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* La card formulaire : fond transparent = page vierge */
     .form-card {
-      background: var(--color-dark-card);
-      border: 1px solid var(--color-dark-border);
-      border-radius: 16px;
-      padding: 28px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      width: 100%;
       max-width: 680px;
     }
-    .form-card .form-group { margin-bottom: 18px; }
+    .form-card .form-group { margin-bottom: 20px; }
     .form-card .form-group label {
       display: block;
       font-size: .78rem; font-weight: 700;
@@ -114,18 +136,18 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     }
     .form-actions {
       display: flex; gap: 10px; justify-content: flex-end;
-      margin-top: 24px; padding-top: 18px;
+      margin-top: 28px; padding-top: 20px;
       border-top: 1px solid var(--color-dark-border);
     }
 
     /* Delete confirm inline */
     .delete-inline-card {
-      background: var(--color-dark-card);
+      background: transparent;
       border: 1px solid rgba(248,113,113,.25);
       border-radius: 16px;
       padding: 40px 28px;
       max-width: 480px;
-      margin: 0 auto;
+      width: 100%;
       text-align: center;
     }
     .delete-inline-card i.big-icon { font-size: 3rem; color: #f87171; display: block; margin-bottom: 16px; }
@@ -499,7 +521,7 @@ function showList() {
 
 function showFormView(heading, sub) {
   document.getElementById('view-list').style.display = 'none';
-  document.getElementById('view-form').style.display = 'block';
+  document.getElementById('view-form').style.display = 'flex';
   document.getElementById('btn-add-offer').style.display = 'none';
   document.getElementById('form-heading').textContent = heading;
   document.getElementById('form-sub').textContent     = sub;
