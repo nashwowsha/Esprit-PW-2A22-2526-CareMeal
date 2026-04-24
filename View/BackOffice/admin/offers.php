@@ -47,7 +47,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-error   { background:rgba(239,68,68,.12);  color:#f87171; border:1px solid rgba(239,68,68,.2); }
 
 
-    /* Multi-category checkboxes */
+    /* Single-category radio buttons */
     .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:10px 0; }
     .cat-checkbox-item label {
       display:flex; align-items:center; gap:6px; cursor:pointer;
@@ -55,8 +55,8 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       border-radius:8px; padding:6px 12px; font-size:.82rem; color:var(--color-text);
       transition:border-color .15s, background .15s;
     }
-    .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:15px; height:15px; }
-    .cat-checkbox-item input[type=checkbox]:checked + span { color:var(--color-white); font-weight:600; }
+    .cat-checkbox-item input[type=radio] { accent-color:var(--color-primary); width:15px; height:15px; }
+    .cat-checkbox-item input[type=radio]:checked + span { color:var(--color-white); font-weight:600; }
     .cat-checkbox-item label:has(input:checked) { border-color:var(--color-primary); background:rgba(var(--color-primary-rgb,239,68,68),.08); }
     .cat-tags { display:flex; flex-wrap:wrap; gap:4px; }
     .cat-tag { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.7rem; font-weight:600;
@@ -285,24 +285,22 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
 
         <div class="form-group">
-          <label>Catégories <span style="color:var(--color-primary)">*</span> <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small></label>
+          <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
           <div class="cat-checkbox-list" id="create-cat-list">
             <?php
-            $oldCats = isset($old['id_categories']) && is_array($old['id_categories'])
-                ? array_map('intval', $old['id_categories'])
-                : [];
+            $oldCatId = !empty($old['id_categorie']) ? (int)$old['id_categorie'] : 0;
             foreach ($categories as $c):
-              $checked = in_array((int)$c['id_categorie'], $oldCats) ? 'checked' : '';
+              $checked = ($oldCatId === (int)$c['id_categorie']) ? 'checked' : '';
             ?>
               <div class="cat-checkbox-item">
                 <label>
-                  <input type="checkbox" name="id_categories[]" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?>>
+                  <input type="radio" name="id_categorie" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?>>
                   <span><?= ea($c['nom_categorie']) ?></span>
                 </label>
               </div>
             <?php endforeach; ?>
           </div>
-          <div id="create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner au moins une catégorie.</div>
+          <div id="create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner une catégorie.</div>
         </div>
 
         <div class="form-row">
@@ -454,11 +452,11 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Génération du formulaire d'ÃƒÂ©dition Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 function buildEditForm(o) {
   // Tableau des ids catégories de cette offre
-  const offerCatIds = (o.categorie_ids && Array.isArray(o.categorie_ids)) ? o.categorie_ids : (o.cat_ids ? o.cat_ids.split(',').map(Number) : []);
+  const offerCatId = (o.id_categorie) ? Number(o.id_categorie) : (o.cat_ids ? Number(o.cat_ids.split(',')[0]) : 0);
   const catCheckboxes = allCategoriesData.map(c =>
     `<div class="cat-checkbox-item">
       <label>
-        <input type="checkbox" name="id_categories[]" value="${c.id_categorie}" ${offerCatIds.includes(Number(c.id_categorie)) ? 'checked' : ''}>
+        <input type="radio" name="id_categorie" value="${c.id_categorie}" ${offerCatId === Number(c.id_categorie) ? 'checked' : ''}>
         <span>${esc(c.nom_categorie)}</span>
       </label>
     </div>`
@@ -503,9 +501,9 @@ function buildEditForm(o) {
       </div>
     </div>
     <div class="form-group">
-      <label>Catégories <span style="color:var(--color-primary)">*</span> <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small></label>
+      <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
       <div class="cat-checkbox-list" id="edit-cat-list">${catCheckboxes}</div>
-      <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner au moins une catégorie.</div>
+      <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner une catégorie.</div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -609,11 +607,11 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Au moins une catégorie obligatoire
-  const catCheckboxesAll = form.querySelectorAll('[name="id_categories[]"]');
+  // Une catégorie obligatoire (radio)
+  const catRadios = form.querySelectorAll('[name="id_categorie"]');
   const catErrorEl = form.querySelector('#create-cat-error, #edit-cat-error');
-  if (catCheckboxesAll.length > 0) {
-    const anyChecked = Array.from(catCheckboxesAll).some(cb => cb.checked);
+  if (catRadios.length > 0) {
+    const anyChecked = Array.from(catRadios).some(r => r.checked);
     if (!anyChecked) {
       if (catErrorEl) catErrorEl.style.display = 'block';
       valid = false;

@@ -86,7 +86,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
     .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
 
-    /* Multi-category checkboxes pill style */
+    /* Category radio/checkbox pill style */
     .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:8px 0; }
     .cat-checkbox-item label {
       display:flex; align-items:center; gap:6px; cursor:pointer;
@@ -94,7 +94,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       border-radius:20px; padding:6px 14px; font-size:.82rem; color:var(--color-text);
       transition:border-color .15s, background .15s; user-select:none;
     }
-    .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
+    .cat-checkbox-item input[type=checkbox], .cat-checkbox-item input[type=radio] { accent-color:var(--color-primary); width:14px; height:14px; }
     .cat-checkbox-item label:has(input:checked) {
       border-color:var(--color-primary);
       background:rgba(239,68,68,.12);
@@ -476,13 +476,11 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 function buildEditForm(o) {
   const statuts = ['publiée','brouillon','expirée','archivée'];
-  const offerCatIds = (o.categorie_ids && Array.isArray(o.categorie_ids))
-    ? o.categorie_ids.map(Number)
-    : (o.cat_ids ? o.cat_ids.split(',').map(Number) : (o.id_categorie ? [Number(o.id_categorie)] : []));
+  const offerCatId = o.id_categorie ? Number(o.id_categorie) : (o.cat_ids ? Number(o.cat_ids.split(',')[0]) : 0);
   const catCheckboxes = (allCategoriesData || []).map(c =>
     `<div class="cat-checkbox-item">
       <label>
-        <input type="checkbox" name="id_categories[]" value="${c.id_categorie}" ${offerCatIds.includes(Number(c.id_categorie)) ? 'checked' : ''}>
+        <input type="radio" name="id_categorie" value="${c.id_categorie}" ${offerCatId === Number(c.id_categorie) ? 'checked' : ''}>
         <span>${esc(c.nom_categorie)}</span>
       </label>
     </div>`
@@ -525,11 +523,9 @@ function buildEditForm(o) {
         </div>
       </div>
       <div class="form-group" style="grid-column:1/-1">
-        <label>Catégories <span style="color:var(--color-primary)">*</span>
-          <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small>
-        </label>
+        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
         <div class="cat-checkbox-list" id="edit-cat-list">${catCheckboxes}</div>
-        <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner au moins une catégorie.</div>
+        <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner une catégorie.</div>
       </div>
     </div>
     <div class="form-row">
@@ -618,8 +614,8 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit ÃÂÃÂÃÂÃÂªtre au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Au moins une catégorie obligatoire
-  const catCbs = form.querySelectorAll('[name="id_categories[]"]');
+  // Catégorie obligatoire (radio)
+  const catCbs = form.querySelectorAll('[name="id_categorie"]');
   const catErrEl = form.querySelector('#partner-create-cat-error, #edit-cat-error');
   if (catCbs.length > 0) {
     const anyCatChecked = Array.from(catCbs).some(cb => cb.checked);
@@ -801,12 +797,12 @@ function applyPartnerCategoryFilter() {
 }
 
 function syncCreateCategoryWithSelection() {
-  // Pré-cocher dans le formulaire de création les catégories sélectionnées dans le filtre
+  // Pré-sélectionner dans le formulaire de création la première catégorie filtrée
   const selected = getCheckedCatIds();
   const createList = document.getElementById('partner-create-cat-list');
   if (!createList) return;
-  createList.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.checked = selected.includes(String(cb.value));
+  createList.querySelectorAll('input[type=radio]').forEach(rb => {
+    rb.checked = selected.length > 0 && rb.value === selected[0];
   });
 }
 

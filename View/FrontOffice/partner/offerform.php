@@ -7,7 +7,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 ?>
 
 <style>
-/* ── Category pill style (screenshot match) ── */
+/* ── Category pill style (radio - single selection) ── */
 .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:10px; padding:8px 0; }
 .cat-pill-label {
   display:flex; align-items:center; gap:8px; cursor:pointer;
@@ -19,7 +19,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 }
 .cat-pill-box {
   width:16px; height:16px; border:2px solid #4a5568;
-  border-radius:3px; background:#252d3d; flex-shrink:0;
+  border-radius:50%; background:#252d3d; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
   transition:background .15s, border-color .15s;
 }
@@ -30,10 +30,9 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 .cat-pill-label:has(input:checked) .cat-pill-box::after {
   content: '';
   display: block;
-  width: 5px; height: 9px;
-  border: 2px solid #fff;
-  border-top: none; border-left: none;
-  transform: rotate(45deg) translate(-1px, -1px);
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #fff;
 }
 .cat-pill-label:has(input:checked) {
   border-color: var(--color-primary, #ef4444);
@@ -80,30 +79,26 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   </div>
 </div>
 
-<!-- ── Catégories multi-sélection (checkboxes pill) ── -->
+<!-- ── Catégorie sélection unique (radio pill) ── -->
 <div class="form-group">
-  <label>Catégories <span style="color:var(--color-primary)">*</span>
-    <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small>
-  </label>
+  <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
   <div class="cat-checkbox-list" id="partner-create-cat-list">
     <?php
-    $oldCats = isset($old['id_categories']) && is_array($old['id_categories'])
-        ? array_map('intval', $old['id_categories'])
-        : (isset($old['id_categorie']) ? [(int)$old['id_categorie']] : []);
+    $oldCatId = isset($old['id_categorie']) ? (int)$old['id_categorie'] : 0;
     foreach (($categories ?? []) as $c):
-      $checked = in_array((int)$c['id_categorie'], $oldCats) ? 'checked' : '';
+      $checked = ($oldCatId === (int)$c['id_categorie']) ? 'checked' : '';
     ?>
       <div class="cat-checkbox-item">
         <label class="cat-pill-label">
           <span class="cat-pill-box"></span>
-          <input type="checkbox" name="id_categories[]" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?> style="display:none">
+          <input type="radio" name="id_categorie" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?> style="display:none">
           <span class="cat-pill-name"><?= strtoupper(ec($c['nom_categorie'])) ?></span>
         </label>
       </div>
     <?php endforeach; ?>
   </div>
   <div id="partner-create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">
-    Veuillez sélectionner au moins une catégorie.
+    Veuillez sélectionner une catégorie.
   </div>
 </div>
 

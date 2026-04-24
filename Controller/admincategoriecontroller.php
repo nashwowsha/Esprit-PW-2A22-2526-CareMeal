@@ -93,8 +93,7 @@ class AdminCategoryController
     }
 
     /**
-     * Supprime une catégorie.
-     * Les offres liées à cette catégorie auront id_categorie mis à NULL.
+     * Supprime une catégorie et toutes ses offres associées.
      */
     public function deleteCategory(): void
     {
@@ -103,14 +102,14 @@ class AdminCategoryController
             $this->redirect();
         }
 
-        // Mettre id_categorie à NULL pour les offres liées avant de supprimer
-        $this->pdo->prepare('UPDATE offre SET id_categorie = NULL WHERE id_categorie = ?')
+        // Supprimer les offres liées à cette catégorie
+        $this->pdo->prepare('DELETE FROM offre WHERE id_categorie = ?')
                   ->execute([$id]);
 
         // Supprimer la catégorie
         $this->pdo->prepare('DELETE FROM categorie_offre WHERE id_categorie = ?')->execute([$id]);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie supprimee.'];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie et ses offres supprimees.'];
         $this->redirect();
     }
 
