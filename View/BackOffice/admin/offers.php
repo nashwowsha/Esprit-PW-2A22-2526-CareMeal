@@ -47,17 +47,36 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-error   { background:rgba(239,68,68,.12);  color:#f87171; border:1px solid rgba(239,68,68,.2); }
 
 
-    /* Single-category radio buttons */
-    .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:10px 0; }
-    .cat-checkbox-item label {
-      display:flex; align-items:center; gap:6px; cursor:pointer;
-      background:var(--color-dark-hover); border:1px solid var(--color-dark-border);
-      border-radius:8px; padding:6px 12px; font-size:.82rem; color:var(--color-text);
+    /* Single-category pill style (radio) */
+    .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:10px; padding:10px 0; }
+    .cat-pill-label {
+      display:flex; align-items:center; gap:8px; cursor:pointer;
+      background:#1e2433; border:1px solid #2d3748;
+      border-radius:50px; padding:8px 18px;
+      font-size:.82rem; font-weight:700; color:#e2e8f0;
+      letter-spacing:.04em; user-select:none;
       transition:border-color .15s, background .15s;
     }
-    .cat-checkbox-item input[type=radio] { accent-color:var(--color-primary); width:15px; height:15px; }
-    .cat-checkbox-item input[type=radio]:checked + span { color:var(--color-white); font-weight:600; }
-    .cat-checkbox-item label:has(input:checked) { border-color:var(--color-primary); background:rgba(var(--color-primary-rgb,239,68,68),.08); }
+    .cat-pill-box {
+      width:14px; height:14px; border:2px solid #4a5568;
+      border-radius:50%; background:#252d3d; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      transition:background .15s, border-color .15s;
+    }
+    .cat-pill-label:has(input:checked) .cat-pill-box {
+      background: var(--color-primary, #ef4444);
+      border-color: var(--color-primary, #ef4444);
+    }
+    .cat-pill-label:has(input:checked) .cat-pill-box::after {
+      content:''; display:block; width:5px; height:5px;
+      border-radius:50%; background:#fff;
+    }
+    .cat-pill-label:has(input:checked) {
+      border-color: var(--color-primary, #ef4444);
+      background: rgba(239,68,68,.12);
+      color: #fff;
+    }
+    .cat-pill-label:hover { border-color:#4a5568; background:#252d3d; }
     .cat-tags { display:flex; flex-wrap:wrap; gap:4px; }
     .cat-tag { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.7rem; font-weight:600;
                background:rgba(239,68,68,.15); color:#f87171; }
@@ -293,9 +312,10 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               $checked = ($oldCatId === (int)$c['id_categorie']) ? 'checked' : '';
             ?>
               <div class="cat-checkbox-item">
-                <label>
-                  <input type="radio" name="id_categorie" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?>>
-                  <span><?= ea($c['nom_categorie']) ?></span>
+                <label class="cat-pill-label">
+                  <span class="cat-pill-box"></span>
+                  <input type="radio" name="id_categorie" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?> style="display:none">
+                  <span><?= strtoupper(ea($c['nom_categorie'])) ?></span>
                 </label>
               </div>
             <?php endforeach; ?>
@@ -455,9 +475,10 @@ function buildEditForm(o) {
   const offerCatId = (o.id_categorie) ? Number(o.id_categorie) : (o.cat_ids ? Number(o.cat_ids.split(',')[0]) : 0);
   const catCheckboxes = allCategoriesData.map(c =>
     `<div class="cat-checkbox-item">
-      <label>
-        <input type="radio" name="id_categorie" value="${c.id_categorie}" ${offerCatId === Number(c.id_categorie) ? 'checked' : ''}>
-        <span>${esc(c.nom_categorie)}</span>
+      <label class="cat-pill-label">
+        <span class="cat-pill-box"></span>
+        <input type="radio" name="id_categorie" value="${c.id_categorie}" ${offerCatId === Number(c.id_categorie) ? 'checked' : ''} style="display:none">
+        <span>${esc(c.nom_categorie).toUpperCase()}</span>
       </label>
     </div>`
   ).join('');
@@ -689,27 +710,16 @@ function onCategoryFilterChange() {
 function syncCreateCategoryWithFilter() {
   const createForm = document.getElementById('form-create');
   if (!createForm) return;
-  const categorySelect = createForm.querySelector('[name="id_categorie"]');
-  if (!categorySelect) return;
+  const radios = createForm.querySelectorAll('[name="id_categorie"]');
+  if (!radios.length) return;
 
   if (currentCategoryFilter) {
-    categorySelect.value = currentCategoryFilter;
-    categorySelect.setAttribute('disabled', 'disabled');
-
-    let hidden = createForm.querySelector('#create-locked-category');
-    if (!hidden) {
-      hidden = document.createElement('input');
-      hidden.type = 'hidden';
-      hidden.id = 'create-locked-category';
-      hidden.name = 'id_categorie';
-      createForm.appendChild(hidden);
-    }
-    hidden.value = currentCategoryFilter;
-  } else {
-    categorySelect.removeAttribute('disabled');
-    const hidden = createForm.querySelector('#create-locked-category');
-    if (hidden) hidden.remove();
+    // Pre-select the radio matching the filter
+    radios.forEach(r => {
+      r.checked = (r.value === String(currentCategoryFilter));
+    });
   }
+  // If no filter selected, leave current selection as-is
 }
 
 function applyFilters() {
