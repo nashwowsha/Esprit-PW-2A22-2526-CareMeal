@@ -127,14 +127,17 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
           <?php else: ?>
             <div class="grid grid-3 gap-6" id="offers-grid">
               <?php foreach ($offers as $o):
-                $disc      = ($o['prix_original'] > 0) ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-                $titre     = htmlspecialchars($o['titre'] ?? '');
-                $desc      = htmlspecialchars($o['description'] ?? '');
-                $restant   = (int)($o['quantite_restante'] ?? $o['quantite'] ?? 0);
-                $category  = htmlspecialchars($o['nom_categorie'] ?? 'Sans catégorie');
-                $catId     = (int)($o['id_categorie'] ?? 0);
+                $disc    = ($o['prix_original'] > 0) ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
+                $titre   = htmlspecialchars($o['titre'] ?? '');
+                $desc    = htmlspecialchars($o['description'] ?? '');
+                $restant = (int)($o['quantite_restante'] ?? $o['quantite'] ?? 0);
+                // Toutes les catégories de l'offre (multi-catégorie)
+                $catIds  = implode(',', $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []));
+                $catNoms = !empty($o['cat_noms'])
+                  ? array_filter(array_map('trim', explode(',', $o['cat_noms'])))
+                  : ($o['nom_categorie'] ? [htmlspecialchars($o['nom_categorie'])] : []);
               ?>
-              <div class="offer-card animate-fade-in-up student-offer-card" data-cat-id="<?= $catId ?>">
+              <div class="offer-card animate-fade-in-up student-offer-card" data-cat-ids="<?= htmlspecialchars($catIds) ?>">
                 <div class="offer-card-image" style="position:relative;overflow:hidden;border-radius:12px 12px 0 0;">
                   <?php if (!empty($o['photo_url'])): ?>
                     <img src="<?= htmlspecialchars($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
@@ -150,7 +153,15 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
                 </div>
                 <div class="offer-card-body">
                   <h4><?= $titre ?></h4>
-                  <p style="font-size:.78rem;color:var(--color-primary);margin:0 0 6px;"><i class="fa-solid fa-tag"></i> <?= $category ?></p>
+                  <?php if (!empty($catNoms)): ?>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px;">
+                    <?php foreach ($catNoms as $cn): ?>
+                      <span style="display:inline-block;background:var(--color-primary);color:#fff;border-radius:20px;padding:2px 10px;font-size:.7rem;font-weight:700;">
+                        <i class="fa-solid fa-tag" style="font-size:.6rem;margin-right:3px;"></i><?= htmlspecialchars($cn) ?>
+                      </span>
+                    <?php endforeach; ?>
+                  </div>
+                  <?php endif; ?>
                   <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
                   <div class="offer-card-footer">
                     <div class="offer-card-price">
@@ -183,12 +194,32 @@ $categoriesWithOffers = $studentController->getPublishedOffersByCategory();
       btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
 
       document.querySelectorAll('.student-offer-card').forEach(card => {
-        if (catId === 'all' || card.dataset.catId === catId) {
+        if (catId === 'all') {
           card.style.display = '';
-        } else {
-          card.style.display = 'none';
+          return;
         }
+        // data-cat-ids contient "1,2,3" — on vérifie si catId est dedans
+        const ids = (card.dataset.catIds || '').split(',').map(s => s.trim()).filter(Boolean);
+        card.style.display = ids.includes(String(catId)) ? '' : 'none';
       });
+
+      // Message si aucune offre visible
+      const grid = document.getElementById('offers-grid');
+      if (grid) {
+        const visible = [...grid.querySelectorAll('.student-offer-card')].filter(c => c.style.display !== 'none').length;
+        let emptyEl = document.getElementById('student-empty-filter');
+        if (visible === 0) {
+          if (!emptyEl) {
+            emptyEl = document.createElement('p');
+            emptyEl.id = 'student-empty-filter';
+            emptyEl.style.cssText = 'color:var(--color-text-muted);text-align:center;padding:32px;grid-column:1/-1;';
+            emptyEl.textContent = 'Aucune offre dans cette catégorie.';
+            grid.appendChild(emptyEl);
+          }
+        } else if (emptyEl) {
+          emptyEl.remove();
+        }
+      }
     }
   </script>
   <script>
