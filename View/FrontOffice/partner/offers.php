@@ -86,6 +86,59 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
     .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
 
+    /* ── Filter bar chips ───────────────────────────────── */
+    .filter-bar {
+      background: var(--color-dark-card);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .filter-bar-label {
+      font-size: .75rem; font-weight: 700;
+      color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: .8px;
+      white-space: nowrap;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .filter-bar-label i { color: var(--color-primary); }
+    .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: .82rem; font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.04);
+      color: var(--color-text-muted);
+      transition: all .16s ease;
+      user-select: none;
+    }
+    .filter-chip:hover {
+      border-color: rgba(255,255,255,.22);
+      color: var(--color-white);
+      background: rgba(255,255,255,.08);
+    }
+    .filter-chip.active {
+      background: var(--color-primary-light);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    .filter-chip .chip-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%; background: currentColor;
+    }
+    .filter-hint {
+      font-size: .73rem; color: var(--color-text-muted);
+      margin-left: auto; white-space: nowrap;
+      display: flex; align-items: center; gap: 5px;
+    }
+
     /* Category radio/checkbox pill style */
     .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:10px; padding:8px 0; }
     .cat-pill-label {
@@ -224,28 +277,35 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
       </div>
 
-      <div class="card animate-fade-in-up" style="padding:16px;margin-bottom:24px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
-          <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-tags"></i> Filtrer par catégorie</h3>
-          <small style="color:var(--color-text-muted);">Cochez les catégories à afficher. La sélection se reporte dans "Nouvelle offre".</small>
-        </div>
-        <div class="cat-checkbox-list" id="partner-filter-cat-list">
-          <div class="cat-checkbox-item" id="cat-all-item">
-            <label>
-              <input type="checkbox" id="cat-all-check" checked onchange="onCatAllToggle(this)">
-              <span>Toutes</span>
-            </label>
-          </div>
+      <!-- Filter bar -->
+      <div class="filter-bar animate-fade-in-up">
+        <span class="filter-bar-label">
+          <i class="fa-solid fa-sliders"></i> Filtrer par catégorie
+        </span>
+        <div class="filter-chips" id="partner-filter-cat-list">
+          <!-- Chip "Toutes" -->
+          <button type="button"
+                  class="filter-chip active"
+                  id="cat-chip-all"
+                  onclick="onCatChipAllToggle(this)">
+            <span class="chip-dot"></span> Toutes
+            <input type="checkbox" id="cat-all-check" checked style="display:none" onchange="onCatAllToggle(this)">
+          </button>
           <?php foreach (($categories ?? []) as $cat): ?>
-            <div class="cat-checkbox-item">
-              <label>
-                <input type="checkbox" class="cat-filter-check" value="<?= (int)$cat['id_categorie'] ?>" checked
-                       onchange="onPartnerCategoryChange()">
-                <span><?= e($cat['nom_categorie']) ?></span>
-              </label>
-            </div>
+            <button type="button"
+                    class="filter-chip active"
+                    data-cat-id="<?= (int)$cat['id_categorie'] ?>"
+                    onclick="onCatChipToggle(this)">
+              <span class="chip-dot"></span>
+              <?= e($cat['nom_categorie']) ?>
+              <input type="checkbox" class="cat-filter-check" value="<?= (int)$cat['id_categorie'] ?>" checked style="display:none">
+            </button>
           <?php endforeach; ?>
         </div>
+        <span class="filter-hint">
+          <i class="fa-solid fa-circle-info" style="opacity:.5;"></i>
+          La sélection se reporte dans "Nouvelle offre"
+        </span>
       </div>
 
       <!-- Offres actives -->
@@ -782,7 +842,36 @@ document.querySelectorAll('[data-action="logout"]').forEach(btn => {
 });
 
 /* ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ Menu mobile ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ */
-// ── Filtre catégories partenaire (checkboxes multi) ──
+// ── Filtre catégories partenaire (chips) ──
+function onCatChipAllToggle(chip) {
+  const allActive = chip.classList.contains('active');
+  // toggle toutes les chips
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    if (allActive) c.classList.remove('active');
+    else c.classList.add('active');
+  });
+  // sync hidden checkboxes
+  document.querySelectorAll('.cat-filter-check').forEach(cb => { cb.checked = !allActive; });
+  const allCb = document.getElementById('cat-all-check');
+  if (allCb) allCb.checked = !allActive;
+  applyPartnerCategoryFilter();
+  syncCreateCategoryWithSelection();
+}
+
+function onCatChipToggle(chip) {
+  chip.classList.toggle('active');
+  const cb = chip.querySelector('.cat-filter-check');
+  if (cb) cb.checked = chip.classList.contains('active');
+  // mettre à jour le chip "Toutes"
+  const allChip = document.getElementById('cat-chip-all');
+  const allCb   = document.getElementById('cat-all-check');
+  const allChecked = Array.from(document.querySelectorAll('.cat-filter-check')).every(c => c.checked);
+  if (allChip) allChip.classList.toggle('active', allChecked);
+  if (allCb)   allCb.checked = allChecked;
+  applyPartnerCategoryFilter();
+  syncCreateCategoryWithSelection();
+}
+
 function getCheckedCatIds() {
   return Array.from(document.querySelectorAll('.cat-filter-check:checked'))
               .map(cb => String(cb.value));
