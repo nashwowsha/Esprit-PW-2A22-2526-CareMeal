@@ -189,21 +189,45 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
         </div>
 
         <style>
-          .cat-filter-btn { transition:all .2s; }
+          /* Checkbox pill filter */
+          .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0; }
+          .cat-checkbox-item label {
+            display:flex; align-items:center; gap:6px; cursor:pointer;
+            background:var(--color-dark-card); border:1px solid var(--color-dark-border);
+            border-radius:20px; padding:7px 16px; font-size:.85rem; color:var(--color-text);
+            transition:border-color .15s, background .15s; user-select:none;
+          }
+          .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
+          .cat-checkbox-item label:has(input:checked) {
+            border-color:var(--color-primary);
+            background:rgba(239,68,68,.12);
+            color:var(--color-white);
+            font-weight:600;
+          }
           .cat-section.hidden { display:none; }
         </style>
         <script>
-        function filterByCategory(catId, btn) {
-          document.querySelectorAll('.cat-filter-btn').forEach(b => {
-            b.classList.remove('btn-primary'); b.classList.add('btn-secondary');
-          });
-          btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+        function getStudentCheckedCats() {
+          return Array.from(document.querySelectorAll('.student-cat-check:checked')).map(c => c.value);
+        }
+        function onStudentAllToggle(allCb) {
+          document.querySelectorAll('.student-cat-check').forEach(cb => { cb.checked = allCb.checked; });
+          applyStudentFilter();
+        }
+        function onStudentCatChange() {
+          const allCb = document.getElementById('student-cat-all');
+          const checks = document.querySelectorAll('.student-cat-check');
+          if (allCb) allCb.checked = Array.from(checks).every(cb => cb.checked);
+          applyStudentFilter();
+        }
+        function applyStudentFilter() {
+          const selected = getStudentCheckedCats();
+          const allCb = document.getElementById('student-cat-all');
+          const allChecked = allCb ? allCb.checked : true;
           document.querySelectorAll('.cat-section').forEach(section => {
-            if (catId === 'all' || section.dataset.catId === catId) {
-              section.classList.remove('hidden');
-            } else {
-              section.classList.add('hidden');
-            }
+            const catId = section.dataset.catId;
+            const show = allChecked || selected.includes(catId);
+            section.classList.toggle('hidden', !show);
           });
         }
         </script>

@@ -85,6 +85,26 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert { padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-size: .9rem; }
     .alert-success { background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.2); }
     .alert-error   { background: rgba(239,68,68,.12);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+
+    /* Multi-category checkboxes pill style */
+    .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:8px 0; }
+    .cat-checkbox-item label {
+      display:flex; align-items:center; gap:6px; cursor:pointer;
+      background:var(--color-dark-hover); border:1px solid var(--color-dark-border);
+      border-radius:20px; padding:6px 14px; font-size:.82rem; color:var(--color-text);
+      transition:border-color .15s, background .15s; user-select:none;
+    }
+    .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
+    .cat-checkbox-item label:has(input:checked) {
+      border-color:var(--color-primary);
+      background:rgba(239,68,68,.12);
+      color:var(--color-white);
+      font-weight:600;
+    }
+    .cat-tags { display:flex; flex-wrap:wrap; gap:4px; }
+    .cat-tag { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.7rem; font-weight:600;
+               background:rgba(239,68,68,.15); color:#f87171; }
+
     .category-choice-wrap { margin-top: 12px; }
     .category-choice-select {
       width: 100%;
@@ -190,17 +210,26 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       </div>
 
       <div class="card animate-fade-in-up" style="padding:16px;margin-bottom:24px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-          <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-tags"></i> Table de choix des categories</h3>
-          <small style="color:var(--color-text-muted);">Le choix ici pre-remplit la categorie dans "Nouvelle offre".</small>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+          <h3 style="margin:0;font-size:1rem;"><i class="fa-solid fa-tags"></i> Filtrer par catégorie</h3>
+          <small style="color:var(--color-text-muted);">Cochez les catégories à afficher. La sélection se reporte dans "Nouvelle offre".</small>
         </div>
-        <div class="category-choice-wrap">
-          <select id="partner-category-select" class="category-choice-select" onchange="onPartnerCategoryChange()">
-            <option value="all">Toutes les catégories</option>
-            <?php foreach (($categories ?? []) as $cat): ?>
-              <option value="<?= (int)$cat['id_categorie'] ?>"><?= e($cat['nom_categorie']) ?></option>
-            <?php endforeach; ?>
-          </select>
+        <div class="cat-checkbox-list" id="partner-filter-cat-list">
+          <div class="cat-checkbox-item" id="cat-all-item">
+            <label>
+              <input type="checkbox" id="cat-all-check" checked onchange="onCatAllToggle(this)">
+              <span>Toutes</span>
+            </label>
+          </div>
+          <?php foreach (($categories ?? []) as $cat): ?>
+            <div class="cat-checkbox-item">
+              <label>
+                <input type="checkbox" class="cat-filter-check" value="<?= (int)$cat['id_categorie'] ?>" checked
+                       onchange="onPartnerCategoryChange()">
+                <span><?= e($cat['nom_categorie']) ?></span>
+              </label>
+            </div>
+          <?php endforeach; ?>
         </div>
       </div>
 
@@ -215,7 +244,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
               $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
             ?>
-            <div class="offer-card" data-cat-id="<?= (int)($o['id_categorie'] ?? 0) ?>">
+            <div class="offer-card" data-cat-id="<?= e($o['cat_ids'] ?? (string)($o['id_categorie'] ?? '')) ?>">
               <div style="position:relative;">
                 <?php if (!empty($o['photo_url'])): ?>
                   <img src="<?= e($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
@@ -266,7 +295,7 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
               $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
             ?>
-            <div class="offer-card" data-cat-id="<?= (int)($o['id_categorie'] ?? 0) ?>">
+            <div class="offer-card" data-cat-id="<?= e($o['cat_ids'] ?? (string)($o['id_categorie'] ?? '')) ?>">
               <div style="position:relative;">
                 <?php if (!empty($o['photo_url'])): ?>
                   <img src="<?= e($o['photo_url']) ?>" style="width:100%;height:140px;object-fit:cover;border-radius:12px 12px 0 0;" onerror="this.style.display='none'">
@@ -427,8 +456,16 @@ function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 function buildEditForm(o) {
   const statuts = ['publiée','brouillon','expirée','archivée'];
-  const catOpts = (allCategoriesData || []).map(c =>
-    `<option value="${c.id_categorie}" ${(o.id_categorie == c.id_categorie) ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
+  const offerCatIds = (o.categorie_ids && Array.isArray(o.categorie_ids))
+    ? o.categorie_ids.map(Number)
+    : (o.cat_ids ? o.cat_ids.split(',').map(Number) : (o.id_categorie ? [Number(o.id_categorie)] : []));
+  const catCheckboxes = (allCategoriesData || []).map(c =>
+    `<div class="cat-checkbox-item">
+      <label>
+        <input type="checkbox" name="id_categories[]" value="${c.id_categorie}" ${offerCatIds.includes(Number(c.id_categorie)) ? 'checked' : ''}>
+        <span>${esc(c.nom_categorie)}</span>
+      </label>
+    </div>`
   ).join('');
   const statutOpts = statuts.map(s =>
     `<option value="${s}" ${(o.statut??'publiée')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
@@ -467,14 +504,12 @@ function buildEditForm(o) {
           <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
         </div>
       </div>
-      <div class="form-group">
-        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
-        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-          <select name="id_categorie" class="form-input">
-            <option value="">-- Choisir --</option>
-            ${catOpts}
-          </select>
-        </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Catégories <span style="color:var(--color-primary)">*</span>
+          <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small>
+        </label>
+        <div class="cat-checkbox-list" id="edit-cat-list">${catCheckboxes}</div>
+        <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner au moins une catégorie.</div>
       </div>
     </div>
     <div class="form-row">
@@ -563,11 +598,17 @@ function validateOfferForm(form) {
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit ÃÂÃÂÃÂÃÂªtre au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
-  // Catégorie
-  const cat = form.querySelector('[name="id_categorie"]');
-  if (cat) {
-    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une categorie.'); valid = false; }
-    else clearFieldError(cat);
+  // Au moins une catégorie obligatoire
+  const catCbs = form.querySelectorAll('[name="id_categories[]"]');
+  const catErrEl = form.querySelector('#partner-create-cat-error, #edit-cat-error');
+  if (catCbs.length > 0) {
+    const anyCatChecked = Array.from(catCbs).some(cb => cb.checked);
+    if (!anyCatChecked) {
+      if (catErrEl) catErrEl.style.display = 'block';
+      valid = false;
+    } else {
+      if (catErrEl) catErrEl.style.display = 'none';
+    }
   }
   // Heures ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂÃÂ¬ÃÂ¢Ã¢ÂÂ¬ÃÂ format HH:MM et cohÃÂ©rence
   const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -709,32 +750,44 @@ document.querySelectorAll('[data-action="logout"]').forEach(btn => {
 });
 
 /* ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ Menu mobile ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂ¬ÃÂÃÂ¢Ã¢ÂÂÃÂ¬ */
-let selectedPartnerCategory = 'all';
+// ── Filtre catégories partenaire (checkboxes multi) ──
+function getCheckedCatIds() {
+  return Array.from(document.querySelectorAll('.cat-filter-check:checked'))
+              .map(cb => String(cb.value));
+}
+
+function onCatAllToggle(allCb) {
+  document.querySelectorAll('.cat-filter-check').forEach(cb => { cb.checked = allCb.checked; });
+  applyPartnerCategoryFilter();
+  syncCreateCategoryWithSelection();
+}
 
 function onPartnerCategoryChange() {
-  const categorySelect = document.getElementById('partner-category-select');
-  selectedPartnerCategory = categorySelect ? String(categorySelect.value || 'all') : 'all';
+  const checks = document.querySelectorAll('.cat-filter-check');
+  const allCb  = document.getElementById('cat-all-check');
+  if (allCb) allCb.checked = Array.from(checks).every(cb => cb.checked);
   applyPartnerCategoryFilter();
   syncCreateCategoryWithSelection();
 }
 
 function applyPartnerCategoryFilter() {
+  const selected = getCheckedCatIds();
+  const allChecked = document.getElementById('cat-all-check')?.checked ?? true;
   document.querySelectorAll('.offer-card[data-cat-id]').forEach(card => {
-    const cardCat = String(card.getAttribute('data-cat-id') || '0');
-    card.style.display = (selectedPartnerCategory === 'all' || cardCat === selectedPartnerCategory) ? '' : 'none';
+    const cardCats = (card.getAttribute('data-cat-id') || '').split(',').map(s => s.trim()).filter(Boolean);
+    const show = allChecked || selected.length === 0 || cardCats.some(c => selected.includes(c));
+    card.style.display = show ? '' : 'none';
   });
 }
 
 function syncCreateCategoryWithSelection() {
-  const createForm = document.getElementById('form-create');
-  if (!createForm) return;
-
-  const createCategorySelect = createForm.querySelector('[name="id_categorie"]');
-  if (!createCategorySelect) return;
-
-  if (selectedPartnerCategory !== 'all') {
-    createCategorySelect.value = selectedPartnerCategory;
-  }
+  // Pré-cocher dans le formulaire de création les catégories sélectionnées dans le filtre
+  const selected = getCheckedCatIds();
+  const createList = document.getElementById('partner-create-cat-list');
+  if (!createList) return;
+  createList.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = selected.includes(String(cb.value));
+  });
 }
 
 const mt = document.getElementById('menu-toggle');

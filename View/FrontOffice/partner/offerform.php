@@ -1,6 +1,6 @@
 ﻿<?php
-// Formulaire de CRÃ‰ATION d'offre (inclus dans modal-create de offers.php)
-// Variables disponibles : $categories, $old (valeurs prÃ©cÃ©dentes si erreur)
+// Formulaire de CRÉATION d'offre (inclus dans modal-create de offers.php)
+// Variables disponibles : $categories, $old (valeurs précédentes si erreur)
 $old = $old ?? [];
 
 function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
@@ -9,17 +9,16 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 <div class="form-group">
   <label>Titre <span style="color:var(--color-primary)">*</span></label>
   <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-tag"></i></span>
-    <input type="text" name="titre" class="form-input" 
-           placeholder="Ex: Panier surprise" 
+    <input type="text" name="titre" class="form-input"
+           placeholder="Ex: Panier surprise"
            value="<?= ec($old['titre'] ?? '') ?>"
-           id="create-titre"
-          >
+           id="create-titre">
   </div>
 </div>
 
 <div class="form-group">
   <label>Description</label>
-  <textarea name="description" class="form-textarea" rows="3" placeholder="DÃ©crivez le contenu..."><?= ec($old['description'] ?? '') ?></textarea>
+  <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu..."><?= ec($old['description'] ?? '') ?></textarea>
 </div>
 
 <div class="form-row">
@@ -37,26 +36,36 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   </div>
 </div>
 
-<div class="form-row">
-  <div class="form-group">
-    <label>QuantitÃ© <span style="color:var(--color-primary)">*</span></label>
-    <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
-      <input type="text" name="quantite" class="form-input" placeholder="5" value="<?= ec($old['quantite'] ?? '') ?>">
-    </div>
+<div class="form-group">
+  <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+  <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+    <input type="text" name="quantite" class="form-input" placeholder="5" value="<?= ec($old['quantite'] ?? '') ?>">
   </div>
-  <div class="form-group">
-    <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
-    <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-      <select name="id_categorie" class="form-input" id="create-id_categorie">
-        <option value="">-- Choisir --</option>
-        <?php foreach (($categories ?? []) as $c): ?>
-          <option value="<?= (int)$c['id_categorie'] ?>"
-            <?= (($old['id_categorie'] ?? '') == $c['id_categorie']) ? 'selected' : '' ?>>
-            <?= ec($c['nom_categorie']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </div>
+</div>
+
+<!-- ── Catégories multi-sélection (checkboxes pill) ── -->
+<div class="form-group">
+  <label>Catégories <span style="color:var(--color-primary)">*</span>
+    <small style="color:var(--color-text-muted);font-weight:400;">(une ou plusieurs)</small>
+  </label>
+  <div class="cat-checkbox-list" id="partner-create-cat-list">
+    <?php
+    $oldCats = isset($old['id_categories']) && is_array($old['id_categories'])
+        ? array_map('intval', $old['id_categories'])
+        : (isset($old['id_categorie']) ? [(int)$old['id_categorie']] : []);
+    foreach (($categories ?? []) as $c):
+      $checked = in_array((int)$c['id_categorie'], $oldCats) ? 'checked' : '';
+    ?>
+      <div class="cat-checkbox-item">
+        <label>
+          <input type="checkbox" name="id_categories[]" value="<?= (int)$c['id_categorie'] ?>" <?= $checked ?>>
+          <span><?= ec($c['nom_categorie']) ?></span>
+        </label>
+      </div>
+    <?php endforeach; ?>
+  </div>
+  <div id="partner-create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">
+    Veuillez sélectionner au moins une catégorie.
   </div>
 </div>
 
@@ -83,7 +92,7 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     <div class="photo-placeholder" id="create-photo-placeholder">
       <i class="fa-solid fa-cloud-arrow-up"></i>
       Cliquez ou glissez une image ici<br>
-      <small style="opacity:.6;">JPG, PNG, WEBP â€” max 2 Mo</small>
+      <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
     </div>
     <img id="create-photo-preview" class="photo-preview" alt="Aperçu">
   </div>
@@ -101,4 +110,3 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     </select>
   </div>
 </div>
-
