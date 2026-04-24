@@ -56,27 +56,40 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
       padding: 4px 10px; border-radius: 20px;
     }
 
-    /* ── Modals ── */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 999; align-items: center; justify-content: center; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-    .modal-overlay.active { display: flex; animation: fadeInBg .2s ease; }
-    @keyframes fadeInBg { from { opacity: 0; } to { opacity: 1; } }
-    .modal-box {
-      width: 100%; max-width: 560px;
-      background: var(--color-dark-card);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 18px; overflow: hidden;
-      animation: slideUp .25s ease;
-    }
-    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .modal-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-dark-border); padding: 18px 20px; }
-    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-    .modal-foot { border-top: 1px solid var(--color-dark-border); padding: 14px 20px; display: flex; justify-content: flex-end; gap: 8px; }
+    /* ── INLINE FORM (same pattern as offers.php) ── */
+    #view-form { display: none; flex-direction: column; gap: 20px; }
 
-    /* ── Form fields ── */
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: .8rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .05em; }
-    .modal-body .form-input,
-    .modal-body .form-textarea {
+    .form-page-header {
+      display: flex; align-items: center; gap: 16px;
+      margin-bottom: 4px;
+    }
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid var(--color-dark-border);
+      color: var(--color-white);
+      border-radius: 10px; padding: 9px 16px;
+      font-size: .875rem; font-weight: 600;
+      cursor: pointer; transition: background .2s, border-color .2s;
+      white-space: nowrap;
+    }
+    .btn-back:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); }
+
+    .form-card {
+      background: var(--color-dark-card);
+      border: 1px solid var(--color-dark-border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .form-card .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .form-card .form-group:last-child { margin-bottom: 0; }
+    .form-card label {
+      font-size: .78rem; font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .form-card .form-input,
+    .form-card .form-textarea {
       width: 100%; box-sizing: border-box;
       border: 1.5px solid var(--color-dark-border);
       border-radius: 10px;
@@ -87,20 +100,37 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
       outline: none;
       transition: border-color .2s, box-shadow .2s, background .2s;
     }
-    .modal-body .form-input:focus,
-    .modal-body .form-textarea:focus {
+    .form-card .form-input:focus,
+    .form-card .form-textarea:focus {
       border-color: var(--color-primary);
       box-shadow: 0 0 0 3px rgba(254,85,22,.18);
       background: rgba(255,255,255,.08);
     }
-    .modal-body .form-input.input-error {
+    .form-card .form-input.input-error {
       border-color: #f87171;
       box-shadow: 0 0 0 3px rgba(248,113,113,.2);
     }
-    .modal-body .form-input::placeholder,
-    .modal-body .form-textarea::placeholder { color: rgba(255,255,255,.35); }
+    .form-card .form-input::placeholder,
+    .form-card .form-textarea::placeholder { color: rgba(255,255,255,.35); }
     .field-error { font-size: .78rem; color: #f87171; display: none; }
     .field-error.visible { display: block; }
+
+    .form-actions {
+      display: flex; justify-content: flex-end; gap: 10px;
+      border-top: 1px solid var(--color-dark-border);
+      margin-top: 20px; padding-top: 20px;
+    }
+
+    /* Delete card */
+    .delete-inline-card {
+      text-align: center; padding: 40px 24px;
+      background: var(--color-dark-card);
+      border: 1px solid var(--color-dark-border);
+      border-radius: 16px;
+    }
+    .delete-inline-card i.big-icon { font-size: 3rem; color: #f87171; display: block; margin-bottom: 16px; }
+    .delete-inline-card h3 { margin: 0 0 8px; color: var(--color-white); }
+    .delete-inline-card p  { color: var(--color-text-muted); margin: 0 0 24px; }
 
     /* ══════════════════════════════════════════════
        BEAUTIFUL OFFERS TABLE
@@ -138,66 +168,41 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
     .offers-table th:last-child  { padding-right: 20px; }
 
     /* Body rows */
-    .offers-table tbody tr {
-      transition: background .15s;
-      cursor: default;
-    }
-    .offers-table tbody tr:hover td {
-      background: rgba(255,255,255,.04);
-    }
+    .offers-table tbody tr { transition: background .15s; cursor: default; }
+    .offers-table tbody tr:hover td { background: rgba(255,255,255,.04); }
     .offers-table td {
       padding: 13px 18px;
       border-bottom: 1px solid rgba(255,255,255,.05);
-      color: var(--color-white);
-      vertical-align: middle;
     }
     .offers-table tbody tr:last-child td { border-bottom: none; }
-    .offers-table td:first-child { padding-left: 20px; font-weight: 600; }
-    .offers-table td:last-child  { padding-right: 20px; }
 
-    /* Price cell */
-    .price-cell { font-weight: 700; color: #4ade80; }
-    .price-original { font-size: .8rem; color: var(--color-text-muted); text-decoration: line-through; }
+    /* Price */
+    .price-cell     { font-weight: 700; color: var(--color-white); }
+    .price-original { color: var(--color-text-muted); text-decoration: line-through; font-size: .82rem; }
 
-    /* Quantity cell */
+    /* Qty badge */
     .qty-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      min-width: 32px; height: 26px; border-radius: 8px;
-      background: rgba(255,255,255,.08);
-      font-weight: 600; font-size: .8rem;
-      color: var(--color-white); padding: 0 8px;
+      min-width: 28px; padding: 2px 8px;
+      border-radius: 20px; font-size: .78rem; font-weight: 600;
+      background: rgba(255,255,255,.07); color: var(--color-white);
     }
 
     /* Status badge */
     .status-badge {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 12px; border-radius: 20px;
-      font-size: .75rem; font-weight: 700; text-transform: capitalize;
+      font-size: .72rem; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px;
+      text-transform: capitalize;
+      background: rgba(255,255,255,.06);
+      color: var(--color-text-muted);
     }
     .status-badge::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
+      content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: currentColor;
     }
-    .status-badge.publiee {
-      background: rgba(74,222,128,.14);
-      color: #4ade80;
-      border: 1px solid rgba(74,222,128,.25);
-    }
-    .status-badge.publiee::before  { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
-    .status-badge.brouillon {
-      background: rgba(251,191,36,.14);
-      color: #fbbf24;
-      border: 1px solid rgba(251,191,36,.25);
-    }
-    .status-badge.brouillon::before { background: #fbbf24; }
-    .status-badge.archivee,
-    .status-badge.expiree {
-      background: rgba(248,113,113,.1);
-      color: #f87171;
-      border: 1px solid rgba(248,113,113,.2);
-    }
+    .status-badge.publiée  { background: rgba(34,197,94,.12); color: #4ade80; }
+    .status-badge.brouillon { background: rgba(250,204,21,.12); color: #facc15; }
     .status-badge.archivee::before,
     .status-badge.expiree::before  { background: #f87171; }
 
@@ -271,12 +276,13 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
       <div class="header-left">
         <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
         <div class="page-title">
-          <h2>Catégorie Offres</h2>
-          <p>CRUD des catégories et affichage des offres liées</p>
+          <h2 id="page-heading">Catégorie Offres</h2>
+          <p id="page-sub">CRUD des catégories et affichage des offres liées</p>
         </div>
       </div>
       <div class="header-right">
-        <button class="btn btn-primary" onclick="openModal('modal-create')">
+        <button class="btn btn-primary" id="btn-add-cat" onclick="showCreateForm()"
+                style="display:flex;align-items:center;gap:8px;">
           <i class="fa-solid fa-plus"></i> Ajouter catégorie
         </button>
       </div>
@@ -294,246 +300,269 @@ $selectedCategoryId = (int)($selectedCategoryId ?? 0);
         </div>
       <?php endif; ?>
 
-      <!-- ── Categories grid ── -->
-      <div class="section-card">
-        <h3><i class="fa-solid fa-tags"></i> Catégories</h3>
-        <?php if (empty($categories)): ?>
-          <p style="margin:0;color:var(--color-text-muted);">Aucune catégorie disponible.</p>
-        <?php else: ?>
-          <div class="grid-cats">
-            <?php foreach ($categories as $category): ?>
-              <?php $catId = (int)$category['id_categorie']; ?>
-              <div class="cat-card">
-                <div class="cat-card-header">
-                  <div style="display:flex;gap:12px;align-items:flex-start;">
-                    <div class="cat-icon-wrap">
-                      <i class="fa-solid <?= e($category['icone'] ?: 'fa-tag') ?>"></i>
-                    </div>
-                    <div>
-                      <div class="cat-title"><?= e($category['nom_categorie']) ?></div>
-                      <div class="cat-meta"><?= e($category['description'] ?: 'Pas de description') ?></div>
-                    </div>
-                  </div>
-                  <div class="cat-actions">
-                    <button class="btn btn-secondary btn-sm"
-                            onclick="openEditModal('<?= $catId ?>', '<?= e($category['nom_categorie']) ?>', '<?= e($category['description']) ?>', '<?= e($category['icone']) ?>')">
-                      <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button class="btn btn-danger btn-sm"
-                            onclick="openDeleteModal('<?= $catId ?>', '<?= e($category['nom_categorie']) ?>')">
-                      <i class="fa-solid fa-trash"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="cat-footer">
-                  <span class="count-badge"><i class="fa-solid fa-box" style="margin-right:4px;font-size:.65rem;"></i><?= (int)$category['total_offres'] ?> offre(s)</span>
-                  <a class="btn btn-primary btn-sm" href="?id_categorie=<?= $catId ?>">Voir offres</a>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
-      </div>
+      <!-- ══════════════════════════════════════
+           VUE 1 : LISTE DES CATÉGORIES
+      ══════════════════════════════════════ -->
+      <div id="view-list">
 
-      <!-- ── Offers table ── -->
-      <div class="section-card">
-        <h3><i class="fa-solid fa-box-open"></i> Offres de la catégorie sélectionnée</h3>
-        <?php if ($selectedCategoryId <= 0): ?>
-          <div class="table-empty">
-            <i class="fa-solid fa-hand-pointer"></i>
-            Choisissez une catégorie pour afficher ses offres.
-          </div>
-        <?php elseif (empty($offers)): ?>
-          <div class="table-empty">
-            <i class="fa-solid fa-box-open"></i>
-            Aucune offre liée à cette catégorie.
-          </div>
-        <?php else: ?>
-          <div class="table-wrap">
-            <table class="offers-table">
-              <thead>
-                <tr>
-                  <th><i class="fa-solid fa-utensils" style="margin-right:6px;"></i>Titre</th>
-                  <th><i class="fa-solid fa-tag" style="margin-right:6px;"></i>Prix</th>
-                  <th><i class="fa-solid fa-receipt" style="margin-right:6px;"></i>Prix original</th>
-                  <th><i class="fa-solid fa-cubes" style="margin-right:6px;"></i>Stock</th>
-                  <th><i class="fa-solid fa-circle-dot" style="margin-right:6px;"></i>Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-              <?php foreach ($offers as $offer): ?>
-                <?php
-                  $prix     = (float)$offer['prix'];
-                  $original = (float)$offer['prix_original'];
-                  $discount = ($original > 0 && $original > $prix)
-                    ? round((1 - $prix / $original) * 100) : 0;
-                  $statut   = strtolower(trim($offer['statut'] ?? ''));
-                ?>
-                <tr>
-                  <td><?= e($offer['titre']) ?></td>
-                  <td>
-                    <span class="price-cell"><?= number_format($prix, 2) ?> DT</span>
-                    <?php if ($discount > 0): ?>
-                      <span class="discount-chip">-<?= $discount ?>%</span>
-                    <?php endif; ?>
-                  </td>
-                  <td><span class="price-original"><?= number_format($original, 2) ?> DT</span></td>
-                  <td><span class="qty-badge"><?= (int)$offer['quantite'] ?></span></td>
-                  <td>
-                    <span class="status-badge <?= e($statut) ?>"><?= e($offer['statut']) ?></span>
-                  </td>
-                </tr>
+        <!-- ── Categories grid ── -->
+        <div class="section-card">
+          <h3><i class="fa-solid fa-tags"></i> Catégories</h3>
+          <?php if (empty($categories)): ?>
+            <p style="margin:0;color:var(--color-text-muted);">Aucune catégorie disponible.</p>
+          <?php else: ?>
+            <div class="grid-cats">
+              <?php foreach ($categories as $category): ?>
+                <?php $catId = (int)$category['id_categorie']; ?>
+                <div class="cat-card">
+                  <div class="cat-card-header">
+                    <div style="display:flex;gap:12px;align-items:flex-start;">
+                      <div class="cat-icon-wrap">
+                        <i class="fa-solid <?= e($category['icone'] ?: 'fa-tag') ?>"></i>
+                      </div>
+                      <div>
+                        <div class="cat-title"><?= e($category['nom_categorie']) ?></div>
+                        <div class="cat-meta"><?= e($category['description'] ?: 'Pas de description') ?></div>
+                      </div>
+                    </div>
+                    <div class="cat-actions">
+                      <button class="btn btn-secondary btn-sm"
+                              onclick="showEditForm('<?= $catId ?>', '<?= e($category['nom_categorie']) ?>', '<?= e($category['description']) ?>', '<?= e($category['icone']) ?>')">
+                        <i class="fa-solid fa-pen"></i>
+                      </button>
+                      <button class="btn btn-danger btn-sm"
+                              onclick="showDeleteForm('<?= $catId ?>', '<?= e($category['nom_categorie']) ?>')">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="cat-footer">
+                    <span class="count-badge"><i class="fa-solid fa-box" style="margin-right:4px;font-size:.65rem;"></i><?= (int)$category['total_offres'] ?> offre(s)</span>
+                    <a class="btn btn-primary btn-sm" href="?id_categorie=<?= $catId ?>">Voir offres</a>
+                  </div>
+                </div>
               <?php endforeach; ?>
-              </tbody>
-            </table>
+            </div>
+          <?php endif; ?>
+        </div>
+
+        <!-- ── Offers table ── -->
+        <div class="section-card">
+          <h3><i class="fa-solid fa-box-open"></i> Offres de la catégorie sélectionnée</h3>
+          <?php if ($selectedCategoryId <= 0): ?>
+            <div class="table-empty">
+              <i class="fa-solid fa-hand-pointer"></i>
+              Choisissez une catégorie pour afficher ses offres.
+            </div>
+          <?php elseif (empty($offers)): ?>
+            <div class="table-empty">
+              <i class="fa-solid fa-box-open"></i>
+              Aucune offre liée à cette catégorie.
+            </div>
+          <?php else: ?>
+            <div class="table-wrap">
+              <table class="offers-table">
+                <thead>
+                  <tr>
+                    <th><i class="fa-solid fa-utensils" style="margin-right:6px;"></i>Titre</th>
+                    <th><i class="fa-solid fa-tag" style="margin-right:6px;"></i>Prix</th>
+                    <th><i class="fa-solid fa-receipt" style="margin-right:6px;"></i>Prix original</th>
+                    <th><i class="fa-solid fa-cubes" style="margin-right:6px;"></i>Stock</th>
+                    <th><i class="fa-solid fa-circle-dot" style="margin-right:6px;"></i>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($offers as $offer): ?>
+                  <?php
+                    $prix     = (float)$offer['prix'];
+                    $original = (float)$offer['prix_original'];
+                    $discount = ($original > 0 && $original > $prix)
+                      ? round((1 - $prix / $original) * 100) : 0;
+                    $statut   = strtolower(trim($offer['statut'] ?? ''));
+                  ?>
+                  <tr>
+                    <td><?= e($offer['titre']) ?></td>
+                    <td>
+                      <span class="price-cell"><?= number_format($prix, 2) ?> DT</span>
+                      <?php if ($discount > 0): ?>
+                        <span class="discount-chip">-<?= $discount ?>%</span>
+                      <?php endif; ?>
+                    </td>
+                    <td><span class="price-original"><?= number_format($original, 2) ?> DT</span></td>
+                    <td><span class="qty-badge"><?= (int)$offer['quantite'] ?></span></td>
+                    <td>
+                      <span class="status-badge <?= e($statut) ?>"><?= e($offer['statut']) ?></span>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+        </div>
+
+      </div><!-- /view-list -->
+
+      <!-- ══════════════════════════════════════
+           VUE 2 : FORMULAIRE INLINE
+      ══════════════════════════════════════ -->
+      <div id="view-form">
+
+        <!-- En-tête formulaire -->
+        <div class="form-page-header">
+          <button class="btn-back" onclick="showList()">
+            <i class="fa-solid fa-arrow-left"></i> Retour
+          </button>
+          <div>
+            <h2 id="form-heading">Ajouter une catégorie</h2>
+            <p id="form-sub">Remplissez les informations ci-dessous</p>
           </div>
-        <?php endif; ?>
-      </div>
+        </div>
+
+        <!-- ── Formulaire CRÉER ── -->
+        <div id="form-create-wrap" style="display:none;">
+          <div class="form-card">
+            <form method="POST" action="/caremeal/admin/categorie.php" id="form-create" novalidate>
+              <input type="hidden" name="action" value="create_category">
+              <div class="form-group">
+                <label>Nom catégorie <span style="color:#f87171;">*</span></label>
+                <input type="text" name="nom_categorie" id="create-nom" class="form-input"
+                       placeholder="Ex : Sandwichs, Salades…"
+                       value="<?= e($old['nom_categorie'] ?? '') ?>">
+                <span class="field-error" id="err-create-nom"></span>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" class="form-textarea" rows="3"
+                          placeholder="Courte description de la catégorie…"><?= e($old['description'] ?? '') ?></textarea>
+                <span class="field-error" id="err-create-desc"></span>
+              </div>
+              <div class="form-group">
+                <label>Icône Font Awesome <span style="color:var(--color-text-muted);font-weight:400;">(ex&nbsp;: fa-burger)</span></label>
+                <input type="text" name="icone" id="create-icone" class="form-input"
+                       placeholder="fa-tag"
+                       value="<?= e($old['icone'] ?? '') ?>">
+                <span class="field-error" id="err-create-icone"></span>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="showList()">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="validateAndSubmit('form-create')">
+                  <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ── Formulaire MODIFIER ── -->
+        <div id="form-edit-wrap" style="display:none;">
+          <div class="form-card">
+            <form method="POST" action="/caremeal/admin/categorie.php" id="form-edit" novalidate>
+              <input type="hidden" name="action" value="update_category">
+              <input type="hidden" name="id_categorie" id="edit-id">
+              <div class="form-group">
+                <label>Nom catégorie <span style="color:#f87171;">*</span></label>
+                <input type="text" name="nom_categorie" id="edit-name" class="form-input" placeholder="Nom de la catégorie">
+                <span class="field-error" id="err-edit-nom"></span>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" id="edit-description" class="form-textarea" rows="3" placeholder="Description…"></textarea>
+                <span class="field-error" id="err-edit-desc"></span>
+              </div>
+              <div class="form-group">
+                <label>Icône Font Awesome</label>
+                <input type="text" name="icone" id="edit-icon" class="form-input" placeholder="fa-tag">
+                <span class="field-error" id="err-edit-icone"></span>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="showList()">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="validateAndSubmit('form-edit')">
+                  <i class="fa-solid fa-floppy-disk"></i> Mettre à jour
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ── Formulaire SUPPRIMER ── -->
+        <div id="form-delete-wrap" style="display:none;">
+          <div class="delete-inline-card">
+            <i class="fa-solid fa-trash big-icon"></i>
+            <h3>Supprimer la catégorie</h3>
+            <p id="delete-label"></p>
+            <form method="POST" action="/caremeal/admin/categorie.php">
+              <input type="hidden" name="action" value="delete_category">
+              <input type="hidden" name="id_categorie" id="delete-id">
+              <div class="form-actions" style="justify-content:center;border:none;margin-top:0;padding-top:0;">
+                <button type="button" class="btn btn-secondary" onclick="showList()">Annuler</button>
+                <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Supprimer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div><!-- /view-form -->
+
     </div><!-- /page-content -->
   </main>
-</div>
-
-<!-- ══ Modal: Créer catégorie ══ -->
-<div class="modal-overlay" id="modal-create">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3 style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-plus" style="color:var(--color-primary);"></i> Ajouter catégorie</h3>
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-create')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <!-- NOTE: no HTML5 validation (novalidate), JS handles it -->
-    <form method="POST" action="/caremeal/admin/categorie.php" id="form-create" novalidate>
-      <input type="hidden" name="action" value="create_category">
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Nom catégorie <span style="color:#f87171;">*</span></label>
-          <input type="text" name="nom_categorie" id="create-nom" class="form-input"
-                 placeholder="Ex : Sandwichs, Salades…"
-                 value="<?= e($old['nom_categorie'] ?? '') ?>">
-          <span class="field-error" id="err-create-nom"></span>
-        </div>
-        <div class="form-group">
-          <label>Description</label>
-          <textarea name="description" class="form-textarea" rows="3"
-                    placeholder="Courte description de la catégorie…"><?= e($old['description'] ?? '') ?></textarea>
-          <span class="field-error" id="err-create-desc"></span>
-        </div>
-        <div class="form-group">
-          <label>Icône Font Awesome <span style="color:var(--color-text-muted);font-weight:400;">(ex&nbsp;: fa-burger)</span></label>
-          <input type="text" name="icone" id="create-icone" class="form-input"
-                 placeholder="fa-tag"
-                 value="<?= e($old['icone'] ?? '') ?>">
-          <span class="field-error" id="err-create-icone"></span>
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create')">Annuler</button>
-        <button type="button" class="btn btn-primary" onclick="validateAndSubmit('form-create')">
-          <i class="fa-solid fa-floppy-disk"></i> Enregistrer
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ══ Modal: Modifier catégorie ══ -->
-<div class="modal-overlay" id="modal-edit">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3 style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-pen" style="color:var(--color-primary);"></i> Modifier catégorie</h3>
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-edit')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <form method="POST" action="/caremeal/admin/categorie.php" id="form-edit" novalidate>
-      <input type="hidden" name="action" value="update_category">
-      <input type="hidden" name="id_categorie" id="edit-id">
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Nom catégorie <span style="color:#f87171;">*</span></label>
-          <input type="text" name="nom_categorie" id="edit-name" class="form-input" placeholder="Nom de la catégorie">
-          <span class="field-error" id="err-edit-nom"></span>
-        </div>
-        <div class="form-group">
-          <label>Description</label>
-          <textarea name="description" id="edit-description" class="form-textarea" rows="3" placeholder="Description…"></textarea>
-          <span class="field-error" id="err-edit-desc"></span>
-        </div>
-        <div class="form-group">
-          <label>Icône Font Awesome</label>
-          <input type="text" name="icone" id="edit-icon" class="form-input" placeholder="fa-tag">
-          <span class="field-error" id="err-edit-icone"></span>
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit')">Annuler</button>
-        <button type="button" class="btn btn-primary" onclick="validateAndSubmit('form-edit')">
-          <i class="fa-solid fa-floppy-disk"></i> Mettre à jour
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ══ Modal: Supprimer ══ -->
-<div class="modal-overlay" id="modal-delete">
-  <div class="modal-box" style="max-width:430px;">
-    <div class="modal-head">
-      <h3 style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-trash" style="color:#f87171;"></i> Supprimer catégorie</h3>
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-delete')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <form method="POST" action="/caremeal/admin/categorie.php">
-      <input type="hidden" name="action" value="delete_category">
-      <input type="hidden" name="id_categorie" id="delete-id">
-      <div class="modal-body">
-        <p id="delete-label" style="margin:0; color:var(--color-text-muted);"></p>
-      </div>
-      <div class="modal-foot">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-delete')">Annuler</button>
-        <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i> Supprimer</button>
-      </div>
-    </form>
-  </div>
 </div>
 
 <script src="/caremeal/js/app.js"></script>
 <script src="/caremeal/js/components.js"></script>
 <script>
 /* ══════════════════════════════════════════
-   Modals
+   NAVIGATION ENTRE VUES (sans modal)
 ══════════════════════════════════════════ */
-function openModal(id) {
-  const m = document.getElementById(id);
-  if (m) m.classList.add('active');
+function showList() {
+  document.getElementById('view-list').style.display = 'block';
+  document.getElementById('view-form').style.display = 'none';
+  document.getElementById('btn-add-cat').style.display = 'flex';
+  document.getElementById('page-heading').textContent = 'Catégorie Offres';
+  document.getElementById('page-sub').textContent     = 'CRUD des catégories et affichage des offres liées';
 }
-function closeModal(id) {
-  const m = document.getElementById(id);
-  if (m) m.classList.remove('active');
+
+function showFormView(heading, sub) {
+  document.getElementById('view-list').style.display = 'none';
+  document.getElementById('view-form').style.display = 'flex';
+  document.getElementById('btn-add-cat').style.display = 'none';
+  document.getElementById('form-heading').textContent = heading;
+  document.getElementById('form-sub').textContent     = sub;
+  // Cacher les 3 sous-vues
+  document.getElementById('form-create-wrap').style.display = 'none';
+  document.getElementById('form-edit-wrap').style.display   = 'none';
+  document.getElementById('form-delete-wrap').style.display = 'none';
 }
-function openEditModal(id, name, description, icon) {
+
+function showCreateForm() {
+  showFormView('Ajouter une catégorie', 'Remplissez les informations ci-dessous');
+  document.getElementById('form-create-wrap').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showEditForm(id, name, description, icon) {
+  showFormView('Modifier la catégorie', name);
   document.getElementById('edit-id').value          = id;
   document.getElementById('edit-name').value        = name;
   document.getElementById('edit-description').value = description;
   document.getElementById('edit-icon').value        = icon;
   clearErrors('form-edit');
-  openModal('modal-edit');
-}
-function openDeleteModal(id, name) {
-  document.getElementById('delete-id').value    = id;
-  document.getElementById('delete-label').textContent =
-    'Voulez-vous vraiment supprimer la catégorie "' + name + '" ? Cette action est irréversible.';
-  openModal('modal-delete');
+  document.getElementById('form-edit-wrap').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Close on backdrop click
-document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) overlay.classList.remove('active');
-  });
-});
+function showDeleteForm(id, name) {
+  showFormView('Supprimer la catégorie', '');
+  document.getElementById('delete-id').value       = id;
+  document.getElementById('delete-label').textContent =
+    'Voulez-vous vraiment supprimer la catégorie "' + name + '" ? Cette action est irréversible.';
+  document.getElementById('form-delete-wrap').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 /* ══════════════════════════════════════════
    Validation JS (sans HTML5)
 ══════════════════════════════════════════ */
-
-// Règles de validation par champ (formId → liste de règles)
 var RULES = {
   'form-create': [
     {
@@ -606,16 +635,12 @@ function validateAndSubmit(formId) {
     rules.forEach(function(rule) {
       var input = document.getElementById(rule.field);
       var val   = input ? input.value : '';
-      var failed = false;
-
       clearError(rule.field, rule.errId);
-
       for (var i = 0; i < rule.checks.length; i++) {
         if (rule.checks[i].test(val)) {
           showError(rule.field, rule.errId, rule.checks[i].msg);
-          failed = true;
-          valid  = false;
-          break; // une seule erreur affichée par champ
+          valid = false;
+          break;
         }
       }
     });
@@ -624,17 +649,14 @@ function validateAndSubmit(formId) {
   if (valid && form) form.submit();
 }
 
-// Effacer les erreurs en temps réel quand l'utilisateur tape
+// Effacer les erreurs en temps réel
 ['create-nom','create-icone','edit-name','edit-icon'].forEach(function(id) {
   var el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', function() {
     el.classList.remove('input-error');
-    // trouver et vider le span d'erreur associé
     var errSpans = document.querySelectorAll('.field-error.visible');
     errSpans.forEach(function(s) {
-      var fieldId = id;
-      // vérification simple : si le span suit directement l'input (même form-group)
       if (el.parentNode && el.parentNode.contains(s)) {
         s.textContent = '';
         s.classList.remove('visible');
@@ -662,4 +684,3 @@ document.querySelectorAll('[data-action="logout"]').forEach(function(btn) {
 });
 </script>
 </body>
-</html>
