@@ -339,7 +339,6 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 <!-- DonnÃÂ©es des offres injectÃÂ©es en PHP pour l'ÃÂÃÂÃÂÃÂ©dition JS -->
 <script>
 const allOffersData = <?= json_encode(array_values($offers ?? []), JSON_UNESCAPED_UNICODE) ?>;
-const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNICODE) ?>;
 </script>
 
 <script src="/caremeal/js/app.js"></script>
@@ -380,9 +379,6 @@ document.querySelectorAll('.modal-overlay').forEach(el =>
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function buildEditForm(o) {
-  const catOpts = allCategoriesData.map(c =>
-    `<option value="${c.id_categorie}" ${o.id_categorie == c.id_categorie ? 'selected' : ''}>${esc(c.nom_categorie)}</option>`
-  ).join('');
   const statuts = ['publiée','brouillon','expirée','archivée'];
   const statutOpts = statuts.map(s =>
     `<option value="${s}" ${(o.statut??'publiée')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
@@ -419,12 +415,6 @@ function buildEditForm(o) {
         <label>Quantité <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
           <input type="text" name="quantite" class="form-input" placeholder="5" value="${esc(o.quantite??'')}">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
-        <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-          <select name="id_categorie" class="form-input"><option value="">-- Choisir --</option>${catOpts}</select>
         </div>
       </div>
     </div>
@@ -513,12 +503,6 @@ function validateOfferForm(form) {
     const v = parseInt(qte.value);
     if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit ÃÂÃÂÃÂÃÂªtre au moins 1.'); valid = false; }
     else clearFieldError(qte);
-  }
-  // Catégorie obligatoire
-  const cat = form.querySelector('[name="id_categorie"]');
-  if (cat) {
-    if (!cat.value) { showFieldError(cat, 'Veuillez choisir une catégorie.'); valid = false; }
-    else clearFieldError(cat);
   }
   // Heures ÃÂÃÂ¢ÃÂ¢Ã¢ÂÂÃÂ¬ÃÂ¢Ã¢ÂÂ¬ÃÂ format HH:MM et cohÃÂ©rence
   const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;

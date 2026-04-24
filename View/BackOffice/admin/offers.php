@@ -71,6 +71,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <a href="/caremeal/admin/dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
         <a href="/caremeal/admin/users.html"     class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
         <a href="/caremeal/admin/partners.html"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+        <a href="/caremeal/admin/categorie.php"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Categorie offres</a>
         <a href="offers.php"                    class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
         <a href="/caremeal/admin/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
         <a href="/caremeal/admin/logs.html"      class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activités</a>
@@ -126,6 +127,14 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);"></i>
           <input type="text" id="search-input" class="form-input" style="padding-left:36px;" placeholder="Rechercher par titre, partenaire..." oninput="applyFilters()">
         </div>
+        <div style="min-width:230px;">
+          <select id="category-filter" class="form-input" onchange="onCategoryFilterChange()">
+            <option value="">Toutes les catégories</option>
+            <?php foreach ($categories as $c): ?>
+              <option value="<?= (int)$c['id_categorie'] ?>"><?= ea($c['nom_categorie']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="filter-btns">
           <button class="btn btn-primary"   onclick="setFilter('tous',this)">Tous</button>
           <button class="btn btn-secondary" onclick="setFilter('publiée',this)">Publiées</button>
@@ -159,7 +168,10 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                 $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
                 $stock = ($o['quantite'] ?? '?');
               ?>
-                <tr data-statut="<?= ea($o['statut']) ?>" data-titre="<?= ea(strtolower($o['titre'])) ?>" data-partenaire="<?= ea(strtolower($o['id_partenaire'] ?? '')) ?>">
+                <tr data-statut="<?= ea($o['statut']) ?>"
+                    data-titre="<?= ea(strtolower($o['titre'])) ?>"
+                    data-partenaire="<?= ea(strtolower($o['id_partenaire'] ?? '')) ?>"
+                    data-categorie="<?= (int)($o['id_categorie'] ?? 0) ?>">
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
                       <?php if (!empty($o['photo_url'])): ?>
@@ -378,6 +390,9 @@ function openModal(id) {
   el.classList.add('active');
   el.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  if (id === 'modal-create') {
+    syncCreateCategoryWithFilter();
+  }
 }
 function closeModal(id) {
   const el = document.getElementById(id);
@@ -616,6 +631,7 @@ function handlePhotoUpload(input, urlId, previewId, placeholderId) {
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Filtre côté client (tableau PHP statique) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 let currentFilter = 'tous';
+let currentCategoryFilter = '';
 
 function setFilter(f, btn) {
   currentFilter = f;
@@ -626,15 +642,50 @@ function setFilter(f, btn) {
   applyFilters();
 }
 
+function onCategoryFilterChange() {
+  const select = document.getElementById('category-filter');
+  currentCategoryFilter = select ? (select.value || '') : '';
+  applyFilters();
+  syncCreateCategoryWithFilter();
+}
+
+function syncCreateCategoryWithFilter() {
+  const createForm = document.getElementById('form-create');
+  if (!createForm) return;
+  const categorySelect = createForm.querySelector('[name="id_categorie"]');
+  if (!categorySelect) return;
+
+  if (currentCategoryFilter) {
+    categorySelect.value = currentCategoryFilter;
+    categorySelect.setAttribute('disabled', 'disabled');
+
+    let hidden = createForm.querySelector('#create-locked-category');
+    if (!hidden) {
+      hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.id = 'create-locked-category';
+      hidden.name = 'id_categorie';
+      createForm.appendChild(hidden);
+    }
+    hidden.value = currentCategoryFilter;
+  } else {
+    categorySelect.removeAttribute('disabled');
+    const hidden = createForm.querySelector('#create-locked-category');
+    if (hidden) hidden.remove();
+  }
+}
+
 function applyFilters() {
   const q = (document.getElementById('search-input').value || '').toLowerCase();
   document.querySelectorAll('#offers-tbody tr[data-statut]').forEach(row => {
     const statut     = row.dataset.statut     || '';
     const titre      = row.dataset.titre      || '';
     const partenaire = row.dataset.partenaire || '';
+    const categorie  = row.dataset.categorie  || '';
     const matchFilter = currentFilter === 'tous' || statut === currentFilter;
+    const matchCategory = !currentCategoryFilter || currentCategoryFilter === categorie;
     const matchSearch = !q || titre.includes(q) || partenaire.includes(q);
-    row.style.display = (matchFilter && matchSearch) ? '' : 'none';
+    row.style.display = (matchFilter && matchCategory && matchSearch) ? '' : 'none';
   });
 }
 

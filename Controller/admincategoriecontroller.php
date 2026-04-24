@@ -1,7 +1,5 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../Model/Offer.php';
-require_once __DIR__ . '/../Model/Categorie.php';
 
 class AdminCategoryController
 {
@@ -12,248 +10,194 @@ class AdminCategoryController
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
+
         $this->pdo = Config::getConnexion();
+        $this->migrateSchema();
     }
 
-    /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-       INDEX Ã¢ÂÂ page principale : catégories + offres (jointure)
-    Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
-    public function index()
+    public function index(): void
     {
-        // Jointure : toutes les catégories avec leurs offres (comme le workshop)
-        $categories  = $this->getAllCategoriesWithOffers();
-        $allOffers   = $this->getAllOffersFlat();
+        $categories = $this->getCategoriesWithCounts();
+        $selectedCategoryId = isset($_GET['id_categorie']) ? (int)$_GET['id_categorie'] : 0;
 
-        $flash  = $_SESSION['flash']  ?? null;
+        if ($selectedCategoryId <= 0 && !empty($categories)) {
+            $selectedCategoryId = (int)$categories[0]['id_categorie'];
+        }
+
+        $offers = $selectedCategoryId > 0 ? $this->getOffersByCategory($selectedCategoryId) : [];
+
+        $flash = $_SESSION['flash'] ?? null;
         $errors = $_SESSION['errors'] ?? [];
-        $old    = $_SESSION['old']    ?? [];
+        $old = $_SESSION['old'] ?? [];
         unset($_SESSION['flash'], $_SESSION['errors'], $_SESSION['old']);
 
         require_once __DIR__ . '/../View/BackOffice/admin/categorie.php';
     }
 
-    /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-       CRUD CATÃÂGORIE
-    Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
-    public function createCategory()
+    public function createCategory(): void
     {
-        $nom  = trim($_POST['nom_categorie'] ?? '');
-        $desc = trim($_POST['description']   ?? '');
-        $icon = trim($_POST['icone']         ?? '');
-
-        $errors = [];
-        if ($nom === '')         $errors[] = 'Le nom de la catégorie est obligatoire.';
-        if (strlen($nom) < 2)   $errors[] = 'Le nom doit contenir au moins 2 caractères.';
+        $payload = $this->sanitizeCategoryPayload($_POST);
+        $errors = $this->validateCategory($payload);
 
         if (!empty($errors)) {
-            $_SESSION['flash']  = ['type' => 'error', 'msg' => implode(' ', $errors)];
+            $_SESSION['errors'] = $errors;
+            $_SESSION['old'] = $_POST;
             $this->redirect();
         }
 
         $stmt = $this->pdo->prepare(
-            'INSERT INTO categorie_offre (nom_categorie, description, icone) VALUES (:nom, :desc, :icon)'
+            'INSERT INTO categorie_offre (nom_categorie, description, icone) VALUES (:nom, :description, :icone)'
         );
-        $stmt->execute([':nom' => $nom, ':desc' => $desc ?: null, ':icon' => $icon ?: null]);
 
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => "Catégorie « {$nom} » créée avec succÃÂ¨s !"];
+        $stmt->execute([
+            ':nom' => $payload['nom_categorie'],
+            ':description' => $payload['description'],
+            ':icone' => $payload['icone'],
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie creee avec succes.'];
         $this->redirect();
     }
 
-    public function updateCategory()
-    {
-        $id   = (int)($_POST['id_categorie']  ?? 0);
-        $nom  = trim($_POST['nom_categorie']  ?? '');
-        $desc = trim($_POST['description']    ?? '');
-        $icon = trim($_POST['icone']          ?? '');
-
-        if (!$id || $nom === '') {
-            $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Données invalides.'];
-            $this->redirect();
-        }
-
-        $stmt = $this->pdo->prepare(
-            'UPDATE categorie_offre SET nom_categorie=:nom, description=:desc, icone=:icon WHERE id_categorie=:id'
-        );
-        $stmt->execute([':nom' => $nom, ':desc' => $desc ?: null, ':icon' => $icon ?: null, ':id' => $id]);
-
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => "Catégorie modifiée avec succÃÂ¨s !"];
-        $this->redirect();
-    }
-
-    public function deleteCategory()
+    public function updateCategory(): void
     {
         $id = (int)($_POST['id_categorie'] ?? 0);
-        if (!$id) { $this->redirect(); }
+        $payload = $this->sanitizeCategoryPayload($_POST);
+        $errors = $this->validateCategory($payload);
 
-        // Masquer les offres liÃÂ©es (id_categorie = NULL) Ã¢ÂÂ elles restent en base
-        $this->pdo->prepare('UPDATE offre SET id_categorie = NULL WHERE id_categorie = ?')->execute([$id]);
-
-        // Supprimer la catégorie
-        $this->pdo->prepare('DELETE FROM categorie_offre WHERE id_categorie = ?')->execute([$id]);
-
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Catégorie supprimée. Les offres associées ont ÃÂ©tÃÂ© masquées.'];
-        $this->redirect();
-    }
-
-    /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-       CRUD OFFRE (depuis page catégories)
-    Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
-    public function createOffer()
-    {
-        $errors = $this->validateOffer($_POST);
+        if ($id <= 0) {
+            $errors[] = 'Categorie introuvable.';
+        }
 
         if (!empty($errors)) {
-            $_SESSION['flash']  = ['type' => 'error', 'msg' => implode(' ', $errors)];
-            $_SESSION['old']    = $_POST;
+            $_SESSION['errors'] = $errors;
+            $_SESSION['old'] = $_POST;
             $this->redirect();
         }
 
-        $stmt = $this->pdo->prepare('
-            INSERT INTO offre (titre, description, prix, prix_original, photo_url, quantite,
-                               heure_debut, heure_fin, statut, id_categorie, date_creation)
-            VALUES (:titre, :description, :prix, :prix_original, :photo_url, :quantite,
-                    :heure_debut, :heure_fin, :statut, :id_categorie, NOW())
-        ');
-        $stmt->execute($this->buildOfferParams($_POST));
-
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succÃÂ¨s !'];
-        $this->redirect();
-    }
-
-    public function updateOffer()
-    {
-        $id = (int)($_POST['id_offre'] ?? 0);
-        if (!$id) { $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Offre introuvable.']; $this->redirect(); }
-
-        $errors = $this->validateOffer($_POST);
-        if (!empty($errors)) {
-            $_SESSION['flash'] = ['type' => 'error', 'msg' => implode(' ', $errors)];
-            $_SESSION['old']   = $_POST;
-            $this->redirect();
-        }
-
-        $params = $this->buildOfferParams($_POST);
-        $params[':id'] = $id;
-
-        $stmt = $this->pdo->prepare('
-            UPDATE offre SET titre=:titre, description=:description, prix=:prix,
-                prix_original=:prix_original, photo_url=:photo_url, quantite=:quantite,
-                heure_debut=:heure_debut, heure_fin=:heure_fin, statut=:statut,
-                id_categorie=:id_categorie
-            WHERE id_offre=:id
-        ');
-        $stmt->execute($params);
-
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succÃÂ¨s !'];
-        $this->redirect();
-    }
-
-    public function deleteOffer()
-    {
-        $id = (int)($_POST['id_offre'] ?? 0);
-        if ($id) {
-            $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?')->execute([$id]);
-            $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprimée.'];
-        }
-        $this->redirect();
-    }
-
-    /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-       REQUÃÂTES SQL avec JOINTURE (comme le workshop)
-    Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
-
-    /**
-     * Jointure : SELECT * FROM categorie_offre + leurs offres
-     * Principe identique au workshop (genre Ã¢ÂÂ album)
-     */
-    private function getAllCategoriesWithOffers(): array
-    {
-        // 1. Toutes les catégories
-        $cats = $this->pdo->query(
-            'SELECT * FROM categorie_offre ORDER BY nom_categorie'
-        )->fetchAll();
-
-        // 2. Pour chaque catégorie, rÃÂ©cupÃÂ©rer ses offres (jointure)
         $stmt = $this->pdo->prepare(
-            'SELECT o.*, c.nom_categorie, c.icone
-             FROM offre o
-             LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie
-             WHERE o.id_categorie = :id
-             ORDER BY o.date_creation DESC'
+            'UPDATE categorie_offre
+             SET nom_categorie = :nom, description = :description, icone = :icone
+             WHERE id_categorie = :id'
         );
 
-        foreach ($cats as &$cat) {
-            $stmt->execute([':id' => $cat['id_categorie']]);
-            $cat['offres'] = $stmt->fetchAll();
+        $stmt->execute([
+            ':nom' => $payload['nom_categorie'],
+            ':description' => $payload['description'],
+            ':icone' => $payload['icone'],
+            ':id' => $id,
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie modifiee avec succes.'];
+        $this->redirect('id_categorie=' . $id);
+    }
+
+    public function deleteCategory(): void
+    {
+        $id = (int)($_POST['id_categorie'] ?? 0);
+        if ($id <= 0) {
+            $this->redirect();
         }
-        unset($cat);
 
-        return $cats;
+        $this->pdo->prepare('UPDATE offre SET id_categorie = NULL WHERE id_categorie = ?')->execute([$id]);
+        $this->pdo->prepare('DELETE FROM categorie_offre WHERE id_categorie = ?')->execute([$id]);
+
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie supprimee. Les offres restent disponibles.'];
+        $this->redirect();
     }
 
-    /** Toutes les offres ÃÂ  plat (pour le JS) */
-    private function getAllOffersFlat(): array
+    private function getCategoriesWithCounts(): array
     {
-        return $this->pdo->query(
-            'SELECT o.*, c.nom_categorie
-             FROM offre o
-             LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie
-             ORDER BY o.date_creation DESC'
-        )->fetchAll();
+        $sql = 'SELECT c.id_categorie, c.nom_categorie, c.description, c.icone, COUNT(o.id_offre) AS total_offres
+                FROM categorie_offre c
+                LEFT JOIN offre o ON o.id_categorie = c.id_categorie
+                GROUP BY c.id_categorie, c.nom_categorie, c.description, c.icone
+                ORDER BY c.nom_categorie ASC';
+
+        return $this->pdo->query($sql)->fetchAll();
     }
 
-    public function getAllCategories(): array
+    private function getOffersByCategory(int $idCategorie): array
     {
-        return $this->pdo->query(
-            'SELECT * FROM categorie_offre ORDER BY nom_categorie'
-        )->fetchAll();
+        $sql = 'SELECT o.id_offre, o.titre, o.prix, o.prix_original, o.quantite, o.statut, o.date_creation
+                FROM offre o
+                WHERE o.id_categorie = :id
+                ORDER BY o.date_creation DESC';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':id' => $idCategorie]);
+        return $stmt->fetchAll();
     }
 
-    /* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-       HELPERS
-    Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
-    private function validateOffer(array $data): array
+    private function sanitizeCategoryPayload(array $data): array
     {
-        $errors = [];
-        if (empty(trim($data['titre'] ?? '')))    $errors[] = 'Le titre est obligatoire.';
-        if (!is_numeric($data['prix'] ?? '') || (float)$data['prix'] <= 0)
-            $errors[] = 'Le prix réduit doit ÃÂªtre un nombre positif.';
-        if (!is_numeric($data['prix_original'] ?? '') || (float)$data['prix_original'] <= 0)
-            $errors[] = 'Le prix original doit ÃÂªtre un nombre positif.';
-        if ((float)($data['prix'] ?? 0) >= (float)($data['prix_original'] ?? 0))
-            $errors[] = 'Le prix réduit doit ÃÂªtre inférieur au prix original.';
-        if ((int)($data['quantite'] ?? 0) < 1)
-            $errors[] = 'La quantité doit ÃÂªtre au moins 1.';
-        if (empty($data['id_categorie']))
-            $errors[] = 'La catégorie est obligatoire.';
-        return $errors;
-    }
-
-    private function buildOfferParams(array $data): array
-    {
-        $photo = trim((string)($data['photo_url'] ?? ''));
-        if (strpos($photo, 'data:image') === 0 && strlen($photo) > 1 * 1024 * 1024) $photo = '';
-
-        $statuts = ['publiée', 'brouillon', 'expirÃÂ©e', 'archivÃÂ©e'];
-        $statut  = in_array($data['statut'] ?? '', $statuts) ? $data['statut'] : 'publiée';
-
         return [
-            ':titre'        => trim($data['titre']),
-            ':description'  => trim($data['description'] ?? ''),
-            ':prix'         => (float)$data['prix'],
-            ':prix_original'=> (float)$data['prix_original'],
-            ':photo_url'    => $photo ?: null,
-            ':quantite'     => (int)$data['quantite'],
-            ':heure_debut'  => !empty($data['heure_debut']) ? $data['heure_debut'] : null,
-            ':heure_fin'    => !empty($data['heure_fin'])   ? $data['heure_fin']   : null,
-            ':statut'       => $statut,
-            ':id_categorie' => !empty($data['id_categorie']) ? (int)$data['id_categorie'] : null,
+            'nom_categorie' => trim((string)($data['nom_categorie'] ?? '')),
+            'description' => trim((string)($data['description'] ?? '')) ?: null,
+            'icone' => trim((string)($data['icone'] ?? '')) ?: null,
         ];
     }
 
-    private function redirect()
+    private function validateCategory(array $payload): array
     {
-        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+        $errors = [];
+        $name = $payload['nom_categorie'];
+
+        if ($name === '') {
+            $errors[] = 'Le nom de categorie est obligatoire.';
+        } elseif (mb_strlen($name) < 2) {
+            $errors[] = 'Le nom de categorie doit contenir au moins 2 caracteres.';
+        } elseif (mb_strlen($name) > 50) {
+            $errors[] = 'Le nom de categorie doit contenir au plus 50 caracteres.';
+        }
+
+        return $errors;
+    }
+
+    private function migrateSchema(): void
+    {
+        $this->pdo->exec(
+            "CREATE TABLE IF NOT EXISTS categorie_offre (
+                id_categorie INT AUTO_INCREMENT PRIMARY KEY,
+                nom_categorie VARCHAR(50) NOT NULL,
+                description TEXT NULL,
+                icone VARCHAR(100) NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        $this->pdo->exec('ALTER TABLE offre ADD COLUMN IF NOT EXISTS id_categorie INT NULL');
+
+        $fkExists = $this->pdo->prepare(
+            "SELECT CONSTRAINT_NAME
+             FROM information_schema.TABLE_CONSTRAINTS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'offre'
+               AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+               AND CONSTRAINT_NAME = 'fk_offre_categorie'"
+        );
+        $fkExists->execute();
+
+        if (!$fkExists->fetch()) {
+            try {
+                $this->pdo->exec(
+                    'ALTER TABLE offre
+                     ADD CONSTRAINT fk_offre_categorie
+                     FOREIGN KEY (id_categorie) REFERENCES categorie_offre(id_categorie)
+                     ON DELETE SET NULL ON UPDATE CASCADE'
+                );
+            } catch (Throwable $e) {
+                // The app should continue even if the FK already exists under another name.
+            }
+        }
+    }
+
+    private function redirect(string $query = ''): void
+    {
+        $url = strtok($_SERVER['REQUEST_URI'], '?');
+        if ($query !== '') {
+            $url .= '?' . $query;
+        }
+        header('Location: ' . $url);
         exit;
     }
 }

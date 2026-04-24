@@ -14,6 +14,7 @@ class AdminOfferController
 
         $this->pdo = Config::getConnexion();
         $this->migrateOfferSchema();
+        $this->migrateCategorySchema();
     }
 
     public function index()
@@ -216,6 +217,22 @@ class AdminOfferController
             if ($col && stripos((string)$col['Type'], 'longtext') === false) {
                 $this->pdo->exec('ALTER TABLE offre MODIFY COLUMN photo_url LONGTEXT NULL');
             }
+        } catch (Exception $e) {
+            // no-op
+        }
+    }
+
+    private function migrateCategorySchema(): void
+    {
+        try {
+            $this->pdo->exec(
+                "CREATE TABLE IF NOT EXISTS categorie_offre (
+                    id_categorie INT AUTO_INCREMENT PRIMARY KEY,
+                    nom_categorie VARCHAR(50) NOT NULL,
+                    description TEXT NULL,
+                    icone VARCHAR(100) NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            );
         } catch (Exception $e) {
             // no-op
         }

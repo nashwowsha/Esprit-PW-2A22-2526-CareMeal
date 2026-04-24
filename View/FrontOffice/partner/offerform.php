@@ -44,19 +44,6 @@ function ec($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       <input type="text" name="quantite" class="form-input" placeholder="5" value="<?= ec($old['quantite'] ?? '') ?>">
     </div>
   </div>
-  <div class="form-group">
-    <label>CatÃ©gorie</label>
-    <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-list"></i></span>
-      <select name="id_categorie" class="form-input">
-        <option value="">-- Choisir --</option>
-        <?php foreach ($categories ?? [] as $c): ?>
-          <option value="<?= (int)$c['id_categorie'] ?>" <?= (($old['id_categorie'] ?? '') == $c['id_categorie']) ? 'selected' : '' ?>>
-            <?= ec($c['nom_categorie']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-  </div>
 </div>
 
 <div class="form-row">
