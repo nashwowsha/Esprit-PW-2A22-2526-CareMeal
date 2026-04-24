@@ -52,7 +52,17 @@ class OfferController
         }
 
         $offer = $this->buildOfferFromInput($_POST);
-        $this->insertOffer($offer);
+        $newId = $this->insertOffer($offer);
+
+        // Sauvegarde des catégories supplémentaires pour affichage JS
+        $extraCats = !empty($_POST['id_categories']) && is_array($_POST['id_categories'])
+            ? array_map('intval', $_POST['id_categories'])
+            : [];
+        if ($newId && count($extraCats) > 1) {
+            $sessionCats = $_SESSION['offer_extra_cats'] ?? [];
+            $sessionCats[$newId] = $extraCats;
+            $_SESSION['offer_extra_cats'] = $sessionCats;
+        }
 
         $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succès !'];
         $this->redirect();
@@ -77,6 +87,18 @@ class OfferController
 
         $offer = $this->buildOfferFromInput($_POST)->setIdOffre($id);
         $this->updateOffer($offer);
+
+        // Mise à jour des catégories supplémentaires pour affichage JS
+        $extraCats = !empty($_POST['id_categories']) && is_array($_POST['id_categories'])
+            ? array_map('intval', $_POST['id_categories'])
+            : [];
+        $sessionCats = $_SESSION['offer_extra_cats'] ?? [];
+        if (count($extraCats) > 1) {
+            $sessionCats[$id] = $extraCats;
+        } else {
+            unset($sessionCats[$id]);
+        }
+        $_SESSION['offer_extra_cats'] = $sessionCats;
 
         $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succès !'];
         $this->redirect();
@@ -126,8 +148,23 @@ class OfferController
         $stmt->execute($params);
 
         $rows = $stmt->fetchAll();
+        $extraCatsMap = $_SESSION['offer_extra_cats'] ?? [];
         foreach ($rows as &$row) {
             $row['statut'] = $this->normalizeStatus($row['statut'] ?? null);
+            $offerId = (int)$row['id_offre'];
+            if (!empty($extraCatsMap[$offerId])) {
+                // Récupérer les noms des catégories extra
+                $ids = array_map('intval', $extraCatsMap[$offerId]);
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $catStmt = $this->pdo->prepare("SELECT id_categorie, nom_categorie FROM categorie_offre WHERE id_categorie IN ($placeholders)");
+                $catStmt->execute($ids);
+                $catRows = $catStmt->fetchAll();
+                $row['cat_ids']  = implode(',', array_column($catRows, 'id_categorie'));
+                $row['cat_noms'] = implode(',', array_column($catRows, 'nom_categorie'));
+            } else {
+                $row['cat_ids']  = (string)($row['id_categorie'] ?? '');
+                $row['cat_noms'] = $row['nom_categorie'] ?? '';
+            }
         }
         unset($row);
 
@@ -205,7 +242,15 @@ class OfferController
     private function buildOfferFromInput(array $data): OfferModel
     {
         $photo  = $this->normalizePhotoUrl(trim((string)($data['photo_url'] ?? '')));
-        $catId  = !empty($data['id_categorie']) ? (int)$data['id_categorie'] : null;
+
+        // Supporte id_categories[] (multi-sélection) ET id_categorie (rétrocompat)
+        if (!empty($data['id_categories']) && is_array($data['id_categories'])) {
+            $catId = (int)$data['id_categories'][0];
+        } elseif (!empty($data['id_categorie'])) {
+            $catId = (int)$data['id_categorie'];
+        } else {
+            $catId = null;
+        }
 
         return (new OfferModel())
             ->setTitre((string)($data['titre'] ?? ''))
@@ -291,8 +336,10 @@ class OfferController
             $errors[] = 'La quantité doit être au moins 1.';
         }
 
-        if (empty($data['id_categorie'])) {
-            $errors[] = 'Veuillez sélectionner une catégorie.';
+        $hasCat = (!empty($data['id_categories']) && is_array($data['id_categories']))
+                  || !empty($data['id_categorie']);
+        if (!$hasCat) {
+            $errors[] = 'Veuillez sélectionner au moins une catégorie.';
         }
 
         return $errors;

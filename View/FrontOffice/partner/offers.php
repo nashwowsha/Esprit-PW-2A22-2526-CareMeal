@@ -259,12 +259,13 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                 <?php
                   $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
                   if (!empty($displayCats)):
-                    $catList = array_filter(array_map('trim', explode(',', $displayCats)));
+                    $catList = array_values(array_filter(array_map('trim', explode(',', $displayCats))));
+                    $isMulti = count($catList) > 1;
                 ?>
-                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
+                  <p style="font-size:.75rem;margin:0 0 6px;font-weight:600;">
                     <?php foreach ($catList as $ci => $cn): ?>
                       <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
-                      <span><?= e($cn) ?></span>
+                      <span style="color:<?= $isMulti ? '#f97316' : 'var(--color-primary)' ?>;"><?= e($cn) ?></span>
                     <?php endforeach; ?>
                   </p>
                 <?php endif; ?>
@@ -319,12 +320,13 @@ function e($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                 <?php
                   $displayCats = !empty($o['cat_noms']) ? $o['cat_noms'] : ($o['nom_categorie'] ?? '');
                   if (!empty($displayCats)):
-                    $catList = array_filter(array_map('trim', explode(',', $displayCats)));
+                    $catList = array_values(array_filter(array_map('trim', explode(',', $displayCats))));
+                    $isMulti = count($catList) > 1;
                 ?>
-                  <p style="font-size:.75rem;color:var(--color-primary);margin:0 0 6px;font-weight:600;">
+                  <p style="font-size:.75rem;margin:0 0 6px;font-weight:600;">
                     <?php foreach ($catList as $ci => $cn): ?>
                       <?php if ($ci > 0): ?><span style="color:var(--color-text-muted);margin:0 2px;">·</span><?php endif; ?>
-                      <span><?= e($cn) ?></span>
+                      <span style="color:<?= $isMulti ? '#f97316' : 'var(--color-primary)' ?>;"><?= e($cn) ?></span>
                     <?php endforeach; ?>
                   </p>
                 <?php endif; ?>
