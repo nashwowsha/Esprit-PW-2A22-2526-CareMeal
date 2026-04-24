@@ -15,7 +15,6 @@ class AdminOfferController
         $this->pdo = Config::getConnexion();
         $this->migrateOfferSchema();
         $this->migrateCategorySchema();
-        $this->migratePivotTable();
     }
 
     public function index()
@@ -63,10 +62,6 @@ class AdminOfferController
             ':id_categorie'  => $offer->getIdCategorie(),
         ]);
 
-        $newId        = (int)$this->pdo->lastInsertId();
-        $categorieIds = $this->extractCategorieIds($_POST);
-        $this->syncOfferCategories($newId, $categorieIds);
-
         $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre créée avec succès !'];
         $this->redirect();
     }
@@ -91,9 +86,6 @@ class AdminOfferController
         $offer = $this->buildOfferFromInput($_POST)->setIdOffre($id);
         $this->updateOffer($offer);
 
-        $categorieIds = $this->extractCategorieIds($_POST);
-        $this->syncOfferCategories($id, $categorieIds);
-
         $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre modifiée avec succès !'];
         $this->redirect();
     }
@@ -103,75 +95,25 @@ class AdminOfferController
         $id = (int)($_POST['id_offre'] ?? 0);
 
         if ($id) {
-            $this->pdo->prepare('DELETE FROM offre_categorie WHERE id_offre = ?')->execute([$id]);
-            $stmt = $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?');
-            $stmt->execute([$id]);
+            $this->pdo->prepare('DELETE FROM offre WHERE id_offre = ?')->execute([$id]);
             $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Offre supprimée.'];
         }
 
         $this->redirect();
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
-    private function extractCategorieIds(array $data): array
-    {
-        if (!empty($data['id_categories']) && is_array($data['id_categories'])) {
-            return array_map('intval', $data['id_categories']);
-        }
-        if (!empty($data['id_categorie'])) {
-            return [(int)$data['id_categorie']];
-        }
-        return [];
-    }
-
-    private function syncOfferCategories(int $idOffre, array $categorieIds): void
-    {
-        $this->pdo->prepare('DELETE FROM offre_categorie WHERE id_offre = ?')->execute([$idOffre]);
-
-        if (!empty($categorieIds)) {
-            $ins = $this->pdo->prepare(
-                'INSERT IGNORE INTO offre_categorie (id_offre, id_categorie) VALUES (?, ?)'
-            );
-            foreach ($categorieIds as $idCat) {
-                if ($idCat > 0) {
-                    $ins->execute([$idOffre, $idCat]);
-                }
-            }
-        }
-
-        $primaryCat = !empty($categorieIds) ? $categorieIds[0] : null;
-        $this->pdo->prepare('UPDATE offre SET id_categorie = ? WHERE id_offre = ?')
-                  ->execute([$primaryCat, $idOffre]);
-    }
+    // ─── Queries ─────────────────────────────────────────────────────────────
 
     private function getAllOffers(): array
     {
         $sql = "
             SELECT
                 o.*,
-                GROUP_CONCAT(c.id_categorie ORDER BY c.nom_categorie SEPARATOR ',') AS cat_ids,
-                GROUP_CONCAT(c.nom_categorie ORDER BY c.nom_categorie SEPARATOR ', ') AS cat_noms,
-                (
-                    SELECT c2.nom_categorie
-                    FROM offre_categorie oc2
-                    JOIN categorie_offre c2 ON oc2.id_categorie = c2.id_categorie
-                    WHERE oc2.id_offre = o.id_offre
-                    ORDER BY c2.nom_categorie
-                    LIMIT 1
-                ) AS nom_categorie,
-                (
-                    SELECT c2.icone
-                    FROM offre_categorie oc2
-                    JOIN categorie_offre c2 ON oc2.id_categorie = c2.id_categorie
-                    WHERE oc2.id_offre = o.id_offre
-                    ORDER BY c2.nom_categorie
-                    LIMIT 1
-                ) AS icone
+                c.id_categorie,
+                c.nom_categorie,
+                c.icone
             FROM offre o
-            LEFT JOIN offre_categorie oc ON o.id_offre = oc.id_offre
-            LEFT JOIN categorie_offre  c  ON oc.id_categorie = c.id_categorie
-            GROUP BY o.id_offre
+            LEFT JOIN categorie_offre c ON o.id_categorie = c.id_categorie
             ORDER BY o.date_creation DESC
         ";
         $stmt = $this->pdo->query($sql);
@@ -179,9 +121,9 @@ class AdminOfferController
 
         foreach ($rows as &$row) {
             $row['statut']        = $this->normalizeStatus($row['statut'] ?? null);
-            $row['categorie_ids'] = $row['cat_ids']
-                ? array_map('intval', explode(',', $row['cat_ids']))
-                : [];
+            $row['categorie_ids'] = $row['id_categorie'] ? [(int)$row['id_categorie']] : [];
+            $row['cat_ids']       = (string)($row['id_categorie'] ?? '');
+            $row['cat_noms']      = $row['nom_categorie'] ?? '';
         }
         unset($row);
 
@@ -244,9 +186,13 @@ class AdminOfferController
 
     private function buildOfferFromInput(array $data): OfferModel
     {
-        $photo        = $this->normalizePhotoUrl(trim((string)($data['photo_url'] ?? '')));
-        $categorieIds = $this->extractCategorieIds($data);
-        $primaryCat   = !empty($categorieIds) ? $categorieIds[0] : null;
+        $photo  = $this->normalizePhotoUrl(trim((string)($data['photo_url'] ?? '')));
+
+        if (!empty($data['id_categories']) && is_array($data['id_categories'])) {
+            $catId = (int)$data['id_categories'][0];
+        } else {
+            $catId = !empty($data['id_categorie']) ? (int)$data['id_categorie'] : null;
+        }
 
         return (new OfferModel())
             ->setTitre((string)($data['titre'] ?? ''))
@@ -258,7 +204,7 @@ class AdminOfferController
             ->setHeureDebut(!empty($data['heure_debut']) ? (string)$data['heure_debut'] : null)
             ->setHeureFin(!empty($data['heure_fin'])   ? (string)$data['heure_fin']   : null)
             ->setStatut($this->normalizeStatus((string)($data['statut'] ?? 'publiée'), 'publiée'))
-            ->setIdCategorie($primaryCat);
+            ->setIdCategorie($catId);
     }
 
     private function normalizePhotoUrl(string $base64): string
@@ -308,31 +254,6 @@ class AdminOfferController
         }
     }
 
-    private function migratePivotTable(): void
-    {
-        try {
-            $this->pdo->exec(
-                "CREATE TABLE IF NOT EXISTS offre_categorie (
-                    id_offre     INT NOT NULL,
-                    id_categorie INT NOT NULL,
-                    PRIMARY KEY (id_offre, id_categorie),
-                    CONSTRAINT fk_oc_offre FOREIGN KEY (id_offre)     REFERENCES offre(id_offre)               ON DELETE CASCADE ON UPDATE CASCADE,
-                    CONSTRAINT fk_oc_cat   FOREIGN KEY (id_categorie) REFERENCES categorie_offre(id_categorie) ON DELETE CASCADE ON UPDATE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-            );
-
-            // Migrer les liaisons existantes (colonne legacy id_categorie -> table pivot)
-            $this->pdo->exec(
-                "INSERT IGNORE INTO offre_categorie (id_offre, id_categorie)
-                 SELECT id_offre, id_categorie
-                 FROM offre
-                 WHERE id_categorie IS NOT NULL"
-            );
-        } catch (Exception $e) {
-            // no-op
-        }
-    }
-
     private function redirect()
     {
         $url = strtok($_SERVER['REQUEST_URI'], '?');
@@ -364,8 +285,9 @@ class AdminOfferController
             $errors[] = 'La quantité doit être au moins 1.';
         }
 
-        $categorieIds = $this->extractCategorieIds($data);
-        if (empty($categorieIds)) {
+        $hasCat = (!empty($data['id_categories']) && is_array($data['id_categories']))
+                  || !empty($data['id_categorie']);
+        if (!$hasCat) {
             $errors[] = 'Veuillez sélectionner au moins une catégorie.';
         }
 
@@ -375,9 +297,7 @@ class AdminOfferController
     private function normalizeStatus(?string $status, string $default = 'brouillon'): string
     {
         $s = trim((string)$status);
-        if ($s === '') {
-            return $default;
-        }
+        if ($s === '') return $default;
 
         $s = mb_strtolower($s, 'UTF-8');
 

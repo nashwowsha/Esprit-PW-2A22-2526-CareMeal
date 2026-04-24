@@ -94,8 +94,7 @@ class AdminCategoryController
 
     /**
      * Supprime une catégorie.
-     * - Les offres liées à d'autres catégories restent intactes.
-     * - Les offres qui n'appartiennent QU'à cette catégorie sont supprimées.
+     * Les offres liées à cette catégorie auront id_categorie mis à NULL.
      */
     public function deleteCategory(): void
     {
@@ -104,60 +103,25 @@ class AdminCategoryController
             $this->redirect();
         }
 
-        // 1. Trouver les offres qui n'ont que cette catégorie (elles vont être orphelines)
-        $stmt = $this->pdo->prepare(
-            "SELECT oc.id_offre
-             FROM offre_categorie oc
-             WHERE oc.id_categorie = ?
-               AND (
-                   SELECT COUNT(*)
-                   FROM offre_categorie oc2
-                   WHERE oc2.id_offre = oc.id_offre
-               ) = 1"
-        );
-        $stmt->execute([$id]);
-        $orphanIds = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+        // Mettre id_categorie à NULL pour les offres liées avant de supprimer
+        $this->pdo->prepare('UPDATE offre SET id_categorie = NULL WHERE id_categorie = ?')
+                  ->execute([$id]);
 
-        // 2. Supprimer les offres orphelines (et leurs liaisons pivot via CASCADE)
-        if (!empty($orphanIds)) {
-            $placeholders = implode(',', array_fill(0, count($orphanIds), '?'));
-            $this->pdo->prepare("DELETE FROM offre WHERE id_offre IN ($placeholders)")
-                      ->execute($orphanIds);
-        }
-
-        // 3. Supprimer la catégorie
-        //    Les FK ON DELETE CASCADE suppriment automatiquement les lignes restantes de offre_categorie.
+        // Supprimer la catégorie
         $this->pdo->prepare('DELETE FROM categorie_offre WHERE id_categorie = ?')->execute([$id]);
 
-        // 4. Mettre à jour la colonne legacy id_categorie pour les offres encore liées
-        //    (elles avaient cette catégorie comme primaire mais en ont d'autres)
-        $this->pdo->prepare(
-            "UPDATE offre o
-             SET id_categorie = (
-                 SELECT oc.id_categorie
-                 FROM offre_categorie oc
-                 WHERE oc.id_offre = o.id_offre
-                 ORDER BY oc.id_categorie
-                 LIMIT 1
-             )
-             WHERE id_categorie = ? OR id_categorie IS NULL"
-        )->execute([$id]);
-
-        $orphanCount = count($orphanIds);
-        $msg = 'Categorie supprimee.';
-        if ($orphanCount > 0) {
-            $msg .= " $orphanCount offre(s) appartenant uniquement a cette categorie ont ete supprimees.";
-        }
-
-        $_SESSION['flash'] = ['type' => 'success', 'msg' => $msg];
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Categorie supprimee.'];
         $this->redirect();
     }
 
+    // ─── Queries ─────────────────────────────────────────────────────────────
+
     private function getCategoriesWithCounts(): array
     {
-        $sql = 'SELECT c.id_categorie, c.nom_categorie, c.description, c.icone, COUNT(oc.id_offre) AS total_offres
+        $sql = 'SELECT c.id_categorie, c.nom_categorie, c.description, c.icone,
+                       COUNT(o.id_offre) AS total_offres
                 FROM categorie_offre c
-                LEFT JOIN offre_categorie oc ON oc.id_categorie = c.id_categorie
+                LEFT JOIN offre o ON o.id_categorie = c.id_categorie
                 GROUP BY c.id_categorie, c.nom_categorie, c.description, c.icone
                 ORDER BY c.nom_categorie ASC';
 
@@ -168,14 +132,15 @@ class AdminCategoryController
     {
         $sql = 'SELECT o.id_offre, o.titre, o.prix, o.prix_original, o.quantite, o.statut, o.date_creation
                 FROM offre o
-                JOIN offre_categorie oc ON oc.id_offre = o.id_offre
-                WHERE oc.id_categorie = :id
+                WHERE o.id_categorie = :id
                 ORDER BY o.date_creation DESC';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([':id' => $idCategorie]);
         return $stmt->fetchAll();
     }
+
+    // ─── Validation ──────────────────────────────────────────────────────────
 
     private function sanitizeCategoryPayload(array $data): array
     {
@@ -202,6 +167,8 @@ class AdminCategoryController
         return $errors;
     }
 
+    // ─── Migration ───────────────────────────────────────────────────────────
+
     private function migrateSchema(): void
     {
         $this->pdo->exec(
@@ -212,43 +179,6 @@ class AdminCategoryController
                 icone         VARCHAR(100) NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
-
-        $this->pdo->exec('ALTER TABLE offre ADD COLUMN IF NOT EXISTS id_categorie INT NULL');
-
-        // Table pivot
-        $this->pdo->exec(
-            "CREATE TABLE IF NOT EXISTS offre_categorie (
-                id_offre     INT NOT NULL,
-                id_categorie INT NOT NULL,
-                PRIMARY KEY (id_offre, id_categorie),
-                CONSTRAINT fk_oc_offre2 FOREIGN KEY (id_offre)     REFERENCES offre(id_offre)               ON DELETE CASCADE ON UPDATE CASCADE,
-                CONSTRAINT fk_oc_cat2   FOREIGN KEY (id_categorie) REFERENCES categorie_offre(id_categorie) ON DELETE CASCADE ON UPDATE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-        );
-
-        // FK legacy sur offre.id_categorie
-        $fkExists = $this->pdo->prepare(
-            "SELECT CONSTRAINT_NAME
-             FROM information_schema.TABLE_CONSTRAINTS
-             WHERE TABLE_SCHEMA = DATABASE()
-               AND TABLE_NAME = 'offre'
-               AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-               AND CONSTRAINT_NAME = 'fk_offre_categorie'"
-        );
-        $fkExists->execute();
-
-        if (!$fkExists->fetch()) {
-            try {
-                $this->pdo->exec(
-                    'ALTER TABLE offre
-                     ADD CONSTRAINT fk_offre_categorie
-                     FOREIGN KEY (id_categorie) REFERENCES categorie_offre(id_categorie)
-                     ON DELETE SET NULL ON UPDATE CASCADE'
-                );
-            } catch (\Throwable $e) {
-                // already exists under another name
-            }
-        }
     }
 
     private function redirect(string $query = ''): void
