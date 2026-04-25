@@ -66,24 +66,13 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     #view-list   { display: block; }
     #view-form   { display: none; }
 
-    /* Zone formulaire : fond vierge centré */
-    #view-form {
-      min-height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0;
-    }
-
     .form-page-header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 32px;
-      padding-bottom: 20px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
       border-bottom: 1px solid var(--color-dark-border);
-      width: 100%;
-      max-width: 680px;
     }
     .form-page-header h2 {
       margin: 0;
@@ -108,25 +97,14 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     }
     .btn-back:hover { background: rgba(255,255,255,.1); color: var(--color-white); }
 
-    /* Wraps centrés */
-    #form-create-wrap,
-    #form-edit-wrap,
-    #form-delete-wrap {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-    }
-
-    /* La card formulaire : fond transparent = page vierge */
     .form-card {
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      padding: 0;
-      width: 100%;
+      background: var(--color-dark-card);
+      border: 1px solid var(--color-dark-border);
+      border-radius: 16px;
+      padding: 28px;
       max-width: 680px;
     }
-    .form-card .form-group { margin-bottom: 20px; }
+    .form-card .form-group { margin-bottom: 18px; }
     .form-card .form-group label {
       display: block;
       font-size: .78rem; font-weight: 700;
@@ -136,24 +114,44 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     }
     .form-actions {
       display: flex; gap: 10px; justify-content: flex-end;
-      margin-top: 28px; padding-top: 20px;
+      margin-top: 24px; padding-top: 18px;
       border-top: 1px solid var(--color-dark-border);
     }
 
     /* Delete confirm inline */
     .delete-inline-card {
-      background: transparent;
+      background: var(--color-dark-card);
       border: 1px solid rgba(248,113,113,.25);
       border-radius: 16px;
       padding: 40px 28px;
       max-width: 480px;
-      width: 100%;
+      margin: 0 auto;
       text-align: center;
     }
     .delete-inline-card i.big-icon { font-size: 3rem; color: #f87171; display: block; margin-bottom: 16px; }
     .delete-inline-card h3 { margin: 0 0 8px; color: var(--color-white); }
     .delete-inline-card p  { color: var(--color-text-muted); margin: 0 0 24px; }
     .delete-inline-card .form-actions { justify-content: center; border: none; margin-top: 0; padding-top: 0; }
+
+    /* ── Bouton tri stock ── */
+    .btn-sort-stock {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0;
+      transition: color .15s;
+    }
+    .btn-sort-stock:hover { color: var(--color-white); }
+    .btn-sort-stock.active { color: var(--color-primary); }
+    .sort-icon { font-style: normal; font-size: .85rem; }
   </style>
 </head>
 <body>
@@ -262,8 +260,10 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                   <th>Offre</th>
                   <th>Partenaire</th>
                   <th>Prix</th>
-                  <th id="th-stock" onclick="toggleStockSort()" style="cursor:pointer;user-select:none;white-space:nowrap;">
-                    Stock <span id="stock-sort-icon" style="font-size:.7rem;margin-left:4px;opacity:.5;">⇅</span>
+                  <th>
+                    <button id="btn-sort-stock" class="btn-sort-stock" onclick="sortByStock()" title="Trier par stock">
+                      Stock <i class="sort-icon" id="sort-stock-icon">⇅</i>
+                    </button>
                   </th>
                   <th>Statut</th>
                   <th style="text-align:center;">Actions</th>
@@ -274,16 +274,16 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                   <tr><td colspan="6">
                     <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre trouvée.</p></div>
                   </td></tr>
-                <?php else: foreach ($offers as $o):
+                <?php else: $i = 0; foreach ($offers as $o): $i++;
                   $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
                   $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
                   $stock = ($o['quantite'] ?? '?');
                 ?>
-                  <tr data-statut="<?= ea($o['statut']) ?>"
+                  <tr data-original-index="<?= $i ?>"
+                      data-statut="<?= ea($o['statut']) ?>"
                       data-titre="<?= ea(strtolower($o['titre'])) ?>"
                       data-partenaire="<?= ea(strtolower($o['id_partenaire'] ?? '')) ?>"
-                      data-categorie="<?= ea($o['cat_ids'] ?? '') ?>"
-                      data-stock="<?= (int)($o['quantite'] ?? 0) ?>">
+                      data-categorie="<?= ea($o['cat_ids'] ?? '') ?>">
                     <td>
                       <div style="display:flex;align-items:center;gap:10px;">
                         <?php if (!empty($o['photo_url'])): ?>
@@ -524,7 +524,7 @@ function showList() {
 
 function showFormView(heading, sub) {
   document.getElementById('view-list').style.display = 'none';
-  document.getElementById('view-form').style.display = 'flex';
+  document.getElementById('view-form').style.display = 'block';
   document.getElementById('btn-add-offer').style.display = 'none';
   document.getElementById('form-heading').textContent = heading;
   document.getElementById('form-sub').textContent     = sub;
@@ -787,37 +787,58 @@ function applyFilters() {
 }
 
 /* ══════════════════════════════════════════
-   TRI PAR STOCK
+   TRI PAR STOCK (croissant / décroissant / original)
 ══════════════════════════════════════════ */
 let stockSortDir = null; // null | 'asc' | 'desc'
 
-function toggleStockSort() {
-  // Cycle : aucun → croissant → décroissant → aucun
-  if (stockSortDir === null)   stockSortDir = 'asc';
+function sortByStock() {
+  // Cycle : null → asc → desc → null
+  if (stockSortDir === null)        stockSortDir = 'asc';
   else if (stockSortDir === 'asc')  stockSortDir = 'desc';
-  else stockSortDir = null;
+  else                              stockSortDir = null;
 
-  // Mettre à jour l'icône
-  const icon = document.getElementById('stock-sort-icon');
-  const th   = document.getElementById('th-stock');
-  if (stockSortDir === 'asc')  { icon.textContent = '↑'; icon.style.opacity = '1'; th.style.color = 'var(--color-primary)'; }
-  else if (stockSortDir === 'desc') { icon.textContent = '↓'; icon.style.opacity = '1'; th.style.color = 'var(--color-primary)'; }
-  else { icon.textContent = '⇅'; icon.style.opacity = '.5'; th.style.color = ''; }
+  // Mettre à jour l'icône et la couleur du bouton
+  const icon = document.getElementById('sort-stock-icon');
+  const btn  = document.getElementById('btn-sort-stock');
+
+  if (stockSortDir === 'asc') {
+    icon.textContent = '↑';
+    btn.classList.add('active');
+    btn.title = 'Stock croissant — cliquer pour décroissant';
+  } else if (stockSortDir === 'desc') {
+    icon.textContent = '↓';
+    btn.classList.add('active');
+    btn.title = 'Stock décroissant — cliquer pour annuler';
+  } else {
+    icon.textContent = '⇅';
+    btn.classList.remove('active');
+    btn.title = 'Trier par stock';
+  }
 
   const tbody = document.getElementById('offers-tbody');
-  const rows  = Array.from(tbody.querySelectorAll('tr[data-stock]'));
+  const rows  = Array.from(tbody.querySelectorAll('tr[data-statut]'));
 
   if (stockSortDir === null) {
-    // Restaurer l'ordre original (order PHP)
-    rows.sort((a, b) => (parseInt(a.dataset.originalIndex) || 0) - (parseInt(b.dataset.originalIndex) || 0));
+    // Restaurer l'ordre original PHP via data-original-index
+    rows.sort((a, b) =>
+      parseInt(a.dataset.originalIndex || 0) - parseInt(b.dataset.originalIndex || 0)
+    );
   } else {
     rows.sort((a, b) => {
-      const sa = parseInt(a.dataset.stock) || 0;
-      const sb = parseInt(b.dataset.stock) || 0;
-      return stockSortDir === 'asc' ? sa - sb : sb - sa;
+      // Lire la valeur de la cellule Stock (4e colonne, index 3)
+      const getStock = row => {
+        const td = row.querySelectorAll('td')[3];
+        if (!td) return -1;
+        const val = parseInt(td.textContent.trim());
+        // Les stocks indéterminés '?' sont placés en dernier
+        return isNaN(val) ? (stockSortDir === 'asc' ? Infinity : -Infinity) : val;
+      };
+      const diff = getStock(a) - getStock(b);
+      return stockSortDir === 'asc' ? diff : -diff;
     });
   }
 
+  // Ré-insérer les lignes dans le nouvel ordre
   rows.forEach(row => tbody.appendChild(row));
 }
 
@@ -825,11 +846,6 @@ function toggleStockSort() {
    FORMULAIRES — Attacher validation
 ══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-  // Mémoriser l'ordre original des lignes
-  document.querySelectorAll('#offers-tbody tr[data-stock]').forEach((row, i) => {
-    row.dataset.originalIndex = i;
-  });
-
   const createForm = document.getElementById('form-create');
   if (createForm) {
     createForm.addEventListener('submit', e => { if (!validateOfferForm(createForm)) e.preventDefault(); });
