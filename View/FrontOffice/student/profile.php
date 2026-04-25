@@ -24,6 +24,9 @@
           <a href="profile.php" class="sidebar-link active"><span class="link-icon">👤</span> Mon Profil</a>
           <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences</a>
           <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Commandes</a>
+          <a href="events.php" class="sidebar-link">
+            <span class="link-icon"><i class="fa-solid fa-calendar-days"></i></span> Événements
+          </a>
           <a href="points.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-star"></i></span> Mes Points</a>
         </div>
         <div class="sidebar-section">

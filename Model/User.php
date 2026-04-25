@@ -13,6 +13,9 @@ class User {
         return $this->conn;
     }
 
+    // ================================================================
+    // CRUD - CREATE : Inscription d'un étudiant (INSERT INTO users)
+    // ================================================================
     public function registerStudent($nom, $prenom, $email, $password, $ecole, $annee, $telephone, $quartier) {
         try {
             $this->conn->beginTransaction();
@@ -42,12 +45,15 @@ class User {
         }
     }
 
+    // ================================================================
+    // CRUD - READ : Connexion (SELECT FROM users WHERE email = ?)
+    // ================================================================
     public function login($email, $password) {
         try {
             $stmt = $this->conn->prepare("
                 SELECT u.id, u.email, u.password, u.role, u.status, u.created_at, 
-                       p.nom, p.prenom, p.nom_entreprise, p.telephone, p.ecole, p.quartier, p.annee_etude, p.siret, p.description,
-                         p.linkedin, p.instagram, p.github, p.facebook, p.twitter, p.secteur_activite, p.site_web, p.points_accumules
+                       p.nom, p.prenom, p.nom_entreprise, p.telephone, p.ecole, p.quartier, p.annee_etude, p.description,
+                       p.linkedin, p.instagram, p.github, p.facebook, p.twitter, p.secteur_activite, p.site_web
                 FROM users u
                 LEFT JOIN profiles p ON u.id = p.user_id
                 WHERE u.email = ?
@@ -83,6 +89,9 @@ class User {
         }
     }
 
+    // ================================================================
+    // CRUD - CREATE : Inscription d'un partenaire (INSERT INTO users)
+    // ================================================================
     public function registerPartner($nomContact, $prenomContact, $email, $password, $nomEntreprise, $tel, $description) {
         try {
             $this->conn->beginTransaction();
@@ -125,6 +134,9 @@ class User {
         }
     }
 
+    // ================================================================
+    // CRUD - UPDATE : Modifier le mot de passe (UPDATE users SET password)
+    // ================================================================
     public function updatePassword($userId, $currentPassword, $newPassword) {
         try {
             // First check old password

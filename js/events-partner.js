@@ -2,18 +2,34 @@
     events: [],
     currentEvent: null,
 
-    init() {
+    async init() {
         if (!App.getCurrentUser() || App.getCurrentUser().role !== 'partner') {
             window.location.href = "../login.php";
             return;
         }
-        this.loadEvents();
-        this.renderStats();
-        this.renderList();
+        await this.loadEvents();
     },
 
-    loadEvents() {
-        this.events = App.getEvents().filter(e => e.partnerId === App.getCurrentUser().id);
+    async loadEvents() {
+        try {
+            const user = App.getCurrentUser();
+            const response = await fetch('/projet2a22/Controller/EventController.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_partner_events', partner_id: user.id })
+            });
+            const result = await response.json();
+            if(result.success && result.events) {
+                this.events = result.events;
+            } else {
+                this.events = [];
+            }
+        } catch(e) {
+            console.error('Erreur chargement des événements', e);
+            this.events = [];
+        }
+        this.renderStats();
+        this.renderList();
     },
 
     saveAllEvents() {
@@ -29,7 +45,7 @@
         
         let participants = 0;
         this.events.forEach(e => {
-            if (e.participants) participants += e.participants.length;
+            participants += parseInt(e.inscrits || (e.participants ? e.participants.length : 0));
         });
 
         document.getElementById('stat-total').textContent = total;
@@ -57,7 +73,7 @@
         };
 
         this.events.forEach(ev => {
-            const regCount = ev.participants ? ev.participants.length : 0;
+            const regCount = ev.inscrits || (ev.participants ? ev.participants.length : 0);
             const progress = ev.capacity ? ((regCount / ev.capacity) * 100) : 0;
             const isOnline = ev.type === 'En ligne';
             const iconBadge = isOnline ? '<i class="fa-solid fa-video"></i> En ligne' : '<i class="fa-solid fa-location-dot"></i> Présentiel';
@@ -131,7 +147,7 @@
         document.getElementById('event-detail-view').style.display = 'block';
 
         const ev = this.currentEvent;
-        const regCount = ev.participants ? ev.participants.length : 0;
+        const regCount = ev.inscrits || (ev.participants ? ev.participants.length : 0);
         
         const container = document.getElementById('event-detail-content');
         

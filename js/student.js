@@ -271,6 +271,9 @@ const Student = {
     document.getElementById('edit-twitter').value = user.twitter || '';
   },
 
+    // ================================================================
+    // CRUD - UPDATE : Modifier le profil étudiant + CONTROLE DE SAISIE
+    // ================================================================
     updateProfile() {
     const user = App.getCurrentUser();
     const btn = document.getElementById('btn-update-profile') || event.target;
@@ -368,6 +371,9 @@ const Student = {
     });
   },
 
+  // ================================================================
+  // CRUD - UPDATE : Modifier le mot de passe + CONTROLE DE SAISIE
+  // ================================================================
   updatePassword() {
     const current = document.getElementById('current-password')?.value;
     const newPwd = document.getElementById('new-password')?.value;
@@ -426,6 +432,9 @@ const Student = {
     });
   },
 
+  // ================================================================
+  // CRUD - DELETE : Supprimer son propre compte
+  // ================================================================
   deleteAccount() {
     Components.confirm('Supprimer le compte', 'Cette action est irréversible. Toutes vos données seront perdues.', () => {
       const user = App.getCurrentUser();

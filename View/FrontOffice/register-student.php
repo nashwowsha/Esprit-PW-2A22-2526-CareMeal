@@ -64,7 +64,7 @@
 
         <div id="auth-alert" class="auth-alert" style="display:none;"></div>
 
-        <form id="register-student-form" onsubmit="Auth.handleStudentRegister(event)">
+        <form id="register-student-form" novalidate onsubmit="Auth.handleStudentRegister(event)">
           <!-- Step 1: Identité -->
           <div class="form-step active" id="step-1">
             <p class="step-title">étape 1 - Vos informations</p>

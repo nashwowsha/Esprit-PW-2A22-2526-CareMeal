@@ -35,7 +35,7 @@
 
         <div id="auth-alert" class="auth-alert" style="display:none;"></div>
 
-        <form id="forgot-form" onsubmit="Auth.handleForgotPassword(event)">
+        <form id="forgot-form" novalidate onsubmit="Auth.handleForgotPassword(event)">
           <div class="form-group">
             <label for="forgot-email">Adresse email <span class="required">*</span></label>
             <div class="input-wrapper">

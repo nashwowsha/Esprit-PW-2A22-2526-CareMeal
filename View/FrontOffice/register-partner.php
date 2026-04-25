@@ -62,7 +62,7 @@
 
         <div id="auth-alert" class="auth-alert" style="display:none;"></div>
 
-        <form id="register-partner-form" onsubmit="Auth.handlePartnerRegister(event)">
+        <form id="register-partner-form" novalidate onsubmit="Auth.handlePartnerRegister(event)">
           <!-- STEP 1 -->
           <div id="step-partner-1" class="form-step active">
             <div class="form-group">

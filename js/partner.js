@@ -185,6 +185,9 @@ const Partner = {
     });
   },
 
+    // ================================================================
+    // CRUD - UPDATE : Modifier le profil partenaire + CONTROLE DE SAISIE
+    // ================================================================
     async saveProfile() {
     const user = App.getCurrentUser();
     const btn = document.getElementById('btn-save-profile');
@@ -286,6 +289,9 @@ const Partner = {
     }
   },
 
+  // ================================================================
+  // CRUD - UPDATE : Modifier le mot de passe + CONTROLE DE SAISIE
+  // ================================================================
   updatePassword() {
     const current = document.getElementById('current-password')?.value;
     const newPwd = document.getElementById('new-password')?.value;
@@ -344,6 +350,9 @@ const Partner = {
     });
   },
 
+  // ================================================================
+  // CRUD - DELETE : Supprimer le compte partenaire
+  // ================================================================
   deleteAccount() {
     Components.confirm('Supprimer le compte', 'Cette action est irréversible. Toutes vos données seront perdues.', () => {
       const user = App.getCurrentUser();

@@ -34,6 +34,9 @@
           <a href="orders.php" class="sidebar-link">
             <span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Commandes
           </a>
+          <a href="events.php" class="sidebar-link">
+            <span class="link-icon"><i class="fa-solid fa-calendar-days"></i></span> Événements
+          </a>
           <a href="points.php" class="sidebar-link">
             <span class="link-icon"><i class="fa-solid fa-star"></i></span> Mes Points
           </a>

@@ -28,7 +28,7 @@ const App = {
       const existing = localStorage.getItem(this.KEYS.EVENTS);
       if (existing) {
         const parsed = JSON.parse(existing);
-        if (Array.isArray(parsed) && parsed.length > 2) {
+        if (Array.isArray(parsed) && parsed.length > 10) {
           shouldSeed = false;
         }
       }
@@ -69,7 +69,7 @@ const App = {
         {
           id: 4, title: 'Atelier Cuisine Anti-Gaspi', description: 'Atelier pratique de cuisine avec les invendus du jour. Apprenez à cuisiner des plats savoureux avec ce qui reste !',
           date: '2026-04-25', startTime: '14:00', endTime: '16:00', type: 'Présentiel', location: 'Campus La Marsa, La Marsa',
-          capacity: 30, partnerId: 'partner_2', partnerName: 'Dar Lahdad SARL', status: 'En attente', createdAt: '15/04/2026',
+          capacity: 30, partnerId: 'partner_2', partnerName: 'Dar Lahdad SARL', status: 'En attente', statut_validation: 'En attente', createdAt: '15/04/2026',
           participants: []
         },
         {
@@ -81,7 +81,7 @@ const App = {
         {
           id: 6, title: 'Session de sensibilisation', description: 'Session de sensibilisation',
           date: '2026-05-10', startTime: '10:00', endTime: '12:00', type: 'Présentiel', location: 'Sousse',
-          capacity: 100, partnerId: 'partner_1', partnerName: 'La Baguette Dorée', status: 'En attente', createdAt: '15/04/2026',
+          capacity: 100, partnerId: 'partner_1', partnerName: 'La Baguette Dorée', status: 'En attente', statut_validation: 'En attente', createdAt: '15/04/2026',
           participants: []
         },
         {

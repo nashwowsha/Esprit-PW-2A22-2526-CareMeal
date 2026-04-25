@@ -1,21 +1,36 @@
-﻿const EventsAdmin = {
+const EventsAdmin = {
     events: [],
     currentFilter: 'Tous',
     searchQuery: '',
 
-    init() {
+    async init() {
         const user = App.getCurrentUser();
         if (!user || user.role !== 'admin') {
             window.location.href = "../login.php";
             return;
         }
-        this.loadEvents();
-        this.renderStats();
-        this.renderList();
+        await this.loadEvents();
     },
 
-    loadEvents() {
-        this.events = App.getEvents() || [];
+    async loadEvents() {
+        try {
+            const response = await fetch('/projet2a22/Controller/EventController.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_all' })
+            });
+            const result = await response.json();
+            if(result.success && result.events) {
+                this.events = result.events;
+            } else {
+                this.events = [];
+            }
+        } catch(e) {
+            console.error('Erreur chargement des événements', e);
+            this.events = [];
+        }
+        this.renderStats();
+        this.renderList();
     },
 
     handleSearch() {
@@ -28,27 +43,31 @@
         
         const btns = document.getElementById('filterBtns').querySelectorAll('button');
         btns.forEach(b => {
-             b.classList.remove('btn-primary');
-             b.classList.add('btn-secondary');
+             b.className = 'btn btn-outline';
+             b.style.background = 'transparent';
+             b.style.border = '1px solid rgba(255,255,255,0.2)';
+             b.style.color = 'white';
         });
         if(btnElement) {
-            btnElement.classList.remove('btn-secondary');
-            btnElement.classList.add('btn-primary');
+            btnElement.className = 'btn btn-primary';
+            btnElement.style.background = 'var(--color-primary)';
+            btnElement.style.border = '1px solid var(--color-primary)';
+            btnElement.style.color = 'white';
         }
         this.renderList();
     },
 
         renderStats() {
         const total = this.events.length;
-        const pending = this.events.filter(e => e.status === 'En attente').length;
+        const pending = this.events.filter(e => this.getEventValidationStatus(e) === 'En attente').length;
         
         let participants = 0;
         let presents = 0;
         
         this.events.forEach(e => {
-            if (e.participants) {
-                participants += e.participants.length;
-                presents += e.participants.filter(p => p.status === 'Présent').length;
+            if (true) {
+                participants += parseInt(e.inscrits || 0);
+                presents += 0;
             }
         });
 
@@ -65,6 +84,103 @@
         if(elPres) elPres.textContent = tx + '%';
     },
 
+    getEventValidationStatus(e) {
+        if (e.statut_validation === 'En attente' || e.status === 'En attente') return 'En attente';
+        if (e.statut_validation === 'Validé' || e.status === 'Validé / Planifié' || e.status === 'Validé') return 'Validé';
+        if (e.statut_validation === 'Rejeté' || e.status === 'Rejeté') return 'Rejeté';
+        if (e.status === 'Terminé' || e.statut === 'Terminé') return 'Terminé';
+        if (e.status === 'En cours' || e.statut === 'En cours') return 'En cours';
+        return e.statut_validation || e.status || e.statut || 'N/A';
+    },
+
+    createCardHTML(e) {
+        const t = e.title || e.titre || 'Sans titre';
+        const p = e.partnerName || e.partnerId || 'Inconnu';
+        const d = e.date || e.date_evenement || '-';
+        const st = e.startTime || e.heure_debut || '';
+        const en = e.endTime || e.heure_fin || '';
+        const timeStr = en ? `${st} → ${en}` : st;
+        const capacity = e.capacite_max || e.capacity || e.capacite || 0;
+        const participantsCount = e.inscrits || 0;
+        const status = this.getEventValidationStatus(e);
+        const desc = e.description || '';
+        const img = e.displayImg || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800";
+        const motif = e.motif_refus || e.rejectionReason || '';
+        const typeEv = e.type || e.type_evenement || 'Présentiel';
+        const badgeTypeClass = typeEv === 'Présentiel' ? 'badge-presentiel' : 'badge-online';
+        const loc = e.location || e.lieu || 'Non spécifié';
+
+        let badgeStatusHtml = '';
+        if (status === 'En attente') badgeStatusHtml = '<span class="badge badge-attente">En attente</span>';
+        if (status === 'Validé' || status === 'Validé / Planifié') badgeStatusHtml = '<span class="badge badge-valide">Validé</span>';
+        if (status === 'Rejeté') badgeStatusHtml = '<span class="badge badge-refuse">Rejeté</span>';
+
+        let actionsHtml = '';
+        let badgeDeTraitement = '';
+        if (status === 'En attente') {
+            actionsHtml = `
+                <div style="display:flex; gap:10px; margin-top: 16px;">
+                    <button class="btn" style="flex:1; background:rgba(16, 185, 129, 0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:10px; font-weight:600; cursor:pointer;" onclick="EventsAdmin.validateEvent(${e.id || e.id_evenement})">
+                        <i class="fa-solid fa-check"></i> Valider
+                    </button>
+                    <button class="btn" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:10px; font-weight:600; cursor:pointer;" onclick="EventsAdmin.rejectEventModal(${e.id || e.id_evenement})">
+                        <i class="fa-solid fa-xmark"></i> Rejeter
+                    </button>
+                </div>
+            `;
+        } else {
+             badgeDeTraitement = `<span style="font-size:0.75rem; color: var(--color-text-muted); background:rgba(0,0,0,0.5); padding:4px 10px; border-radius:4px; position:absolute; top:12px; right:12px; z-index:5;">Traité</span>`;
+        }
+
+        let motifHtml = '';
+        if (status === 'Rejeté' && motif) {
+            motifHtml = `
+            <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 10px; margin-bottom: 10px; font-size: 0.85rem; color: #fca5a5; border-radius: 4px;">
+                <strong>Motif du refus :</strong> ${motif}
+            </div>`;
+        }
+        
+        let descHtml = desc ? `<div class="event-description">${desc}</div>` : '';
+
+        return `
+        <div class="event-card">
+            <div class="card-img-wrapper" style="background-image: url('${img}');">
+                <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 40%, #1e293b 100%);"></div>
+
+                <div class="event-card-header" style="z-index: 10;">
+                    <div class="badges">
+                        <span class="badge ${badgeTypeClass}">${typeEv}</span>
+                         ${badgeStatusHtml}
+                    </div>
+                </div>
+                ${badgeDeTraitement}
+            </div>
+
+            <div class="card-body">
+                <h4 class="event-title">${t}</h4>
+                <div style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:8px;">ID Partenaire: ${p}</div>
+                ${descHtml}
+                ${motifHtml}
+
+                <div style="margin-top: auto;">
+                    <div class="event-detail">
+                        <i class="fa-regular fa-calendar"></i>
+                        <span>${d} | ${timeStr}</span>
+                    </div>
+                    <div class="event-detail">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>${loc}</span>
+                    </div>
+                    <div class="event-detail">
+                        <i class="fa-solid fa-users"></i>
+                        <span>${participantsCount} / ${capacity} inscrits</span>
+                    </div>
+                </div>
+                ${actionsHtml}
+            </div>
+        </div>`;
+    },
+
     renderList() {
         document.getElementById('events-main-view').style.display = 'block';
         document.getElementById('event-examine-view').style.display = 'none';
@@ -74,68 +190,54 @@
 
         let filteredEvents = this.events.filter(e => {
             const term = this.searchQuery;
-            return e.title.toLowerCase().includes(term) || (e.partnerName && e.partnerName.toLowerCase().includes(term));
+            const title = e.title || e.titre || '';
+            const partner = e.partnerName || e.partnerId || '';
+            return title.toLowerCase().includes(term) || partner.toLowerCase().includes(term);
         });
 
         if (this.currentFilter === 'En attente') {
-            filteredEvents = filteredEvents.filter(e => e.status === 'En attente');
+            filteredEvents = filteredEvents.filter(e => this.getEventValidationStatus(e) === 'En attente');
         } else if (this.currentFilter === 'En ligne') {
-            filteredEvents = filteredEvents.filter(e => e.type === 'En ligne');
+            filteredEvents = filteredEvents.filter(e => (e.type || e.type_evenement || '') === 'En ligne');
         } else if (this.currentFilter === 'Terminés') {
-            filteredEvents = filteredEvents.filter(e => e.status === 'Terminé');
+            filteredEvents = filteredEvents.filter(e => this.getEventValidationStatus(e) === 'Terminé');
+        } else if (this.currentFilter === 'En attente de validation') {
+            filteredEvents = filteredEvents.filter(e => this.getEventValidationStatus(e) === 'En attente');
         }
 
-        const pendingEvents = filteredEvents.filter(e => e.status === 'En attente');
+        // Apply Sorting
+        const sortSel = document.getElementById('sortSelect');
+        if (sortSel) {
+            const sortVal = sortSel.value;
+            filteredEvents.sort((a, b) => {
+                if (sortVal === 'title_asc') {
+                    const titleA = a.title || a.titre || '';
+                    const titleB = b.title || b.titre || '';
+                    return titleA.localeCompare(titleB);
+                } else if (sortVal === 'date_asc' || sortVal === 'date_desc') {
+                    const dateA = new Date(a.date || a.date_evenement || 0).getTime();
+                    const dateB = new Date(b.date || b.date_evenement || 0).getTime();
+                    return sortVal === 'date_asc' ? dateA - dateB : dateB - dateA;
+                }
+                return 0;
+            });
+        }
+
+        const pendingEvents = filteredEvents.filter(e => this.getEventValidationStatus(e) === 'En attente');
         
-        if (pendingEvents.length === 0) {
-            pendingContainer.innerHTML = '<p class="text-muted" style="grid-column:1/-1; padding:2rem; background:white; border-radius:8px; text-align:center;">Aucun événement en attente de validation.</p>';
+                if (pendingEvents.length === 0) {
+            pendingContainer.innerHTML = '<p class="text-muted" style="grid-column:1/-1; padding:2rem; background:rgba(0,0,0,0.2); border-radius:6px; text-align:center;">Aucun événement en attente de validation.</p>';
         } else {
-            pendingContainer.innerHTML = pendingEvents.map(e => `
-                <div class="card" style="border-left:4px solid var(--color-warning);">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                        <h4 style="margin:0;">${e.title}</h4>
-                        <span class="badge" style="background:var(--color-warning); color:white; flex-shrink:0;">En attente</span>
-                    </div>
-                    <div style="font-size:0.85rem; color:var(--color-primary); font-weight:bold; margin-top:4px;">${e.partnerName}</div>
-                    <div style="margin-top:8px; font-size:0.9rem;">
-                        <div style="margin-bottom:4px;"><i class="fa-regular fa-calendar"></i> ${e.date} (${e.startTime}-${e.endTime})</div>
-                        <div style="margin-bottom:4px;"><i class="fa-solid ${e.type === 'En ligne' ? 'fa-video' : 'fa-location-dot'}"></i> ${e.type}</div>
-                        <div><i class="fa-solid fa-users"></i> Capacité: ${e.capacity}</div>
-                    </div>
-                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;">
-                        <button class="btn btn-success btn-sm" style="flex:1;" onclick="EventsAdmin.validateEvent(${e.id})"><i class="fa-solid fa-check"></i> Valider</button>
-                        <button class="btn btn-danger btn-sm" style="flex:1;" onclick="EventsAdmin.rejectEventModal(${e.id})"><i class="fa-solid fa-xmark"></i> Rejeter</button>
-                        <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="EventsAdmin.examineEvent(${e.id})"><i class="fa-solid fa-eye"></i> Examiner</button>
-                    </div>
-                </div>
-            `).join('');
+            pendingContainer.innerHTML = pendingEvents.map(e => this.createCardHTML(e)).join('');
         }
 
-        const otherEvents = filteredEvents.filter(e => e.status !== 'En attente');
+        const otherEvents = filteredEvents;
         if (otherEvents.length === 0) {
-            allTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Aucun événement à afficher.</td></tr>';
+            allTable.innerHTML = '<p class="text-muted" style="grid-column:1/-1; padding:2rem; background:rgba(0,0,0,0.2); border-radius:6px; text-align:center;">Aucun événement à afficher.</p>';
         } else {
-            const statsColors = {
-                'En attente': 'var(--color-warning)',
-                'Validé / Planifié': 'var(--color-success)',
-                'En cours': 'var(--color-primary)',
-                'Terminé': 'var(--color-text-muted)',
-                'Rejeté': 'var(--color-danger)'
-            };
-            allTable.innerHTML = otherEvents.map(e => `
-                <tr>
-                    <td><strong>${e.title}</strong></td>
-                    <td>${e.partnerName}</td>
-                    <td>${e.date} <br><small class="text-muted">${e.startTime} - ${e.endTime}</small></td>
-                    <td><span class="badge" style="background:${statsColors[e.status] || 'gray'}; color:white;">${e.status}</span></td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" onclick="EventsAdmin.examineEvent(${e.id})"><i class="fa-solid fa-eye"></i> Détails</button>
-                        <button class="btn btn-danger btn-sm" onclick="EventsAdmin.deleteEvent(${e.id})"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('');
+            allTable.innerHTML = otherEvents.map(e => this.createCardHTML(e)).join('');
         }
-    },
+      },
 
     showList() {
         this.renderList();
@@ -173,8 +275,8 @@
                             <li><strong>Date:</strong> ${ev.date}</li>
                             <li><strong>Horaires:</strong> ${ev.startTime} à ${ev.endTime}</li>
                             <li><strong>Lieu/Lien:</strong> ${ev.location}</li>
-                            <li><strong>Capacité:</strong> ${ev.capacity} participants</li>
-                            <li><strong>Inscrits:</strong> ${ev.participants ? ev.participants.length : 0}</li>
+                            <li><strong>Capacité:</strong> ${ev.capacite_max || ev.capacity} participants</li>
+                            <li><strong>Inscrits:</strong> ${ev.inscrits || 0}</li>
                         </ul>
                     </div>
                     <div>
@@ -194,47 +296,75 @@
         `;
     },
 
-    validateEvent(id, fromExamine = false) {
+    async validateEvent(id, fromExamine = false) {
         if(confirm('Confirmez-vous la validation de cet événement ? Il sera visible par les étudiants.')) {
-            const ev = this.events.find(e => e.id === id);
-            if(ev) {
-                ev.status = 'Validé / Planifié';
-                ev.rejectionReason = null;
-                App.saveEvents(this.events);
-                Components.showToast('Événement validé avec succès', 'success');
-                if(fromExamine) this.examineEvent(id);
-                else this.renderList();
+            try {
+                const response = await fetch('/projet2a22/Controller/EventController.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'validate', id_evenement: id })
+                });
+                const result = await response.json();
+                if(result.success) {
+                    Components.showToast('Événement validé avec succès', 'success');
+                    await this.loadEvents();
+                    if(fromExamine) this.examineEvent(id);
+                } else {
+                    Components.showToast("Erreur lors de la validation", "error");
+                }
+            } catch(e) {
+                console.error(e);
             }
         }
     },
 
     rejectEventModal(id) {
-        document.getElementById('rejectForm').reset();
-        document.getElementById('rejectEventId').value = id;
-        Components.openModal('rejectModal');
+        const form = document.getElementById('rejectForm');
+        if(form) form.reset();
+        
+        const rejectIdField = document.getElementById('rejectEventId');
+        if(rejectIdField) rejectIdField.value = id;
+        
+        if(typeof Components !== 'undefined' && Components.openModal) {
+            Components.openModal('rejectModal');
+        }
     },
 
-    confirmReject() {
-        const reason = document.getElementById('rejectReason').value.trim();
+    async confirmReject() {
+        const reasonField = document.getElementById('rejectReason');
+        const reason = reasonField ? reasonField.value.trim() : '';
+        
         if(!reason) {
             Components.showToast('Veuillez spécifier un motif de refus.', 'error');
             return;
         }
-        const id = document.getElementById('rejectEventId').value;
-        const ev = this.events.find(e => e.id == id);
-        
-        if (ev) {
-            ev.status = 'Rejeté';
-            ev.rejectionReason = reason;
-            App.saveEvents(this.events);
-            Components.closeModal('rejectModal');
-            Components.showToast("L'événement a été rejeté.", 'success');
+        const idField = document.getElementById('rejectEventId');
+        const id = idField ? idField.value : null;
+
+        try {
+            const response = await fetch('/projet2a22/Controller/EventController.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reject', id_evenement: id, raison: reason })
+            });
+            const result = await response.json();
             
-            if(document.getElementById('event-examine-view').style.display === 'block') {
-                this.examineEvent(id);
+            if(result.success) {
+                if(typeof Components !== 'undefined' && Components.closeModal) {
+                    Components.closeModal('rejectModal');
+                }
+                Components.showToast("L'événement a été rejeté.", 'success');
+                
+                await this.loadEvents();
+                const detailView = document.getElementById('event-examine-view');
+                if(detailView && detailView.style.display === 'block') {
+                    this.examineEvent(id);
+                }
             } else {
-                this.renderList();
+                 Components.showToast("Erreur lors du rejet de l'événement.", 'error');
             }
+        } catch(e) {
+             console.error(e);
         }
     },
 
@@ -251,6 +381,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     EventsAdmin.init();
 });
+
+
 
 
 

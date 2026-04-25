@@ -13,6 +13,9 @@ class Profile {
      * Lit les données du profil d'un utilisateur avec une JOINTURE (INNER JOIN) vers la table users
      * Cela répond directement à l'exigence : "travailler sur la deuxième entité ainsi que sur la jointure associée"
      */
+    // ================================================================
+    // CRUD - READ : Lire le profil avec JOINTURE vers la table users
+    // ================================================================
     public function getProfileWithUser($userId) {
         try {
             $stmt = $this->conn->prepare("
@@ -38,6 +41,9 @@ class Profile {
     /**
      * Met à jour les informations du profil existant (CRUD - Update)
      */
+    // ================================================================
+    // CRUD - UPDATE : Modifier le profil étudiant (UPDATE profiles)
+    // ================================================================
     public function updateProfile($userId, $nom, $prenom, $telephone, $ecole, $quartier, $linkedin, $github, $instagram, $facebook, $twitter) {
         try {
             $stmt = $this->conn->prepare("
@@ -65,6 +71,9 @@ class Profile {
     /**
      * Met à jour les informations du profil partenaire
      */
+    // ================================================================
+    // CRUD - UPDATE : Modifier le profil partenaire (UPDATE profiles)
+    // ================================================================
     public function updatePartnerProfile($userId, $nomEntreprise, $nom, $prenom, $telephone, $description, $linkedin, $facebook, $instagram, $twitter, $github) {
         try {
             $stmt = $this->conn->prepare("

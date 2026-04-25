@@ -55,7 +55,7 @@
         <div id="auth-alert" class="auth-alert" style="display:none;"></div>
 
         <!-- Login Form -->
-        <form id="login-form" onsubmit="Auth.handleLogin(event)">
+        <form id="login-form" novalidate onsubmit="Auth.handleLogin(event)">
           <div class="form-group">
             <label for="login-email">Email <span class="required">*</span></label>
             <div class="input-wrapper">

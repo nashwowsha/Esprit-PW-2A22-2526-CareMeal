@@ -49,11 +49,9 @@ CREATE TABLE `profiles` (
   `ecole` varchar(150) DEFAULT NULL,
   `annee_etude` varchar(50) DEFAULT NULL,
   `quartier` varchar(100) DEFAULT NULL,
-  `points_accumules` int(11) NOT NULL DEFAULT 0,
   
   -- Informations Partenaires
   `nom_entreprise` varchar(150) DEFAULT NULL,
-  `siret` varchar(20) DEFAULT NULL,
   `description` text DEFAULT NULL,
   `site_web` varchar(255) DEFAULT NULL,
   `secteur_activite` varchar(100) DEFAULT NULL,
@@ -71,3 +69,41 @@ INSERT INTO `users` (`id`, `email`, `password`, `role`, `status`) VALUES
 
 INSERT INTO `profiles` (`user_id`, `nom`, `prenom`) VALUES
 (1, 'Super', 'Admin');
+
+-- ==========================================
+-- CREATION DES TABLES EVENEMENTS
+-- ==========================================
+
+CREATE TABLE EVENEMENT (
+    id_evenement INT PRIMARY KEY AUTO_INCREMENT,
+    titre VARCHAR(100) NOT NULL,
+    description TEXT,
+    date_evenement DATE NOT NULL,
+    heure_debut TIME NOT NULL,
+    heure_fin TIME NOT NULL,
+    type_evenement VARCHAR(20) NOT NULL DEFAULT 'Présentiel',
+    lieu VARCHAR(150),
+    lien_online VARCHAR(255),
+    capacite_max INT NOT NULL,
+    statut VARCHAR(20) NOT NULL DEFAULT 'Planifié',
+    createur_type VARCHAR(20) NOT NULL,
+    createur_id INT NOT NULL,
+    statut_validation VARCHAR(20) NOT NULL DEFAULT 'En attente'
+);
+
+CREATE TABLE PARTICIPATION (
+    id_participation INT PRIMARY KEY AUTO_INCREMENT,
+    evenement_id INT NOT NULL,
+    etudiant_id INT NOT NULL,
+    date_inscription DATE NOT NULL,
+    statut VARCHAR(20) NOT NULL DEFAULT 'Inscrit',
+    FOREIGN KEY (evenement_id) REFERENCES EVENEMENT(id_evenement)
+);
+
+-- ==========================================
+-- INSERTION DES DONNEES (TEST)
+-- ==========================================
+
+INSERT INTO EVENEMENT (titre, date_evenement, heure_debut, heure_fin, type_evenement, lieu, lien_online, capacite_max, statut, createur_type, createur_id, statut_validation) VALUES
+('Journée Anti-Gaspi 🌱', '2026-05-10', '09:00:00', '12:00:00', 'Présentiel', 'Campus El Manar', NULL, 100, 'Planifié', 'Admin', 1, 'Validé'),
+('Distribution Gratuite 🍱', '2026-05-12', '12:00:00', '14:00:00', 'Présentiel', 'Campus Manouba', NULL, 50, 'Planifié', 'Partenaire', 3, 'Validé');

@@ -22,6 +22,7 @@
           <div class="sidebar-section-title">Partenaire</div>
           <a href="dashboard.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Établissement</a>
           <a href="offers.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Offres</a>
+          <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-alt"></i></span> Mes Événements</a>
           <a href="stats.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-simple"></i></span> Statistiques</a>
           <a href="settings.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
         </div>

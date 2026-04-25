@@ -1,10 +1,13 @@
-﻿/* ============================================
+/* ============================================
    CAREMEAL — AUTH
    auth.js — Login, Register, Validation
    ============================================ */
 
 const Auth = {
   // --- Login ---
+  // ================================================================
+  // CRUD - READ : Connexion d'un utilisateur + CONTROLE DE SAISIE
+  // ================================================================
   handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById('login-email').value.trim();
@@ -138,6 +141,9 @@ const Auth = {
     });
   },
 
+  // ================================================================
+  // CONTROLE DE SAISIE : Validation des champs inscription étudiant
+  // ================================================================
   validateStep(step) {
     return new Promise((resolve) => {
       Auth.clearErrors();
@@ -220,6 +226,9 @@ const Auth = {
     });
   },
 
+  // ================================================================
+  // CRUD - CREATE : Inscription étudiant (envoi vers AuthController)
+  // ================================================================
   async handleStudentRegister(e) {
       e.preventDefault();
       const valid = await this.validateStep(3); // Force validate final step instead
@@ -347,6 +356,9 @@ const Auth = {
     });
   },
 
+  // ================================================================
+  // CONTROLE DE SAISIE : Validation des champs inscription partenaire
+  // ================================================================
   validatePartnerStep(step) {
     return new Promise((resolve) => {
       Auth.clearErrors();
@@ -420,6 +432,9 @@ const Auth = {
     });
   },
 
+  // ================================================================
+  // CRUD - CREATE : Inscription partenaire (envoi vers AuthController)
+  // ================================================================
   async handlePartnerRegister(e) {
     e.preventDefault();
     const valid = await this.validatePartnerStep(2);
@@ -493,6 +508,9 @@ const Auth = {
   },
 
   // --- Validation Helpers ---
+  // ================================================================
+  // CONTROLE DE SAISIE : Vérification du format email (regex)
+  // ================================================================
   isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   },

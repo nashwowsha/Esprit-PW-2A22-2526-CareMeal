@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once dirname(__DIR__) . '/Model/User.php';
 
 class AuthController {
@@ -28,6 +28,9 @@ class AuthController {
 
         $userModel = new User();
 
+        // ============================================================
+        // CRUD - READ : Connexion d'un utilisateur (SELECT FROM users)
+        // ============================================================
         if ($action === 'login') {
             $email = trim($data['email'] ?? '');
             $password = $data['password'] ?? '';
@@ -46,6 +49,9 @@ class AuthController {
         }
 
         
+        // ============================================================
+        // CRUD - READ : Récupérer les infos de l'utilisateur connecté
+        // ============================================================
         if ($action === 'get-me') {
             session_start();
             $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
@@ -87,6 +93,9 @@ class AuthController {
             }
             return;
         }
+        // ============================================================
+        // CONTROLE DE SAISIE côté serveur : Vérifier si l'email existe
+        // ============================================================
         if ($action === 'check-email') {
             $email = trim($data['email'] ?? '');
             
@@ -100,6 +109,9 @@ class AuthController {
             return;
         }
 
+        // ============================================================
+        // CRUD - CREATE : Inscription d'un étudiant
+        // ============================================================
         if ($action === 'register-student') {
             $nom = trim($data['nom'] ?? '');
             $prenom = trim($data['prenom'] ?? '');
@@ -113,6 +125,9 @@ class AuthController {
             $res = $userModel->registerStudent($nom, $prenom, $email, $password, $ecole, $annee, $tel, $quartier);
             echo json_encode($res);
 
+        // ============================================================
+        // CRUD - CREATE : Inscription d'un partenaire
+        // ============================================================
         } elseif ($action === 'register-partner') {
             $nomEntreprise = trim($data['nom_entreprise'] ?? '');
             $email = trim($data['email'] ?? '');
@@ -125,6 +140,9 @@ class AuthController {
             $res = $userModel->registerPartner($nomContact, $prenomContact, $email, $password, $nomEntreprise, $tel, $desc);
             echo json_encode($res);
 
+        // ============================================================
+        // CRUD - UPDATE : Modifier le profil étudiant
+        // ============================================================
         } elseif ($action === 'update-profile') {
             session_start();
             $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
@@ -150,7 +168,10 @@ class AuthController {
             $res = $profileModel->updateProfile($userId, $nom, $prenom, $tel, $ecole, $quartier, $linkedin, $github, $instagram, $facebook, $twitter);
             echo json_encode($res);
 
-                } elseif ($action === 'update-partner-profile') {
+                // ============================================================
+        // CRUD - UPDATE : Modifier le profil partenaire
+        // ============================================================
+        } elseif ($action === 'update-partner-profile') {
             session_start();
             $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
             if (!$userId) {
@@ -174,6 +195,9 @@ class AuthController {
             $res = $profileModel->updatePartnerProfile($userId, $nomEntreprise, $nom, $prenom, $tel, $desc, $linkedin, $facebook, $instagram, $twitter, $github);
             echo json_encode($res);
 
+        // ============================================================
+        // CRUD - UPDATE : Modifier le mot de passe
+        // ============================================================
         } elseif ($action === 'update-password') {
             session_start();
             $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
@@ -188,6 +212,9 @@ class AuthController {
             $res = $userModel->updatePassword($userId, $currentPassword, $newPassword);
             echo json_encode($res);
 
+        // ============================================================
+        // CRUD - DELETE : Supprimer son propre compte
+        // ============================================================
         } elseif ($action === 'delete-account') {
             session_start();
             $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);

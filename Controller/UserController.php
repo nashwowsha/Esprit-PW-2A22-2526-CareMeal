@@ -10,6 +10,9 @@ class UserController {
         if (!$data) { $data = $_POST; }
         $action = $_GET["action"] ?? ($data["action"] ?? "");
 
+        // ============================================================
+        // CRUD - READ : Récupérer la liste de tous les utilisateurs
+        // ============================================================
         if ($action === "get_users") {
             $userModel = new User();
             $stmt = $userModel->getConn()->prepare("SELECT u.id, u.email, u.role, u.status, u.created_at, p.nom, p.prenom, p.nom_entreprise, p.ecole, p.quartier, p.secteur_activite, p.site_web, p.telephone FROM users u LEFT JOIN profiles p ON u.id = p.user_id");
@@ -52,6 +55,9 @@ class UserController {
             exit;
         }
 
+        // ============================================================
+        // CRUD - UPDATE : Modifier le statut d'un utilisateur (ban/activer)
+        // ============================================================
         if ($action === "update_user_status") {
             $userModel = new User();
             $userId = $data["user_id"] ?? null;
@@ -79,6 +85,9 @@ class UserController {
             exit;
         }
 
+        // ============================================================
+        // CRUD - DELETE : Supprimer un utilisateur (par l'admin)
+        // ============================================================
         if ($action === "delete_user") {
             $userModel = new User();
             $userId = $data["user_id"] ?? null;
@@ -104,6 +113,9 @@ class UserController {
             exit;
         }
 
+        // ============================================================
+        // CRUD - UPDATE : Modifier le profil partenaire + CONTROLE DE SAISIE côté serveur
+        // ============================================================
         if ($action === "update_partner_profile") {
             $userModel = new User();
             $userId = $data["user_id"] ?? null;

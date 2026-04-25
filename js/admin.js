@@ -107,6 +107,9 @@ const Admin = {
     this.loadUsers();
   },
 
+  // ================================================================
+  // CRUD - READ : Charger la liste des utilisateurs depuis la BDD
+  // ================================================================
   async loadUsers() {
     const container = document.getElementById('users-table-body');
     if (!container) return;
@@ -187,6 +190,9 @@ const Admin = {
     `).join('');
   },
 
+    // ================================================================
+    // CRUD - UPDATE : Bannir ou réactiver un utilisateur
+    // ================================================================
     toggleBan(userId, ban) {
     const action = ban ? "bannir" : "r�activer";
     const user = App.getUserById(userId) || App.getUsers().find(u => u.id == userId);
@@ -202,6 +208,9 @@ const Admin = {
     });
   },
 
+    // ================================================================
+    // CRUD - DELETE : Supprimer un utilisateur (par l'admin)
+    // ================================================================
     confirmDelete(userId) {
     const user = App.getUserById(userId) || App.getUsers().find(u => u.id == userId);
     if(!user) return;
