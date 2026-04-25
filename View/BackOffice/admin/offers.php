@@ -133,6 +133,49 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .delete-inline-card p  { color: var(--color-text-muted); margin: 0 0 24px; }
     .delete-inline-card .form-actions { justify-content: center; border: none; margin-top: 0; padding-top: 0; }
 
+    /* ── Alerte stock faible ── */
+    .stock-alert-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 12px;
+      padding: 12px 18px;
+      margin-bottom: 16px;
+      font-size: .875rem;
+      color: #f87171;
+      font-weight: 600;
+    }
+    .stock-alert-banner i { font-size: 1.1rem; flex-shrink: 0; }
+    .stock-alert-banner .alert-count {
+      background: #ef4444;
+      color: #fff;
+      border-radius: 50px;
+      padding: 2px 10px;
+      font-size: .75rem;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+    .stock-alert-banner .btn-filter-low {
+      margin-left: auto;
+      background: rgba(239,68,68,.15);
+      border: 1px solid rgba(239,68,68,.4);
+      color: #f87171;
+      border-radius: 8px;
+      padding: 5px 14px;
+      font-size: .78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .stock-alert-banner .btn-filter-low:hover { background: rgba(239,68,68,.28); }
+
+    /* Stock faible dans le tableau */
+    .stock-low { color: #f87171 !important; font-weight: 700; }
+    .stock-low-icon { font-size: .75rem; margin-left: 4px; animation: pulse-warn 1.4s infinite; }
+    @keyframes pulse-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
+
     /* ── Bouton tri stock ── */
     .btn-sort-stock {
       background: none;
@@ -251,6 +294,15 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           </div>
         </div>
 
+        <!-- Bannière stock faible -->
+        <div class="stock-alert-banner" id="stock-alert-banner">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>Stock faible détecté sur <span class="alert-count" id="stock-alert-count">0</span> offre(s) — quantité ≤ 3</span>
+          <button class="btn-filter-low" onclick="filterLowStock()">
+            <i class="fa-solid fa-filter"></i> Voir uniquement
+          </button>
+        </div>
+
         <!-- Tableau -->
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="overflow-x:auto;">
@@ -283,7 +335,8 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                       data-statut="<?= ea($o['statut']) ?>"
                       data-titre="<?= ea(strtolower($o['titre'])) ?>"
                       data-partenaire="<?= ea(strtolower($o['id_partenaire'] ?? '')) ?>"
-                      data-categorie="<?= ea($o['cat_ids'] ?? '') ?>">
+                      data-categorie="<?= ea($o['cat_ids'] ?? '') ?>"
+                      data-stock="<?= is_numeric($o['quantite'] ?? '') ? (int)$o['quantite'] : -1 ?>">
                     <td>
                       <div style="display:flex;align-items:center;gap:10px;">
                         <?php if (!empty($o['photo_url'])): ?>
@@ -307,7 +360,18 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                       <span style="color:var(--color-primary);font-weight:700;"><?= number_format($o['prix'] ?? 0, 2) ?> DT</span>
                       <span style="color:#4ade80;font-size:.72rem;margin-left:2px;">↘<?= $disc ?>%</span>
                     </td>
-                    <td style="font-size:.85rem;"><?= ea($stock) ?></td>
+                    <td style="font-size:.85rem;">
+                      <?php
+                        $stockVal = is_numeric($stock) ? (int)$stock : null;
+                        $isLow    = $stockVal !== null && $stockVal <= 3;
+                      ?>
+                      <span class="<?= $isLow ? 'stock-low' : '' ?>">
+                        <?= ea($stock) ?>
+                        <?php if ($isLow): ?>
+                          <i class="fa-solid fa-triangle-exclamation stock-low-icon" title="Stock faible !"></i>
+                        <?php endif; ?>
+                      </span>
+                    </td>
                     <td><span class="badge-statut <?= $sCls ?>"><?= ea($o['statut']) ?></span></td>
                     <td style="text-align:center;">
                       <div style="display:flex;gap:6px;justify-content:center;">
@@ -773,6 +837,9 @@ function syncCreateCategoryWithFilter() {
   radios.forEach(r => { r.checked = (r.value === String(currentCategoryFilter)); });
 }
 function applyFilters() {
+  showingLowStockOnly = false;
+  const btn = document.querySelector('.btn-filter-low');
+  if (btn) { btn.innerHTML = '<i class="fa-solid fa-filter"></i> Voir uniquement'; btn.style.background = ''; }
   const q = (document.getElementById('search-input').value || '').toLowerCase();
   document.querySelectorAll('#offers-tbody tr[data-statut]').forEach(row => {
     const statut     = row.dataset.statut     || '';
@@ -784,6 +851,53 @@ function applyFilters() {
     const matchSearch   = !q || titre.includes(q) || partenaire.includes(q);
     row.style.display = (matchFilter && matchCategory && matchSearch) ? '' : 'none';
   });
+  checkLowStock();
+}
+
+/* ══════════════════════════════════════════
+   ALERTE STOCK FAIBLE
+══════════════════════════════════════════ */
+const STOCK_LOW_THRESHOLD = 3;
+let showingLowStockOnly = false;
+
+function checkLowStock() {
+  const rows = document.querySelectorAll('#offers-tbody tr[data-statut]');
+  let count = 0;
+  rows.forEach(row => {
+    const stock = parseInt(row.dataset.stock);
+    if (stock >= 0 && stock <= STOCK_LOW_THRESHOLD) count++;
+  });
+
+  const banner = document.getElementById('stock-alert-banner');
+  const countEl = document.getElementById('stock-alert-count');
+
+  if (count > 0) {
+    banner.style.display = 'flex';
+    countEl.textContent  = count;
+  } else {
+    banner.style.display = 'none';
+    showingLowStockOnly  = false;
+  }
+}
+
+function filterLowStock() {
+  showingLowStockOnly = !showingLowStockOnly;
+  const btn = document.querySelector('.btn-filter-low');
+
+  if (showingLowStockOnly) {
+    // Masquer toutes les lignes sauf stock faible
+    document.querySelectorAll('#offers-tbody tr[data-statut]').forEach(row => {
+      const stock = parseInt(row.dataset.stock);
+      const isLow = stock >= 0 && stock <= STOCK_LOW_THRESHOLD;
+      row.style.display = isLow ? '' : 'none';
+    });
+    btn.innerHTML = '<i class="fa-solid fa-xmark"></i> Voir tout';
+    btn.style.background = 'rgba(239,68,68,.3)';
+  } else {
+    applyFilters(); // Remettre les filtres normaux
+    btn.innerHTML = '<i class="fa-solid fa-filter"></i> Voir uniquement';
+    btn.style.background = '';
+  }
 }
 
 /* ══════════════════════════════════════════
@@ -857,6 +971,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editForm) {
     editForm.addEventListener('submit', e => { if (!validateOfferForm(editForm)) e.preventDefault(); });
   }
+
+  // Vérifier les stocks faibles au chargement
+  checkLowStock();
 
   // Ré-ouvrir la vue formulaire si erreurs serveur
   <?php if (!empty($errors) && !empty($old) && isset($old['id_offre'])): ?>
