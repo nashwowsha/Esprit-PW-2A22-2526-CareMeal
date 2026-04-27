@@ -152,6 +152,7 @@ $categoriesWithOffers     = $studentController->getPublishedOffersByCategory();
               padding: 1px 8px; font-size: .68rem; font-weight: 700;
             }
             .search-hl { background: rgba(239,68,68,.3); color:#fff; border-radius:3px; padding:0 2px; font-weight:700; }
+            @keyframes pulse-w { 0%,100%{opacity:1} 50%{opacity:.3} }
           </style>
 
           <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;">
@@ -215,6 +216,23 @@ $categoriesWithOffers     = $studentController->getPublishedOffersByCategory();
                     </span>
                   </div>
                   <p style="font-size:.8rem;color:var(--color-text-muted);margin-bottom:12px;line-height:1.4;"><?= $desc ?></p>
+                  <!-- Quantité / Stock -->
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+                    <?php if ($restant <= 0): ?>
+                      <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(156,163,175,.12);color:#9ca3af;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700;">
+                        <i class="fa-solid fa-ban"></i> Rupture de stock
+                      </span>
+                    <?php elseif ($restant <= 3): ?>
+                      <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(239,68,68,.12);color:#f87171;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700;border:1px solid rgba(239,68,68,.25);">
+                        <i class="fa-solid fa-triangle-exclamation" style="animation:pulse-w 1.2s infinite;"></i>
+                        Plus que <?= $restant ?> disponible<?= $restant > 1 ? 's' : '' ?>
+                      </span>
+                    <?php else: ?>
+                      <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,.1);color:#4ade80;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700;">
+                        <i class="fa-solid fa-box"></i> <?= $restant ?> en stock
+                      </span>
+                    <?php endif; ?>
+                  </div>
                   <div class="offer-card-footer">
                     <div class="offer-card-price">
                       <span class="original"><?= number_format($o['prix_original'], 1) ?> DT</span>
