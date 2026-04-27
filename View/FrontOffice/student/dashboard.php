@@ -100,16 +100,33 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
             <span class="badge badge-primary" id="user-level">Niveau 1</span>
           </div>
 
-          <!-- Boutons filtre par catégorie -->
-          <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
-            <button class="btn btn-primary cat-filter-btn active" data-cat="all" onclick="filterByCategory('all', this)">
-              <i class="fa-solid fa-border-all"></i> Toutes
-              <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
-                <?= count($offers) ?>
-              </span>
+          <!-- ── Barre de recherche ── -->
+          <div style="position:relative;margin-bottom:18px;max-width:420px;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:.9rem;pointer-events:none;"></i>
+            <input type="text" id="offer-search" class="form-input"
+                   style="padding-left:40px;padding-right:36px;border-radius:50px;background:var(--color-dark-card);border:1px solid var(--color-dark-border);font-size:.875rem;"
+                   placeholder="Rechercher une offre..."
+                   oninput="applyOfferSearch()">
+            <button id="offer-search-clear" onclick="clearOfferSearch()"
+                    style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--color-text-muted);font-size:.85rem;padding:0;">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Résultat recherche vide -->
+          <div id="search-empty-state" style="display:none;text-align:center;padding:40px 20px;color:var(--color-text-muted);">
+            <i class="fa-solid fa-magnifying-glass" style="font-size:2rem;opacity:.3;display:block;margin-bottom:10px;"></i>
+            <p style="margin:0;">Aucune offre pour "<strong id="search-term-display" style="color:var(--color-white);"></strong>"</p>
+          </div>
+
+          <!-- ── Filtre par catégorie (redesigné) ── -->
+          <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;">
+            <button class="cat-pill active" data-cat="all" onclick="filterByCategory('all', this)">
+              <span class="cat-pill-icon"><i class="fa-solid fa-border-all"></i></span>
+              <span class="cat-pill-label">Toutes</span>
+              <span class="cat-pill-count"><?= count($offers) ?></span>
             </button>
             <?php
-            // Build unique category list from all offers
             $allCats = [];
             foreach ($offers as $o) {
               $ids  = $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []);
@@ -121,21 +138,18 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
               }
             }
             foreach ($allCats as $cat):
-              // Count offers that belong to this category
               $count = count(array_filter($offers, fn($o) => in_array($cat['id'], $o['categorie_ids'] ?? ($o['id_categorie'] ? [(int)$o['id_categorie']] : []))));
             ?>
-              <button class="btn btn-secondary cat-filter-btn"
-                      data-cat="<?= (int)$cat['id'] ?>"
+              <button class="cat-pill" data-cat="<?= (int)$cat['id'] ?>"
                       onclick="filterByCategory('<?= (int)$cat['id'] ?>', this)">
                 <?php if (!empty($cat['icone'])): ?>
-                  <i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i>
+                  <span class="cat-pill-icon"><i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i></span>
                 <?php endif; ?>
-                <?= htmlspecialchars($cat['nom']) ?>
-                <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
-                  <?= $count ?>
-                </span>
+                <span class="cat-pill-label"><?= htmlspecialchars($cat['nom']) ?></span>
+                <span class="cat-pill-count"><?= $count ?></span>
               </button>
             <?php endforeach; ?>
+          </div>
           </div>
 
           <!-- Grille d'offres (filtre multi-catégorie par data-cat-ids) -->
@@ -203,51 +217,143 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
             </div>
           <?php endif; ?>
                 <style>
-          /* Checkbox pill filter */
-          .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0; }
-          .cat-checkbox-item label {
-            display:flex; align-items:center; gap:6px; cursor:pointer;
-            background:var(--color-dark-card); border:1px solid var(--color-dark-border);
-            border-radius:20px; padding:7px 16px; font-size:.85rem; color:var(--color-text);
-            transition:border-color .15s, background .15s; user-select:none;
+          /* ── Category pills redesign ── */
+          .cat-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 1.5px solid var(--color-dark-border);
+            background: var(--color-dark-card);
+            color: var(--color-text-muted);
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s ease;
+            letter-spacing: .02em;
+            white-space: nowrap;
           }
-          .cat-checkbox-item input[type=checkbox] { accent-color:var(--color-primary); width:14px; height:14px; }
-          .cat-checkbox-item label:has(input:checked) {
-            border-color:var(--color-primary);
-            background:rgba(239,68,68,.12);
-            color:var(--color-white);
-            font-weight:600;
+          .cat-pill:hover {
+            border-color: var(--color-primary);
+            color: var(--color-white);
+            background: rgba(239,68,68,.08);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239,68,68,.15);
+          }
+          .cat-pill.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(239,68,68,.35);
+            transform: translateY(-1px);
+          }
+          .cat-pill-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .7rem;
+            flex-shrink: 0;
+          }
+          .cat-pill:not(.active) .cat-pill-icon {
+            background: rgba(255,255,255,.06);
+          }
+          .cat-pill-count {
+            background: rgba(0,0,0,.2);
+            border-radius: 50px;
+            padding: 1px 8px;
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .03em;
+          }
+          .cat-pill.active .cat-pill-count {
+            background: rgba(0,0,0,.25);
+          }
+          /* Highlight recherche */
+          .search-highlight {
+            background: rgba(239,68,68,.3);
+            color: #fff;
+            border-radius: 3px;
+            padding: 0 2px;
+            font-weight: 700;
           }
         </style>
         <script>
+        /* ── Filtre catégorie ── */
+        let activeCatId = 'all';
+
         function filterByCategory(catId, btn) {
-          // Update active button style
-          document.querySelectorAll('.cat-filter-btn').forEach(b => {
-            b.classList.remove('btn-primary');
-            b.classList.add('btn-secondary');
-          });
-          btn.classList.remove('btn-secondary');
-          btn.classList.add('btn-primary');
+          activeCatId = catId;
+          document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+          if (btn) btn.classList.add('active');
+          applyOfferSearch(); // combine search + category
+        }
 
-          // Filter cards by data-cat-ids (handle spaces and type coercion)
+        /* ── Recherche offre ── */
+        function applyOfferSearch() {
+          const q = (document.getElementById('offer-search').value || '').trim().toLowerCase();
+          const clearBtn = document.getElementById('offer-search-clear');
+          const emptyState = document.getElementById('search-empty-state');
+          const termDisplay = document.getElementById('search-term-display');
+
+          if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+
+          let visibleCount = 0;
+
           document.querySelectorAll('#student-offers-grid .offer-card').forEach(card => {
-            if (catId === 'all') {
-              card.style.display = '';
-              return;
+            // Filtre catégorie
+            let matchCat = true;
+            if (activeCatId !== 'all') {
+              const ids = (card.dataset.catIds || '').split(',').map(s => s.trim()).filter(Boolean);
+              matchCat = ids.includes(String(activeCatId));
             }
-            const ids = (card.dataset.catIds || '')
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean);
-            card.style.display = ids.includes(String(catId)) ? '' : 'none';
+
+            // Filtre recherche sur le titre
+            const titleEl = card.querySelector('h4');
+            const titleText = (titleEl ? titleEl.textContent : '').toLowerCase();
+            const matchSearch = !q || titleText.includes(q);
+
+            if (matchCat && matchSearch) {
+              card.style.display = '';
+              visibleCount++;
+              // Surligner le terme dans le titre
+              if (titleEl) {
+                if (q) {
+                  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  titleEl.innerHTML = titleEl.textContent.replace(
+                    new RegExp(escaped, 'gi'),
+                    m => `<mark class="search-highlight">${m}</mark>`
+                  );
+                } else {
+                  titleEl.textContent = titleEl.textContent; // reset highlight
+                }
+              }
+            } else {
+              card.style.display = 'none';
+              // Reset highlight sur les cartes masquées
+              if (titleEl) titleEl.textContent = titleEl.textContent;
+            }
           });
 
-          // Show empty state if no cards visible
+          // Gérer l'état vide
+          if (emptyState) {
+            if (visibleCount === 0 && q) {
+              if (termDisplay) termDisplay.textContent = q;
+              emptyState.style.display = 'block';
+            } else {
+              emptyState.style.display = 'none';
+            }
+          }
+
+          // Empty state catégorie sans recherche
           const grid = document.getElementById('student-offers-grid');
           if (grid) {
-            const visible = [...grid.querySelectorAll('.offer-card')].filter(c => c.style.display !== 'none').length;
             let emptyEl = document.getElementById('student-empty-filter');
-            if (visible === 0) {
+            if (visibleCount === 0 && !q) {
               if (!emptyEl) {
                 emptyEl = document.createElement('p');
                 emptyEl.id = 'student-empty-filter';
@@ -259,6 +365,12 @@ $categoriesWithOffers  = $studentController->getPublishedOffersByCategory();
               emptyEl.remove();
             }
           }
+        }
+
+        function clearOfferSearch() {
+          const input = document.getElementById('offer-search');
+          if (input) { input.value = ''; input.focus(); }
+          applyOfferSearch();
         }
         </script>
         </div>
