@@ -98,25 +98,76 @@ $categoriesWithOffers     = $studentController->getPublishedOffersByCategory();
             <span class="badge badge-primary" id="user-level">Niveau 1</span>
           </div>
 
-          <!-- Boutons filtre par catégorie (jointure simple) -->
-          <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;">
-            <button class="btn btn-primary cat-filter-btn" data-cat="all" onclick="filterByCategory('all', this)">
-              <i class="fa-solid fa-border-all"></i> Toutes
-              <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
-                <?= count($offers) ?>
-              </span>
+          <!-- ── Barre de recherche ── -->
+          <div style="position:relative;margin-bottom:20px;max-width:400px;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);font-size:.85rem;pointer-events:none;z-index:1;"></i>
+            <input type="text" id="offer-search"
+                   style="width:100%;padding:10px 40px 10px 40px;border-radius:50px;background:var(--color-dark-card);border:1.5px solid var(--color-dark-border);color:var(--color-white);font-size:.875rem;outline:none;box-sizing:border-box;transition:border-color .2s;"
+                   placeholder="Rechercher une offre..."
+                   oninput="applyFilters()"
+                   onfocus="this.style.borderColor='var(--color-primary)'"
+                   onblur="this.style.borderColor='var(--color-dark-border)'">
+            <button onclick="clearSearch()"
+                    style="display:none;position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--color-text-muted);font-size:.85rem;padding:0;line-height:1;"
+                    id="search-clear-btn">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- ── Filtre catégories (redesigné) ── -->
+          <style>
+            .cat-pill {
+              display: inline-flex; align-items: center; gap: 7px;
+              padding: 8px 16px; border-radius: 50px;
+              border: 1.5px solid var(--color-dark-border);
+              background: var(--color-dark-card);
+              color: var(--color-text-muted);
+              font-size: .82rem; font-weight: 600;
+              cursor: pointer; white-space: nowrap;
+              transition: all .2s ease;
+            }
+            .cat-pill:hover {
+              border-color: var(--color-primary);
+              color: var(--color-white);
+              background: rgba(239,68,68,.08);
+              transform: translateY(-1px);
+              box-shadow: 0 4px 12px rgba(239,68,68,.15);
+            }
+            .cat-pill.active {
+              background: var(--color-primary);
+              border-color: var(--color-primary);
+              color: #fff;
+              box-shadow: 0 4px 16px rgba(239,68,68,.3);
+              transform: translateY(-1px);
+            }
+            .cat-pill-ico {
+              width: 20px; height: 20px; border-radius: 50%;
+              background: rgba(255,255,255,.12);
+              display: flex; align-items: center; justify-content: center;
+              font-size: .65rem; flex-shrink: 0;
+            }
+            .cat-pill:not(.active) .cat-pill-ico { background: rgba(255,255,255,.06); }
+            .cat-pill-cnt {
+              background: rgba(0,0,0,.22); border-radius: 50px;
+              padding: 1px 8px; font-size: .68rem; font-weight: 700;
+            }
+            .search-hl { background: rgba(239,68,68,.3); color:#fff; border-radius:3px; padding:0 2px; font-weight:700; }
+          </style>
+
+          <div id="category-filters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;">
+            <button class="cat-pill active" data-cat="all" onclick="filterByCategory('all',this)">
+              <span class="cat-pill-ico"><i class="fa-solid fa-border-all"></i></span>
+              <span>Toutes</span>
+              <span class="cat-pill-cnt"><?= count($offers) ?></span>
             </button>
             <?php foreach ($categoriesWithOffers as $cat): ?>
-              <button class="btn btn-secondary cat-filter-btn"
-                      data-cat="<?= (int)$cat['id_categorie'] ?>"
-                      onclick="filterByCategory('<?= (int)$cat['id_categorie'] ?>', this)">
+              <button class="cat-pill" data-cat="<?= (int)$cat['id_categorie'] ?>"
+                      onclick="filterByCategory('<?= (int)$cat['id_categorie'] ?>',this)">
                 <?php if (!empty($cat['icone'])): ?>
-                  <i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i>
+                  <span class="cat-pill-ico"><i class="fa-solid <?= htmlspecialchars($cat['icone']) ?>"></i></span>
                 <?php endif; ?>
-                <?= htmlspecialchars($cat['nom_categorie']) ?>
-                <span style="background:rgba(255,255,255,.15);border-radius:20px;padding:1px 7px;font-size:.72rem;margin-left:4px;">
-                  <?= count($cat['offres']) ?>
-                </span>
+                <span><?= htmlspecialchars($cat['nom_categorie']) ?></span>
+                <span class="cat-pill-cnt"><?= count($cat['offres']) ?></span>
               </button>
             <?php endforeach; ?>
           </div>
@@ -193,40 +244,70 @@ $categoriesWithOffers     = $studentController->getPublishedOffersByCategory();
   <script src="../js/components.js"></script>
   <script src="../js/student.js"></script>
   <script>
-    // Filtre par catégorie — jointure simple (data-cat-id = un seul ID)
-    function filterByCategory(catId, btn) {
-      document.querySelectorAll('.cat-filter-btn').forEach(b => {
-        b.classList.remove('btn-primary');
-        b.classList.add('btn-secondary');
-      });
-      btn.classList.remove('btn-secondary');
-      btn.classList.add('btn-primary');
+    let activeCat = 'all';
 
+    function filterByCategory(catId, btn) {
+      activeCat = catId;
+      document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const q = (document.getElementById('offer-search').value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('search-clear-btn');
+      if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+
+      let visible = 0;
       document.querySelectorAll('.student-offer-card').forEach(card => {
-        if (catId === 'all') {
+        const matchCat = activeCat === 'all' || card.dataset.catId === String(activeCat);
+        const titleEl  = card.querySelector('h4');
+        const title    = (titleEl ? titleEl.textContent : '').toLowerCase();
+        const matchQ   = !q || title.includes(q);
+
+        if (matchCat && matchQ) {
           card.style.display = '';
+          visible++;
+          // Surligner le terme recherché dans le titre
+          if (titleEl) {
+            if (q) {
+              const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              titleEl.innerHTML = titleEl.textContent.replace(
+                new RegExp(esc, 'gi'),
+                m => `<mark class="search-hl">${m}</mark>`
+              );
+            } else {
+              titleEl.textContent = titleEl.textContent;
+            }
+          }
         } else {
-          card.style.display = (card.dataset.catId === String(catId)) ? '' : 'none';
+          card.style.display = 'none';
+          if (titleEl) titleEl.textContent = titleEl.textContent; // reset highlight
         }
       });
 
-      // Message si aucune offre visible
+      // Message vide
       const grid = document.getElementById('offers-grid');
       if (grid) {
-        const visible = [...grid.querySelectorAll('.student-offer-card')].filter(c => c.style.display !== 'none').length;
         let emptyEl = document.getElementById('student-empty-filter');
         if (visible === 0) {
           if (!emptyEl) {
-            emptyEl = document.createElement('p');
+            emptyEl = document.createElement('div');
             emptyEl.id = 'student-empty-filter';
-            emptyEl.style.cssText = 'color:var(--color-text-muted);text-align:center;padding:32px;grid-column:1/-1;';
-            emptyEl.textContent = 'Aucune offre dans cette catégorie.';
+            emptyEl.style.cssText = 'text-align:center;padding:40px 20px;color:var(--color-text-muted);grid-column:1/-1;';
+            emptyEl.innerHTML = `<i class="fa-solid fa-magnifying-glass" style="font-size:2rem;opacity:.3;display:block;margin-bottom:10px;"></i><p style="margin:0;">Aucune offre trouvée.</p>`;
             grid.appendChild(emptyEl);
           }
         } else if (emptyEl) {
           emptyEl.remove();
         }
       }
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('offer-search');
+      if (input) { input.value = ''; input.focus(); }
+      applyFilters();
     }
   </script>
   <script>
