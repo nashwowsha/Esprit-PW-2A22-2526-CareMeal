@@ -60,6 +60,161 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     select.form-input option { background-color:var(--color-dark-card,#1e2433); color:var(--color-text,#e2e8f0); }
     select.form-input { background-color:var(--color-dark-input,#252d3d); color:var(--color-text,#e2e8f0); }
 
+    /* ── Custom Category Dropdown ── */
+    .cat-dropdown-wrapper {
+      position: relative;
+      min-width: 230px;
+      user-select: none;
+    }
+    .cat-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #252d3d;
+      border: 1.5px solid #2d3748;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: border-color .2s, box-shadow .2s;
+      min-height: 44px;
+    }
+    .cat-dropdown-trigger:hover,
+    .cat-dropdown-wrapper.open .cat-dropdown-trigger {
+      border-color: var(--color-primary, #ef4444);
+      box-shadow: 0 0 0 3px rgba(239,68,68,.12);
+    }
+    .cat-dropdown-trigger .cat-trigger-icon {
+      color: var(--color-primary, #ef4444);
+      font-size: .95rem;
+      flex-shrink: 0;
+    }
+    .cat-dropdown-trigger .cat-trigger-label {
+      flex: 1;
+      font-size: .875rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cat-dropdown-trigger .cat-trigger-badge {
+      background: var(--color-primary, #ef4444);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 800;
+      border-radius: 50px;
+      padding: 2px 8px;
+      display: none;
+    }
+    .cat-dropdown-trigger .cat-trigger-badge.visible { display: inline-block; }
+    .cat-dropdown-trigger .cat-trigger-arrow {
+      color: #718096;
+      font-size: .8rem;
+      transition: transform .2s;
+      flex-shrink: 0;
+    }
+    .cat-dropdown-wrapper.open .cat-trigger-arrow { transform: rotate(180deg); }
+
+    .cat-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      background: #1a2035;
+      border: 1.5px solid #2d3748;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+      z-index: 999;
+      overflow: hidden;
+      animation: catDropDown .18s ease;
+    }
+    @keyframes catDropDown {
+      from { opacity:0; transform:translateY(-6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .cat-dropdown-wrapper.open .cat-dropdown-menu { display: block; }
+
+    .cat-dropdown-search {
+      padding: 10px 12px;
+      border-bottom: 1px solid #2d3748;
+      position: relative;
+    }
+    .cat-dropdown-search i {
+      position: absolute;
+      left: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #718096;
+      font-size: .8rem;
+    }
+    .cat-dropdown-search input {
+      width: 100%;
+      background: #252d3d;
+      border: 1px solid #2d3748;
+      border-radius: 7px;
+      padding: 7px 10px 7px 30px;
+      color: #e2e8f0;
+      font-size: .82rem;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color .2s;
+    }
+    .cat-dropdown-search input:focus { border-color: var(--color-primary,#ef4444); }
+    .cat-dropdown-search input::placeholder { color: #4a5568; }
+
+    .cat-dropdown-list {
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: #2d3748 transparent;
+    }
+    .cat-dropdown-list::-webkit-scrollbar { width: 4px; }
+    .cat-dropdown-list::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 4px; }
+
+    .cat-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .15s;
+      font-size: .85rem;
+      font-weight: 500;
+      color: #a0aec0;
+    }
+    .cat-dropdown-item:hover { background: #252d3d; color: #e2e8f0; }
+    .cat-dropdown-item.active {
+      background: rgba(239,68,68,.12);
+      color: #fff;
+      font-weight: 700;
+    }
+    .cat-dropdown-item .cat-item-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #4a5568;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .cat-dropdown-item.active .cat-item-dot { background: var(--color-primary,#ef4444); }
+    .cat-dropdown-item .cat-item-check {
+      margin-left: auto;
+      color: var(--color-primary,#ef4444);
+      font-size: .75rem;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .cat-dropdown-item.active .cat-item-check { opacity: 1; }
+    .cat-dropdown-no-result {
+      text-align: center;
+      padding: 18px;
+      color: #4a5568;
+      font-size: .82rem;
+      display: none;
+    }
+
     /* ══════════════════════════════════════
        VUE INLINE — Formulaire dans la page
     ══════════════════════════════════════ */
@@ -277,14 +432,43 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
             <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);"></i>
             <input type="text" id="search-input" class="form-input" style="padding-left:36px;" placeholder="Rechercher par titre, partenaire..." oninput="applyFilters()">
           </div>
-          <div style="min-width:230px;">
-            <select id="category-filter" class="form-input" onchange="onCategoryFilterChange()">
-              <option value="">Toutes les catégories</option>
-              <?php foreach ($categories as $c): ?>
-                <option value="<?= (int)$c['id_categorie'] ?>"><?= ea($c['nom_categorie']) ?></option>
-              <?php endforeach; ?>
-            </select>
+          <!-- Custom Styled Category Dropdown -->
+          <div class="cat-dropdown-wrapper" id="cat-dropdown-wrapper">
+            <div class="cat-dropdown-trigger" id="cat-dropdown-trigger" onclick="toggleCatDropdown()">
+              <i class="fa-solid fa-layer-group cat-trigger-icon"></i>
+              <span class="cat-trigger-label" id="cat-trigger-label">Toutes les catégories</span>
+              <span class="cat-trigger-badge" id="cat-trigger-badge"></span>
+              <i class="fa-solid fa-chevron-down cat-trigger-arrow"></i>
+            </div>
+            <div class="cat-dropdown-menu" id="cat-dropdown-menu">
+              <div class="cat-dropdown-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="cat-search-input" placeholder="Rechercher une catégorie..." oninput="filterCatItems(this.value)">
+              </div>
+              <div class="cat-dropdown-list" id="cat-dropdown-list">
+                <div class="cat-dropdown-item active" data-value="" onclick="selectCategory('', 'Toutes les catégories', this)">
+                  <span class="cat-item-dot"></span>
+                  Toutes les catégories
+                  <i class="fa-solid fa-check cat-item-check"></i>
+                </div>
+                <?php foreach ($categories as $c): ?>
+                <div class="cat-dropdown-item" data-value="<?= (int)$c['id_categorie'] ?>" onclick="selectCategory('<?= (int)$c['id_categorie'] ?>', '<?= ea($c['nom_categorie']) ?>', this)">
+                  <span class="cat-item-dot"></span>
+                  <?= ea($c['nom_categorie']) ?>
+                  <i class="fa-solid fa-check cat-item-check"></i>
+                </div>
+                <?php endforeach; ?>
+                <div class="cat-dropdown-no-result" id="cat-no-result">Aucune catégorie trouvée</div>
+              </div>
+            </div>
           </div>
+          <!-- Hidden select for compatibility -->
+          <select id="category-filter" style="display:none;" onchange="onCategoryFilterChange()">
+            <option value="">Toutes les catégories</option>
+            <?php foreach ($categories as $c): ?>
+              <option value="<?= (int)$c['id_categorie'] ?>"><?= ea($c['nom_categorie']) ?></option>
+            <?php endforeach; ?>
+          </select>
           <div style="display:flex;gap:8px;flex-wrap:wrap;" id="filter-btns">
             <button class="btn btn-primary"   onclick="setFilter('tous',this)">Tous</button>
             <button class="btn btn-secondary" onclick="setFilter('publiée',this)">Publiées</button>
@@ -823,6 +1007,43 @@ function setFilter(f, btn) {
   if (btn) { btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); }
   applyFilters();
 }
+/* Custom Category Dropdown JS */
+function toggleCatDropdown() {
+  const w = document.getElementById('cat-dropdown-wrapper');
+  const isOpen = w.classList.toggle('open');
+  if (isOpen) {
+    setTimeout(() => document.getElementById('cat-search-input').focus(), 50);
+  }
+}
+function selectCategory(value, label, el) {
+  document.querySelectorAll('.cat-dropdown-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('cat-trigger-label').textContent = label;
+  const badge = document.getElementById('cat-trigger-badge');
+  if (value) { badge.textContent = '1'; badge.classList.add('visible'); }
+  else { badge.classList.remove('visible'); }
+  const sel = document.getElementById('category-filter');
+  sel.value = value;
+  document.getElementById('cat-dropdown-wrapper').classList.remove('open');
+  onCategoryFilterChange();
+}
+function filterCatItems(query) {
+  const q = query.trim().toLowerCase();
+  const items = document.querySelectorAll('#cat-dropdown-list .cat-dropdown-item');
+  let found = 0;
+  items.forEach(item => {
+    const txt = item.textContent.trim().toLowerCase();
+    const match = txt.includes(q);
+    item.style.display = match ? '' : 'none';
+    if (match) found++;
+  });
+  document.getElementById('cat-no-result').style.display = found === 0 ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  const w = document.getElementById('cat-dropdown-wrapper');
+  if (w && !w.contains(e.target)) w.classList.remove('open');
+});
+
 function onCategoryFilterChange() {
   const select = document.getElementById('category-filter');
   currentCategoryFilter = select ? (select.value || '') : '';
