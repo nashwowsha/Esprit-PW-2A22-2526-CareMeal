@@ -1,5 +1,6 @@
 ﻿<?php
 require_once __DIR__ . '/../Controller/PreferenceController.php';
+require_once __DIR__ . '/../Controller/PdfExport.php';
 
 $controller = new PreferenceController();
 $allRows = $controller->getAllForAdmin();
@@ -8,6 +9,78 @@ $status = $_GET['status'] ?? '';
 $editId = isset($_GET['edit_id']) ? (int)$_GET['edit_id'] : 0;
 $selectedId = isset($_GET['selected_id']) ? (int)$_GET['selected_id'] : 0;
 $focusUserId = isset($_GET['id_user']) ? (int)$_GET['id_user'] : 0;
+$userTableQuery = trim((string)($_GET['user_q'] ?? ''));
+$userTableSort = strtolower(trim((string)($_GET['user_sort'] ?? 'date_desc')));
+$allTableQuery = trim((string)($_GET['all_q'] ?? ''));
+$allTableSort = strtolower(trim((string)($_GET['all_sort'] ?? 'id_desc')));
+$allowedPreferenceSort = ['date_desc', 'date_asc', 'id_desc', 'id_asc', 'regime_asc', 'regime_desc', 'localisation_asc', 'localisation_desc', 'user_asc', 'user_desc'];
+if (!in_array($userTableSort, $allowedPreferenceSort, true)) {
+    $userTableSort = 'date_desc';
+}
+if (!in_array($allTableSort, $allowedPreferenceSort, true)) {
+    $allTableSort = 'id_desc';
+}
+
+function adminPreferenceFilterRows($rows, $query) {
+    $query = strtolower(trim((string)$query));
+    if ($query === '') {
+        return $rows;
+    }
+
+    return array_values(array_filter($rows, static function ($row) use ($query) {
+        $haystack = strtolower(
+            (string)($row['id_pref'] ?? '') . ' ' .
+            (string)($row['id_user'] ?? '') . ' ' .
+            (string)($row['regime_alimentaire'] ?? '') . ' ' .
+            (string)($row['allergies'] ?? '') . ' ' .
+            (string)($row['localisation'] ?? '') . ' ' .
+            (string)($row['date_demande'] ?? '') . ' ' .
+            (string)($row['user_nom'] ?? '') . ' ' .
+            (string)($row['user_email'] ?? '')
+        );
+
+        return strpos($haystack, $query) !== false;
+    }));
+}
+
+function adminPreferenceSortRows(&$rows, $sort) {
+    usort($rows, static function ($a, $b) use ($sort) {
+        $dateA = strtotime((string)($a['date_demande'] ?? ''));
+        $dateB = strtotime((string)($b['date_demande'] ?? ''));
+        $idA = (int)($a['id_pref'] ?? 0);
+        $idB = (int)($b['id_pref'] ?? 0);
+        $userA = strtolower(trim((string)($a['user_nom'] ?? $a['id_user'] ?? '')));
+        $userB = strtolower(trim((string)($b['user_nom'] ?? $b['id_user'] ?? '')));
+        $regimeA = strtolower(trim((string)($a['regime_alimentaire'] ?? '')));
+        $regimeB = strtolower(trim((string)($b['regime_alimentaire'] ?? '')));
+        $locationA = strtolower(trim((string)($a['localisation'] ?? '')));
+        $locationB = strtolower(trim((string)($b['localisation'] ?? '')));
+
+        switch ($sort) {
+            case 'date_asc':
+                return $dateA <=> $dateB;
+            case 'id_asc':
+                return $idA <=> $idB;
+            case 'id_desc':
+                return $idB <=> $idA;
+            case 'regime_asc':
+                return strcmp($regimeA, $regimeB);
+            case 'regime_desc':
+                return strcmp($regimeB, $regimeA);
+            case 'localisation_asc':
+                return strcmp($locationA, $locationB);
+            case 'localisation_desc':
+                return strcmp($locationB, $locationA);
+            case 'user_asc':
+                return strcmp($userA, $userB);
+            case 'user_desc':
+                return strcmp($userB, $userA);
+            case 'date_desc':
+            default:
+                return $dateB <=> $dateA;
+        }
+    });
+}
 
 $editRow = $editId > 0 ? $controller->getById($editId) : null;
 if ($editRow && $focusUserId <= 0) {
@@ -46,8 +119,60 @@ if ($focusUserId > 0) {
     }
 }
 
+$filteredUserRows = adminPreferenceFilterRows($userRows, $userTableQuery);
+adminPreferenceSortRows($filteredUserRows, $userTableSort);
+
+$filteredAllRows = adminPreferenceFilterRows($allRows, $allTableQuery);
+adminPreferenceSortRows($filteredAllRows, $allTableSort);
+
 if ($selectedRow && $focusUserId > 0 && (int)$selectedRow['id_user'] !== $focusUserId) {
     $selectedRow = null;
+}
+
+if (isset($_GET['user_export']) && $_GET['user_export'] === 'pdf' && $focusUserId > 0) {
+    $pdfRows = [];
+    foreach ($filteredUserRows as $row) {
+        $pdfRows[] = [
+            (int)($row['id_pref'] ?? 0),
+            (int)($row['id_user'] ?? 0),
+            (string)($row['regime_alimentaire'] ?? ''),
+            (string)($row['allergies'] ?? ''),
+            (string)($row['localisation'] ?? ''),
+            (string)($row['date_demande'] ?? ''),
+            (string)($row['user_nom'] ?? ''),
+            (string)($row['user_email'] ?? ''),
+        ];
+    }
+    caremeal_stream_table_pdf(
+        'admin_preferences_user_' . (int)$focusUserId . '_' . date('Ymd_His') . '.pdf',
+        'Preferences utilisateur #' . (int)$focusUserId,
+        ['ID Pref', 'ID User', 'Regime alimentaire', 'Allergies', 'Localisation', 'Date demande', 'Nom utilisateur', 'Email utilisateur'],
+        $pdfRows,
+        'landscape'
+    );
+}
+
+if (isset($_GET['all_export']) && $_GET['all_export'] === 'pdf') {
+    $pdfRows = [];
+    foreach ($filteredAllRows as $row) {
+        $pdfRows[] = [
+            (int)($row['id_pref'] ?? 0),
+            (int)($row['id_user'] ?? 0),
+            (string)($row['regime_alimentaire'] ?? ''),
+            (string)($row['allergies'] ?? ''),
+            (string)($row['localisation'] ?? ''),
+            (string)($row['date_demande'] ?? ''),
+            (string)($row['user_nom'] ?? ''),
+            (string)($row['user_email'] ?? ''),
+        ];
+    }
+    caremeal_stream_table_pdf(
+        'admin_preferences_all_' . date('Ymd_His') . '.pdf',
+        'Toutes les preferences',
+        ['ID Pref', 'ID User', 'Regime alimentaire', 'Allergies', 'Localisation', 'Date demande', 'Nom utilisateur', 'Email utilisateur'],
+        $pdfRows,
+        'landscape'
+    );
 }
 
 $regimeOptions = $controller->getRegimeOptions();
@@ -82,6 +207,9 @@ $formTitle = $editRow
     ? 'Edit Preference #' . (int)$editRow['id_pref']
     : ($focusUserId > 0 ? 'Add Preference for User #' . $focusUserId : 'Add Preference');
 $formIdUser = $editRow['id_user'] ?? ($focusUserId > 0 ? $focusUserId : '');
+$formLocalisation = (string)($editRow['localisation'] ?? '');
+$formLocalisationLat = isset($editRow['localisation_lat']) ? (string)$editRow['localisation_lat'] : '';
+$formLocalisationLng = isset($editRow['localisation_lng']) ? (string)$editRow['localisation_lng'] : '';
 
 $statusMessages = [
     'success_created' => ['class' => 'success', 'text' => 'Preference saved. User table refreshed.'],
@@ -120,6 +248,7 @@ function isRegimeChecked($value, $selectedRegimes) {
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
   <link rel="stylesheet" href="../css/dashboard.css">
+  <link rel="stylesheet" href="../assets/vendor/leaflet/leaflet.css">
   <style>
     .pref-alert {
       border-radius: var(--radius-md);
@@ -293,6 +422,26 @@ function isRegimeChecked($value, $selectedRegimes) {
     .pref-small {
       font-size: 0.8rem;
     }
+    .pref-location-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .pref-location-map {
+      width: 100%;
+      height: 260px;
+      border: 1px solid var(--color-dark-border);
+      border-radius: var(--radius-md);
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .pref-location-coords {
+      color: var(--color-text-muted);
+      font-size: 0.82rem;
+      margin-top: 8px;
+    }
     @media (max-width: 1100px) {
       .pref-layout {
         grid-template-columns: 1fr;
@@ -389,7 +538,16 @@ function isRegimeChecked($value, $selectedRegimes) {
               <div id="allergies-error" class="pref-field-error"></div>
 
               <label for="localisation">Localisation</label>
-              <input id="localisation" name="localisation" class="pref-input" type="text" value="<?= htmlspecialchars((string)($editRow['localisation'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+              <input id="localisation" name="localisation" class="pref-input" type="text" value="<?= htmlspecialchars($formLocalisation, ENT_QUOTES, 'UTF-8') ?>">
+              <input type="hidden" id="localisation-lat" name="localisation_lat" value="<?= htmlspecialchars($formLocalisationLat, ENT_QUOTES, 'UTF-8') ?>">
+              <input type="hidden" id="localisation-lng" name="localisation_lng" value="<?= htmlspecialchars($formLocalisationLng, ENT_QUOTES, 'UTF-8') ?>">
+              <div class="pref-location-tools">
+                <input id="admin_pref_location_search" class="pref-input" type="text" placeholder="Rechercher sur la carte" style="width: 320px; margin: 0;">
+                <button type="button" class="btn btn-outline btn-sm" id="admin_pref_location_search_btn"><i class="fa-solid fa-magnifying-glass"></i> Rechercher</button>
+                <button type="button" class="btn btn-outline btn-sm" id="admin_pref_current_location_btn"><i class="fa-solid fa-location-crosshairs"></i> Ma position actuelle</button>
+              </div>
+              <div id="admin_pref_location_map" class="pref-location-map"></div>
+              <div id="admin_pref_location_coords" class="pref-location-coords">Coordonnees: non selectionnees</div>
               <div id="localisation-error" class="pref-field-error"></div>
 
               <div class="pref-actions">
@@ -418,7 +576,7 @@ function isRegimeChecked($value, $selectedRegimes) {
             <div class="card-header" style="justify-content:space-between;align-items:center;">
               <h3 class="card-title"><i class="fa-solid fa-table"></i> User Preferences Table</h3>
               <?php if ($focusUserId > 0): ?>
-                <span class="badge badge-info">User #<?= (int)$focusUserId ?> - <?= count($userRows) ?> rows</span>
+                <span class="badge badge-info">User #<?= (int)$focusUserId ?> - <?= count($filteredUserRows) ?> filtered / <?= count($userRows) ?> total</span>
               <?php else: ?>
                 <span class="badge badge-info">Choose a user</span>
               <?php endif; ?>
@@ -426,9 +584,32 @@ function isRegimeChecked($value, $selectedRegimes) {
 
             <?php if ($focusUserId <= 0): ?>
               <p class="pref-muted">Enter a User ID above to display that user's preferences.</p>
-            <?php elseif (empty($userRows)): ?>
-              <p class="pref-muted">No preferences found for user #<?= (int)$focusUserId ?>. You can create one from the form.</p>
             <?php else: ?>
+              <div class="pref-toolbar" style="margin-bottom:10px;">
+                <form method="get" action="preferences.php" class="pref-inline-form">
+                  <input type="hidden" name="id_user" value="<?= (int)$focusUserId ?>">
+                  <input class="pref-input" style="width:260px;margin:0;" type="text" name="user_q" value="<?= htmlspecialchars($userTableQuery, ENT_QUOTES, 'UTF-8') ?>" placeholder="Search regime, allergies, location...">
+                  <select class="pref-select" name="user_sort" style="width:210px;margin:0;">
+                    <option value="date_desc"<?= $userTableSort === 'date_desc' ? ' selected' : '' ?>>Newest</option>
+                    <option value="date_asc"<?= $userTableSort === 'date_asc' ? ' selected' : '' ?>>Oldest</option>
+                    <option value="id_desc"<?= $userTableSort === 'id_desc' ? ' selected' : '' ?>>ID desc</option>
+                    <option value="id_asc"<?= $userTableSort === 'id_asc' ? ' selected' : '' ?>>ID asc</option>
+                    <option value="regime_asc"<?= $userTableSort === 'regime_asc' ? ' selected' : '' ?>>Regime A-Z</option>
+                    <option value="regime_desc"<?= $userTableSort === 'regime_desc' ? ' selected' : '' ?>>Regime Z-A</option>
+                    <option value="localisation_asc"<?= $userTableSort === 'localisation_asc' ? ' selected' : '' ?>>Location A-Z</option>
+                    <option value="localisation_desc"<?= $userTableSort === 'localisation_desc' ? ' selected' : '' ?>>Location Z-A</option>
+                  </select>
+                  <button type="submit" class="btn btn-outline btn-sm"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+                </form>
+                <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$focusUserId ?>#user-preferences-card">Reset</a>
+                <a class="btn btn-outline btn-sm" href="preferences.php?<?= htmlspecialchars(http_build_query(['id_user' => (int)$focusUserId, 'user_q' => $userTableQuery, 'user_sort' => $userTableSort, 'user_export' => 'pdf']), ENT_QUOTES, 'UTF-8') ?>">Export PDF</a>
+              </div>
+
+              <?php if (empty($userRows)): ?>
+                <p class="pref-muted">No preferences found for user #<?= (int)$focusUserId ?>. You can create one from the form.</p>
+              <?php elseif (empty($filteredUserRows)): ?>
+                <p class="pref-muted">No rows match your user table filters.</p>
+              <?php else: ?>
               <div class="table-container">
                 <table class="data-table">
                   <thead>
@@ -442,9 +623,28 @@ function isRegimeChecked($value, $selectedRegimes) {
                     </tr>
                   </thead>
                   <tbody>
-                    <?php foreach ($userRows as $row): ?>
+                    <?php foreach ($filteredUserRows as $row): ?>
                       <?php $isSelected = $selectedRow && (int)$selectedRow['id_pref'] === (int)$row['id_pref']; ?>
-                      <tr class="pref-row-click<?= $isSelected ? ' pref-row-selected' : '' ?>" data-href="preferences.php?id_user=<?= (int)$focusUserId ?>&selected_id=<?= (int)$row['id_pref'] ?>#user-preferences-card">
+                      <?php
+                        $rowSelectParams = [
+                            'id_user' => (int)$focusUserId,
+                            'selected_id' => (int)$row['id_pref'],
+                            'user_q' => $userTableQuery,
+                            'user_sort' => $userTableSort,
+                            'all_q' => $allTableQuery,
+                            'all_sort' => $allTableSort,
+                        ];
+                        $rowEditParams = [
+                            'id_user' => (int)$focusUserId,
+                            'edit_id' => (int)$row['id_pref'],
+                            'selected_id' => (int)$row['id_pref'],
+                            'user_q' => $userTableQuery,
+                            'user_sort' => $userTableSort,
+                            'all_q' => $allTableQuery,
+                            'all_sort' => $allTableSort,
+                        ];
+                      ?>
+                      <tr class="pref-row-click<?= $isSelected ? ' pref-row-selected' : '' ?>" data-href="preferences.php?<?= htmlspecialchars(http_build_query($rowSelectParams), ENT_QUOTES, 'UTF-8') ?>#user-preferences-card">
                         <td><?= (int)$row['id_pref'] ?></td>
                         <td><?= htmlspecialchars((string)$row['regime_alimentaire'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['allergies'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -452,8 +652,8 @@ function isRegimeChecked($value, $selectedRegimes) {
                         <td><?= htmlspecialchars((string)$row['date_demande'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
                           <div class="pref-actions">
-                            <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$focusUserId ?>&selected_id=<?= (int)$row['id_pref'] ?>#user-preferences-card">Select</a>
-                            <a class="btn btn-outline btn-sm" href="preferences.php?id_user=<?= (int)$focusUserId ?>&edit_id=<?= (int)$row['id_pref'] ?>&selected_id=<?= (int)$row['id_pref'] ?>">Edit</a>
+                            <a class="btn btn-outline btn-sm" href="preferences.php?<?= htmlspecialchars(http_build_query($rowSelectParams), ENT_QUOTES, 'UTF-8') ?>#user-preferences-card">Select</a>
+                            <a class="btn btn-outline btn-sm" href="preferences.php?<?= htmlspecialchars(http_build_query($rowEditParams), ENT_QUOTES, 'UTF-8') ?>">Edit</a>
                             <form method="post" action="../Controller/preference.php?action=admin_delete" style="display:inline;" onsubmit="return confirm('Delete preference #<?= (int)$row['id_pref'] ?>?');">
                               <input type="hidden" name="id_pref" value="<?= (int)$row['id_pref'] ?>">
                               <button type="submit" class="btn btn-danger btn-sm">Delete</button>
@@ -465,6 +665,7 @@ function isRegimeChecked($value, $selectedRegimes) {
                   </tbody>
                 </table>
               </div>
+              <?php endif; ?>
             <?php endif; ?>
           </section>
         </div>
@@ -571,7 +772,31 @@ function isRegimeChecked($value, $selectedRegimes) {
         <section class="card pref-section-gap">
           <div class="card-header" style="justify-content:space-between;align-items:center;">
             <h3 class="card-title"><i class="fa-solid fa-table-list"></i> All Preferences Snapshot</h3>
-            <span class="badge badge-info"><?= count($allRows) ?> total</span>
+            <span class="badge badge-info"><?= count($filteredAllRows) ?> filtered / <?= count($allRows) ?> total</span>
+          </div>
+          <div class="pref-toolbar" style="margin-bottom:10px;">
+            <form method="get" action="preferences.php" class="pref-inline-form">
+              <?php if ($focusUserId > 0): ?>
+                <input type="hidden" name="id_user" value="<?= (int)$focusUserId ?>">
+              <?php endif; ?>
+              <?php if ($selectedRow): ?>
+                <input type="hidden" name="selected_id" value="<?= (int)$selectedRow['id_pref'] ?>">
+              <?php endif; ?>
+              <input class="pref-input" style="width:260px;margin:0;" type="text" name="all_q" value="<?= htmlspecialchars($allTableQuery, ENT_QUOTES, 'UTF-8') ?>" placeholder="Search all preferences...">
+              <select class="pref-select" name="all_sort" style="width:210px;margin:0;">
+                <option value="id_desc"<?= $allTableSort === 'id_desc' ? ' selected' : '' ?>>ID desc</option>
+                <option value="id_asc"<?= $allTableSort === 'id_asc' ? ' selected' : '' ?>>ID asc</option>
+                <option value="date_desc"<?= $allTableSort === 'date_desc' ? ' selected' : '' ?>>Newest</option>
+                <option value="date_asc"<?= $allTableSort === 'date_asc' ? ' selected' : '' ?>>Oldest</option>
+                <option value="user_asc"<?= $allTableSort === 'user_asc' ? ' selected' : '' ?>>User A-Z</option>
+                <option value="user_desc"<?= $allTableSort === 'user_desc' ? ' selected' : '' ?>>User Z-A</option>
+                <option value="regime_asc"<?= $allTableSort === 'regime_asc' ? ' selected' : '' ?>>Regime A-Z</option>
+                <option value="regime_desc"<?= $allTableSort === 'regime_desc' ? ' selected' : '' ?>>Regime Z-A</option>
+              </select>
+              <button type="submit" class="btn btn-outline btn-sm"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+            </form>
+            <a class="btn btn-outline btn-sm" href="preferences.php<?= $focusUserId > 0 ? '?id_user=' . (int)$focusUserId : '' ?>#user-preferences-card">Reset</a>
+            <a class="btn btn-outline btn-sm" href="preferences.php?<?= htmlspecialchars(http_build_query(['id_user' => $focusUserId > 0 ? (int)$focusUserId : null, 'all_q' => $allTableQuery, 'all_sort' => $allTableSort, 'all_export' => 'pdf']), ENT_QUOTES, 'UTF-8') ?>">Export PDF</a>
           </div>
           <div class="table-container">
             <table class="data-table">
@@ -588,8 +813,10 @@ function isRegimeChecked($value, $selectedRegimes) {
               <tbody>
                 <?php if (empty($allRows)): ?>
                   <tr><td colspan="6" class="pref-muted">No preference records.</td></tr>
+                <?php elseif (empty($filteredAllRows)): ?>
+                  <tr><td colspan="6" class="pref-muted">No rows match snapshot filters.</td></tr>
                 <?php else: ?>
-                  <?php foreach ($allRows as $row): ?>
+                  <?php foreach ($filteredAllRows as $row): ?>
                     <tr>
                       <td><?= (int)$row['id_pref'] ?></td>
                       <td><?= (int)$row['id_user'] ?></td>
@@ -615,12 +842,28 @@ function isRegimeChecked($value, $selectedRegimes) {
     window.REGIME_OPTIONS = <?= $regimeOptionsJson ?: '[]' ?>;
   </script>
   <script src="../js/app.js?v=20260420c"></script>
-  <script src="../js/components.js?v=20260420j"></script>
+  <script src="../js/components.js?v=20260421a"></script>
+  <script src="../assets/vendor/leaflet/leaflet.js"></script>
+  <script src="../js/collecte-address-picker.js"></script>
   <script src="../js/admin-preferences-validation.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       if (window.App && typeof window.App.requireAuth === 'function') {
         App.requireAuth(['admin']);
+      }
+      if (typeof window.initCollecteAddressPicker === 'function') {
+        window.initCollecteAddressPicker({
+          mapId: 'admin_pref_location_map',
+          addressInputId: 'localisation',
+          latInputId: 'localisation-lat',
+          lngInputId: 'localisation-lng',
+          searchInputId: 'admin_pref_location_search',
+          searchBtnId: 'admin_pref_location_search_btn',
+          currentLocationBtnId: 'admin_pref_current_location_btn',
+          coordsLabelId: 'admin_pref_location_coords',
+          defaultCenter: [36.8065, 10.1815],
+          defaultZoom: 12
+        });
       }
 
       document.querySelectorAll('.pref-row-click').forEach(function (row) {
@@ -638,6 +881,7 @@ function isRegimeChecked($value, $selectedRegimes) {
   </script>
 </body>
 </html>
+
 
 
 

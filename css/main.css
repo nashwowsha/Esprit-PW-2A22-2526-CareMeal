@@ -203,6 +203,110 @@ input, select, textarea {
   border: none;
 }
 
+/* --- Global Combobox Theme (Front + Back) --- */
+select,
+.select,
+.pref-select,
+.filter-select,
+.form-select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: #162233 !important;
+  color: #f8fafc !important;
+}
+
+/* Custom select renderer (used to avoid native white dropdown in Firefox/Windows) */
+.cm-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.cm-select-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.cm-select-trigger {
+  width: 100%;
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-md);
+  color: var(--color-white);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+}
+
+.cm-select-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cm-select-chevron {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.cm-select-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 1500;
+  background: #162233;
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  display: none;
+}
+
+.cm-select-wrap.open .cm-select-list {
+  display: block;
+}
+
+.cm-select-wrap.open .cm-select-chevron {
+  transform: rotate(180deg);
+}
+
+.cm-select-item {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #f8fafc;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cm-select-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cm-select-item.active {
+  background: rgba(249, 115, 22, 0.18);
+  color: #fff;
+}
+
+.cm-select-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* --- Typography --- */
 h1, h2, h3, h4, h5, h6 {
   font-weight: var(--font-weight-bold);

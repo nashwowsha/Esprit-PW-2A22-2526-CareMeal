@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var idUserField = document.getElementById('id_user');
   var allergiesField = document.getElementById('allergies');
   var localisationField = document.getElementById('localisation');
+  var localisationLatField = document.getElementById('localisation-lat');
+  var localisationLngField = document.getElementById('localisation-lng');
 
   var idUserError = document.getElementById('id_user-error');
   var regimesError = document.getElementById('regimes-error');
@@ -337,6 +339,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var idUser = idUserField ? idUserField.value.trim() : '';
       var allergies = allergiesField ? allergiesField.value.trim() : '';
       var localisation = localisationField ? localisationField.value.trim() : '';
+      var localisationLat = localisationLatField ? localisationLatField.value.trim() : '';
+      var localisationLng = localisationLngField ? localisationLngField.value.trim() : '';
       var selectedRegimes = getSelectedRegimes();
 
       setError(idUserError, idUserField, '');
@@ -402,6 +406,13 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (localisation.length > 1000) {
         setError(localisationError, localisationField, 'Localisation must be 1000 characters or less.');
         isValid = false;
+      } else {
+        var lat = Number(localisationLat);
+        var lng = Number(localisationLng);
+        if (!localisationLat || !localisationLng || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          setError(localisationError, localisationField, 'Choose the localisation on the map.');
+          isValid = false;
+        }
       }
 
       if (!isValid) {

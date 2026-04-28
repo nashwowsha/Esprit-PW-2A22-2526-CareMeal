@@ -54,6 +54,7 @@ const Components = {
       { base: 'users', label: 'Utilisateurs', icon: 'fa-users' },
       { base: 'partners', label: 'Partenaires', icon: 'fa-store' },
       { base: 'restaurants', label: 'Restaurants', icon: 'fa-shop', forcePhp: true },
+      { base: 'planning_collecte', label: 'Planning Collecte', icon: 'fa-truck', forcePhp: true },
       { base: 'preferences', label: 'Pr&eacute;f&eacute;rences', icon: 'fa-sliders', forcePhp: true },
       { base: 'events', label: '&Eacute;v&eacute;nements', icon: 'fa-calendar-day', forcePhp: true },
       { base: 'logs', label: "Logs d'activit&eacute;", icon: 'fa-clipboard-list' }
@@ -68,7 +69,7 @@ const Components = {
 
     const hasRestaurants = !!restaurantsLink;
     const linksCount = section.querySelectorAll('.sidebar-link').length;
-    if (hasRestaurants && linksCount >= 7) return;
+    if (hasRestaurants && linksCount >= 8) return;
 
     let html = '<div class="sidebar-section-title">Administration</div>';
     routes.forEach((route) => {
@@ -105,6 +106,109 @@ const Components = {
     this.adminSidebarObserver.observe(section, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
   },
 
+  ensureStudentSidebarCompleteness() {
+    const path = window.location.pathname.toLowerCase();
+    if (!path.includes('/student/')) return;
+
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    if (!sidebarNav) return;
+
+    const url = new URL(window.location.href);
+    const queryUserId = parseInt(url.searchParams.get('id_user') || '0', 10);
+    const appUser = (typeof App !== 'undefined' && App && typeof App.getCurrentUser === 'function')
+      ? App.getCurrentUser()
+      : null;
+    const appUserId = appUser ? parseInt(appUser.id || '0', 10) : 0;
+    const resolvedId = queryUserId > 0 ? queryUserId : (appUserId > 0 ? appUserId : 1);
+
+    const sections = Array.from(sidebarNav.querySelectorAll('.sidebar-section'));
+    let menuSection = sections.find((section) => {
+      const title = section.querySelector('.sidebar-section-title');
+      if (!title) return false;
+      const txt = (title.textContent || '').toLowerCase();
+      return txt.indexOf('menu') !== -1;
+    });
+    let settingsSection = sections.find((section) => {
+      const title = section.querySelector('.sidebar-section-title');
+      if (!title) return false;
+      const txt = (title.textContent || '').toLowerCase();
+      return txt.indexOf('param') !== -1 || txt.indexOf('setting') !== -1;
+    });
+
+    if (!menuSection) {
+      menuSection = document.createElement('div');
+      menuSection.className = 'sidebar-section';
+      sidebarNav.prepend(menuSection);
+    }
+
+    if (!settingsSection) {
+      settingsSection = document.createElement('div');
+      settingsSection.className = 'sidebar-section';
+      sidebarNav.appendChild(settingsSection);
+    }
+
+    const menuRoutes = [
+      { href: 'dashboard.html', icon: 'fa-house', label: 'Accueil' },
+      { href: 'profile.html', icon: 'fa-user', label: 'Mon Profil' },
+      { href: `preferences.php?id_user=${resolvedId}`, icon: 'fa-utensils', label: 'Préférences', base: 'preferences.php' },
+      { href: 'events.html', icon: 'fa-calendar-day', label: 'Événements' },
+      { href: 'orders.html', icon: 'fa-box', label: 'Mes Commandes' },
+      { href: `mes_collectes.php?id_user=${resolvedId}`, icon: 'fa-box-archive', label: 'Mes Collectes', base: 'mes_collectes.php' }
+    ];
+
+    const ensureTitle = (section, text) => {
+      let title = section.querySelector('.sidebar-section-title');
+      if (!title) {
+        title = document.createElement('div');
+        title.className = 'sidebar-section-title';
+        section.prepend(title);
+      }
+      title.textContent = text;
+    };
+
+    const getRouteBase = (route) => (route.base || route.href).split('?')[0].toLowerCase();
+    const getLinkBase = (link) => ((link.getAttribute('href') || '').replace('./', '').toLowerCase().split('?')[0]);
+    const allMenuLinks = () => Array.from(menuSection.querySelectorAll('.sidebar-link'));
+    const allSettingsLinks = () => Array.from(settingsSection.querySelectorAll('.sidebar-link'));
+
+    ensureTitle(menuSection, 'Menu');
+    const orderedMenuLinks = menuRoutes.map((route) => {
+      const routeBase = getRouteBase(route);
+      let link = allMenuLinks().find((candidate) => getLinkBase(candidate) === routeBase);
+      if (!link) {
+        link = document.createElement('a');
+        link.className = 'sidebar-link';
+      }
+      link.setAttribute('href', route.href);
+      link.innerHTML = `<span class="link-icon"><i class="fa-solid ${route.icon}"></i></span> ${route.label}`;
+      return link;
+    });
+
+    allMenuLinks().forEach((link) => {
+      if (!orderedMenuLinks.includes(link)) {
+        link.remove();
+      }
+    });
+    orderedMenuLinks.forEach((link) => menuSection.appendChild(link));
+
+    ensureTitle(settingsSection, 'Paramètres');
+    const settingsRoute = { href: 'settings.html', icon: 'fa-gear', label: 'Paramètres', base: 'settings.html' };
+    const settingsBase = getRouteBase(settingsRoute);
+    let settingsLink = allSettingsLinks().find((candidate) => getLinkBase(candidate) === settingsBase);
+    if (!settingsLink) {
+      settingsLink = document.createElement('a');
+      settingsLink.className = 'sidebar-link';
+    }
+    settingsLink.setAttribute('href', settingsRoute.href);
+    settingsLink.innerHTML = `<span class="link-icon"><i class="fa-solid ${settingsRoute.icon}"></i></span> ${settingsRoute.label}`;
+    allSettingsLinks().forEach((link) => {
+      if (link !== settingsLink) {
+        link.remove();
+      }
+    });
+    settingsSection.appendChild(settingsLink);
+  },
+
   // --- Sidebar ---
   initSidebar() {
     const toggle = document.getElementById('menu-toggle');
@@ -117,6 +221,7 @@ const Components = {
     setTimeout(() => this.ensureAdminSidebarCompleteness(), 1000);
     this.normalizeAdminSidebarLabels();
     this.setupAdminSidebarWatcher();
+    this.ensureStudentSidebarCompleteness();
 
     if (toggle && sidebar) {
       toggle.addEventListener('click', () => {
@@ -134,9 +239,21 @@ const Components = {
 
     // Set active link
     const currentPath = window.location.pathname;
+    const currentPage = (currentPath.split('/').pop() || '').toLowerCase();
+    const activeAlias = {
+      'create_collecte.php': 'preferences.php',
+      'matching.php': 'preferences.php',
+      'matching_restaurant.php': 'preferences.php',
+      'collecte_detail.php': 'mes_collectes.php'
+    };
+    const targetActivePage = activeAlias[currentPage] || currentPage;
+
     document.querySelectorAll('.sidebar-link').forEach(link => {
-      const href = link.getAttribute('href');
-      if (href && currentPath.endsWith(href.replace('./', ''))) {
+      link.classList.remove('active');
+      const href = (link.getAttribute('href') || '').replace('./', '').toLowerCase();
+      if (!href) return;
+      const hrefPath = href.split('?')[0];
+      if (currentPath.toLowerCase().endsWith(hrefPath) || hrefPath === targetActivePage) {
         link.classList.add('active');
       }
     });
@@ -172,6 +289,111 @@ const Components = {
         App.addLog('Deconnexion');
         App.logout();
       });
+    });
+  },
+
+  // --- Custom Select (cross-browser combobox style) ---
+  initCustomSelects() {
+    if (!document.body) return;
+
+    if (!this._customSelectGlobalBound) {
+      document.addEventListener('click', (event) => {
+        document.querySelectorAll('.cm-select-wrap.open').forEach((wrap) => {
+          if (!wrap.contains(event.target)) {
+            wrap.classList.remove('open');
+          }
+        });
+      });
+      this._customSelectGlobalBound = true;
+    }
+
+    const selects = document.querySelectorAll(
+      'select:not([multiple]):not([data-native-select="1"])'
+    );
+
+    selects.forEach((select) => {
+      if (select.dataset.cmSelectReady === '1') return;
+      select.dataset.cmSelectReady = '1';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'cm-select-wrap';
+      if (select.className) wrap.classList.add(...String(select.className).split(/\s+/).filter(Boolean));
+
+      const trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.className = 'cm-select-trigger';
+
+      const label = document.createElement('span');
+      label.className = 'cm-select-label';
+
+      const chevron = document.createElement('span');
+      chevron.className = 'cm-select-chevron';
+      chevron.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+
+      trigger.appendChild(label);
+      trigger.appendChild(chevron);
+
+      const list = document.createElement('div');
+      list.className = 'cm-select-list';
+
+      const updateLabel = () => {
+        const selectedOption = select.options[select.selectedIndex];
+        label.textContent = selectedOption ? selectedOption.textContent : '';
+      };
+
+      const rebuildList = () => {
+        list.innerHTML = '';
+
+        Array.from(select.options).forEach((option) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'cm-select-item';
+          item.textContent = option.textContent;
+          item.disabled = option.disabled;
+          if (option.value === select.value) item.classList.add('active');
+
+          item.addEventListener('click', () => {
+            if (option.disabled) return;
+            if (select.value !== option.value) {
+              select.value = option.value;
+              select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            wrap.classList.remove('open');
+            updateLabel();
+            rebuildList();
+          });
+
+          list.appendChild(item);
+        });
+      };
+
+      trigger.addEventListener('click', () => {
+        const isOpen = wrap.classList.contains('open');
+        document.querySelectorAll('.cm-select-wrap.open').forEach((openWrap) => {
+          if (openWrap !== wrap) openWrap.classList.remove('open');
+        });
+        wrap.classList.toggle('open', !isOpen);
+      });
+
+      select.addEventListener('change', () => {
+        updateLabel();
+        rebuildList();
+      });
+
+      const observer = new MutationObserver(() => {
+        updateLabel();
+        rebuildList();
+      });
+      observer.observe(select, { childList: true, subtree: true, attributes: true });
+
+      select.classList.add('cm-select-native');
+      select.parentNode.insertBefore(wrap, select);
+      wrap.appendChild(select);
+      wrap.appendChild(trigger);
+      wrap.appendChild(list);
+
+      updateLabel();
+      rebuildList();
     });
   },
 
@@ -355,6 +577,7 @@ const Components = {
     this.initSidebar();
     this.initUserInfo();
     this.initLogout();
+    this.initCustomSelects();
     this.initModals();
   }
 };

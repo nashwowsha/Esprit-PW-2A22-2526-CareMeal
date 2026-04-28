@@ -32,7 +32,24 @@ const Student = {
     const container = document.getElementById('offers-grid');
     if (!container) return;
 
-    const offers = App.getOffers().filter(o => o.status === 'active');
+    const offers = App.getOffers()
+      .filter(o => o.status === 'active')
+      .filter((offer) => {
+        const rawRemaining = offer && offer.remaining !== undefined ? offer.remaining : null;
+        const rawQuantity = offer && offer.quantity !== undefined ? offer.quantity : null;
+
+        const remaining = rawRemaining === null ? NaN : Number(rawRemaining);
+        const quantity = rawQuantity === null ? NaN : Number(rawQuantity);
+
+        if (Number.isFinite(remaining)) {
+          return remaining > 0;
+        }
+        if (Number.isFinite(quantity)) {
+          return quantity > 0;
+        }
+
+        return true;
+      });
 
     if (offers.length === 0) {
       container.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fa-solid fa-utensils"></i></div><h3>Aucune offre disponible</h3><p>Revenez plus tard pour découvrir de nouvelles offres !</p></div>';

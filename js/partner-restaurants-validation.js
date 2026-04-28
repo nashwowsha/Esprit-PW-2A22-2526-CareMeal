@@ -25,12 +25,18 @@ document.addEventListener('DOMContentLoaded', function () {
     return value >= min && value <= max;
   }
 
+  function isValidTimeFormat(value) {
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(value || ''));
+  }
+
   if (restaurantForm) {
     restaurantForm.addEventListener('submit', function (event) {
       var valid = true;
 
       var nameField = document.getElementById('restaurant_name');
       var locationField = document.getElementById('restaurant_location');
+      var locationLatField = document.getElementById('restaurant_location_lat');
+      var locationLngField = document.getElementById('restaurant_location_lng');
       var phoneField = document.getElementById('restaurant_phone');
       var openField = document.getElementById('restaurant_open_time');
       var closeField = document.getElementById('restaurant_close_time');
@@ -42,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var owner = ownerField ? ownerField.value.trim() : '';
       var name = nameField ? nameField.value.trim() : '';
       var location = locationField ? locationField.value.trim() : '';
+      var locationLat = locationLatField ? locationLatField.value.trim() : '';
+      var locationLng = locationLngField ? locationLngField.value.trim() : '';
       var phone = phoneField ? phoneField.value.trim() : '';
       var openTime = openField ? openField.value.trim() : '';
       var closeTime = closeField ? closeField.value.trim() : '';
@@ -68,6 +76,13 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!location || location.length < 2 || location.length > 150) {
         setError('restaurant_location-error', locationField, 'Localisation obligatoire (2-150).');
         valid = false;
+      } else {
+        var lat = Number(locationLat);
+        var lng = Number(locationLng);
+        if (!locationLat || !locationLng || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          setError('restaurant_location-error', locationField, 'Choisissez la localisation depuis la carte.');
+          valid = false;
+        }
       }
 
       if (!/^\+?[0-9 ]{8,15}$/.test(phone)) {
@@ -78,6 +93,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!openTime) {
         setError('restaurant_open_time-error', openField, "Heure d'ouverture obligatoire.");
         valid = false;
+      } else if (!isValidTimeFormat(openTime)) {
+        setError('restaurant_open_time-error', openField, "Format invalide (HH:MM).");
+        valid = false;
       } else if (!isTimeBetween(openTime, '09:00', '22:00')) {
         setError('restaurant_open_time-error', openField, "Doit etre entre 09:00 et 22:00.");
         valid = false;
@@ -85,6 +103,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (!closeTime) {
         setError('restaurant_close_time-error', closeField, 'Heure de fermeture obligatoire.');
+        valid = false;
+      } else if (!isValidTimeFormat(closeTime)) {
+        setError('restaurant_close_time-error', closeField, 'Format invalide (HH:MM).');
         valid = false;
       } else if (!isTimeBetween(closeTime, '09:00', '22:00')) {
         setError('restaurant_close_time-error', closeField, 'Doit etre entre 09:00 et 22:00.');

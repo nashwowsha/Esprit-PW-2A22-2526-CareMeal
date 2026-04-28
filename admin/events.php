@@ -143,10 +143,11 @@
   </div>
 
   <script src="../js/app.js?v=20260420c"></script>
-  <script src="../js/components.js?v=20260420j"></script>
+  <script src="../js/components.js?v=20260421a"></script>
   <script src="../js/events-admin.js?v=20260420z"></script>
 </body>
 </html>
+
 
 
 

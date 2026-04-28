@@ -31,6 +31,15 @@ class RestaurantController
         return implode(', ', array_values(array_unique($out)));
     }
 
+    private function normalizeCoordinateInput($value)
+    {
+        $value = $this->norm($value);
+        if ($value === '' || !is_numeric($value)) {
+            return null;
+        }
+        return (float)$value;
+    }
+
     private function ensureTable()
     {
         $this->db()->exec(
@@ -39,6 +48,8 @@ class RestaurantController
                 id_owner INT NOT NULL,
                 nom VARCHAR(120) NOT NULL,
                 localisation VARCHAR(180) NOT NULL,
+                localisation_lat DECIMAL(10,7) DEFAULT NULL,
+                localisation_lng DECIMAL(10,7) DEFAULT NULL,
                 image_path VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
                 telephone VARCHAR(30) NOT NULL,
@@ -51,6 +62,39 @@ class RestaurantController
                 INDEX idx_nom (nom)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
+        $this->ensureGeoColumns();
+    }
+
+    private function columnExists($columnName)
+    {
+        $query = $this->db()->prepare(
+            "SELECT 1
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'restaurant'
+               AND COLUMN_NAME = :column_name
+             LIMIT 1"
+        );
+        $query->execute(['column_name' => $columnName]);
+        return (bool)$query->fetch();
+    }
+
+    private function ensureGeoColumns()
+    {
+        $columnsToAdd = [
+            'localisation_lat' => "ALTER TABLE restaurant ADD COLUMN localisation_lat DECIMAL(10,7) DEFAULT NULL AFTER localisation",
+            'localisation_lng' => "ALTER TABLE restaurant ADD COLUMN localisation_lng DECIMAL(10,7) DEFAULT NULL AFTER localisation_lat",
+        ];
+
+        foreach ($columnsToAdd as $column => $alterSql) {
+            if (!$this->columnExists($column)) {
+                try {
+                    $this->db()->exec($alterSql);
+                } catch (Exception $e) {
+                    // keep runtime stable if migration cannot run now
+                }
+            }
+        }
     }
 
     private function mealsDecode($json)
@@ -156,6 +200,8 @@ class RestaurantController
         $idOwner = (int)($src['id_owner'] ?? 0);
         $nom = $this->norm($src['nom'] ?? '');
         $loc = $this->norm($src['localisation'] ?? '');
+        $locLat = $this->normalizeCoordinateInput($src['localisation_lat'] ?? '');
+        $locLng = $this->normalizeCoordinateInput($src['localisation_lng'] ?? '');
         $desc = $this->norm($src['description'] ?? '');
         $tel = $this->norm($src['telephone'] ?? '');
         $hours = $this->norm($src['horaires'] ?? '');
@@ -170,6 +216,11 @@ class RestaurantController
         if ($idOwner <= 0) { $errors[] = 'id_owner'; }
         if ($nom === '' || strlen($nom) < 2 || strlen($nom) > 100 || !preg_match("/^[\\p{L}\\p{N}\\s'\\-]+$/u", $nom)) { $errors[] = 'nom'; }
         if ($loc === '' || strlen($loc) < 2 || strlen($loc) > 150) { $errors[] = 'localisation'; }
+        $validCoords = $locLat !== null
+            && $locLng !== null
+            && $locLat >= -90 && $locLat <= 90
+            && $locLng >= -180 && $locLng <= 180;
+        if (!$validCoords) { $errors[] = 'localisation'; }
         if ($desc === '' || strlen($desc) < 10 || strlen($desc) > 1000) { $errors[] = 'description'; }
         if ($tel === '' || !preg_match('/^\+?[0-9 ]{8,15}$/', $tel)) { $errors[] = 'telephone'; }
         if ($hours === '' || !preg_match('/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/', $hours, $matches)) {
@@ -195,6 +246,8 @@ class RestaurantController
                 'id_owner' => $idOwner,
                 'nom' => $nom,
                 'localisation' => $loc,
+                'localisation_lat' => $locLat,
+                'localisation_lng' => $locLng,
                 'description' => $desc,
                 'telephone' => $tel,
                 'horaires' => $hours,
@@ -312,19 +365,19 @@ class RestaurantController
             if ($isUpdate) {
                 $q = $this->db()->prepare(
                     "UPDATE restaurant
-                     SET id_owner=:id_owner, nom=:nom, localisation=:localisation, image_path=:image_path, description=:description, telephone=:telephone, horaires=:horaires, actif=:actif
+                     SET id_owner=:id_owner, nom=:nom, localisation=:localisation, localisation_lat=:localisation_lat, localisation_lng=:localisation_lng, image_path=:image_path, description=:description, telephone=:telephone, horaires=:horaires, actif=:actif
                      WHERE id_restaurant=:id_restaurant"
                 );
-                $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'actif' => $p['actif'], 'id_restaurant' => $idRestaurant]);
+                $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'localisation_lat' => $p['localisation_lat'], 'localisation_lng' => $p['localisation_lng'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'actif' => $p['actif'], 'id_restaurant' => $idRestaurant]);
                 if ($valid['has_new_image'] && $imgPath !== (string)$existing['image_path']) { $this->deleteImage((string)$existing['image_path']); }
                 return ['ok' => true, 'status' => 'success_restaurant_updated', 'id_owner' => (int)$p['id_owner'], 'selected_id' => $idRestaurant];
             }
 
             $q = $this->db()->prepare(
-                "INSERT INTO restaurant (id_owner, nom, localisation, image_path, description, telephone, horaires, meals_json, actif)
-                 VALUES (:id_owner,:nom,:localisation,:image_path,:description,:telephone,:horaires,:meals_json,:actif)"
+                "INSERT INTO restaurant (id_owner, nom, localisation, localisation_lat, localisation_lng, image_path, description, telephone, horaires, meals_json, actif)
+                 VALUES (:id_owner,:nom,:localisation,:localisation_lat,:localisation_lng,:image_path,:description,:telephone,:horaires,:meals_json,:actif)"
             );
-            $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'meals_json' => '[]', 'actif' => $p['actif']]);
+            $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'localisation_lat' => $p['localisation_lat'], 'localisation_lng' => $p['localisation_lng'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'meals_json' => '[]', 'actif' => $p['actif']]);
             $id = (int)$this->db()->lastInsertId();
             return ['ok' => true, 'status' => 'success_restaurant_created', 'id_owner' => (int)$p['id_owner'], 'selected_id' => $id];
         } catch (Exception $e) {
