@@ -16,6 +16,52 @@
     .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
     .status-inscrit { background: rgba(16, 185, 129, 0.2); color: #10b981; }
     .status-annule { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+    /* Selects thème sombre — même style que sort-select */
+    .dark-select {
+        padding: 11px 40px 11px 18px;
+        border-radius: 24px;
+        border: none;
+        background: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 5"><path fill="%23ffffff" d="M2 0L0 2h4zm0 5L0 3h4z"/></svg>') no-repeat right 15px center, linear-gradient(135deg, #fe5516 0%, #FF8A50 100%);
+        background-size: 10px 12px, auto;
+        color: white;
+        font-weight: 600;
+        font-size: 0.92rem;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(254, 85, 22, 0.3);
+        outline: none;
+    }
+    .dark-select:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(254, 85, 22, 0.45);
+    }
+    .dark-select:focus {
+        box-shadow: 0 0 0 3px rgba(254, 85, 22, 0.5);
+    }
+    .dark-select option {
+        background-color: #0f172a;
+        color: #f8fafc;
+        padding: 12px;
+        font-weight: 500;
+    }
+
+    /* Barre de recherche */
+    .search-input {
+        width: 100%;
+        padding: 11px 16px 11px 42px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 24px;
+        color: white;
+        font-size: 0.92rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--color-primary); }
+    .search-input::placeholder { color: var(--color-text-muted); }
   </style>
 </head>
 <body>
@@ -44,39 +90,47 @@
 
       <div class="page-content">
 
+        <!-- Stats rapides -->
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;" id="part-stats"></div>
+
         <!-- Search and Sort -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:16px;">
-            <div style="position:relative; width:300px;">
-                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--color-text-muted);"></i>
-                <input type="text" id="partSearchInput" placeholder="Rechercher par étudiant ou événement..." style="width:100%; padding:12px 16px 12px 40px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:24px; color:white; font-size:0.95rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onkeyup="filterAndSortParticipations()">
+            <div style="position:relative; width:320px;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); font-size:0.85rem;"></i>
+                <input type="text" id="partSearchInput" placeholder="Rechercher par nom, email ou événement..."
+                    class="search-input" onkeyup="filterAndSortParticipations()">
             </div>
-            <div style="display:flex; gap:12px;">
-                <select id="partStatusSelect" style="padding:12px 20px; border-radius:24px; border:1px solid var(--color-border); background:var(--color-surface); color:white; cursor:pointer;" onchange="filterAndSortParticipations()">
-                    <option style="background:#1e293b; color:white;" value="Tous">Tous les statuts</option>
-                    <option style="background:#1e293b; color:white;" value="Inscrit">Inscrit</option>
-                    <option style="background:#1e293b; color:white;" value="Validé">Validé</option>
-                    <option style="background:#1e293b; color:white;" value="Annulé">Annulé</option>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <select id="partStatusSelect" class="dark-select" onchange="filterAndSortParticipations()">
+                    <option value="Tous">Tous les statuts</option>
+                    <option value="Inscrit">Inscrit</option>
+                    <option value="Présent">Présent</option>
+                    <option value="Absent">Absent</option>
+                    <option value="Annulé">Annulé</option>
                 </select>
-                <select id="partSortSelect" style="padding:12px 20px; border-radius:24px; border:1px solid var(--color-border); background:var(--color-surface); color:white; cursor:pointer;" onchange="filterAndSortParticipations()">
-                    <option style="background:#1e293b; color:white;" value="date_desc">⬇️ Plus récents d'abord</option>
-                    <option style="background:#1e293b; color:white;" value="date_asc">⬆️ Plus anciens d'abord</option>
+                <select id="partSortSelect" class="dark-select" onchange="filterAndSortParticipations()">
+                    <option value="date_desc">Date ↓ (récents)</option>
+                    <option value="date_asc">Date ↑ (anciens)</option>
+                    <option value="nom_asc">Nom A→Z</option>
                 </select>
             </div>
         </div>
 
-        <div class="table-container">
+        <div class="table-container" style="overflow-x:auto;">
           <table class="table">
             <thead>
               <tr>
-                <th>Date Inscription</th>
-                <th>Étudiant (Email)</th>
+                <th>ID</th>
+                <th>Étudiant</th>
+                <th>Université / Année</th>
                 <th>Événement</th>
+                <th>Date inscription</th>
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="participations-body">
-                <tr><td colspan="5" style="text-align:center;">Chargement...</td></tr>
+                <tr><td colspan="7" style="text-align:center; padding:30px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Chargement...</td></tr>
             </tbody>
           </table>
         </div>

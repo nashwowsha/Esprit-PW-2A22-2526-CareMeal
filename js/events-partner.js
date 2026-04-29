@@ -268,63 +268,88 @@
         }
     },
 
-    saveEvent() {
+    async saveEvent() {
         const title = document.getElementById('evTitle').value.trim();
+        const description = document.getElementById('evDesc').value.trim();
         const date = document.getElementById('evDate').value;
         const start = document.getElementById('evStart').value;
         const end = document.getElementById('evEnd').value;
+        const type = document.getElementById('evType').value;
         const capacity = parseInt(document.getElementById('evCapacity').value);
         const location = document.getElementById('evLocation').value.trim();
 
-        if (!title || !date || !start || !end || !capacity || !location) {
-            Components.showToast('Veuillez remplir tous les champs obligatoires.', 'error');
-            return;
-        }
-
         const id = document.getElementById('eventId').value;
         
-        let targetEvent;
-        if (id) {
-            targetEvent = this.events.find(e => e.id == id);
+        const action = id ? 'update' : 'add';
+        const payload = {
+            action: action,
+            id_evenement: id,
+            titre: title,
+            description: description,
+            date_evenement: date,
+            heure_debut: start,
+            heure_fin: end,
+            type_evenement: type,
+            capacite_max: capacity,
+            createur_type: 'Partenaire',
+            createur_id: App.getCurrentUser().id
+        };
+
+        if (type === 'En ligne') {
+            payload.lien_online = location;
+            payload.lieu = null;
         } else {
-            targetEvent = {
-                id: Date.now(),
-                partnerId: App.getCurrentUser().id,
-                partnerName: App.getCurrentUser().name,
-                createdAt: new Date().toLocaleDateString('fr-FR'),
-                participants: [],
-                status: 'En attente'
-            };
-            this.events.unshift(targetEvent);
+            payload.lieu = location;
+            payload.lien_online = null;
         }
 
-        if(targetEvent) {
-            targetEvent.title = title;
-            targetEvent.description = document.getElementById('evDesc').value;
-            targetEvent.date = date;
-            targetEvent.startTime = start;
-            targetEvent.endTime = end;
-            targetEvent.type = document.getElementById('evType').value;
-            targetEvent.capacity = capacity;
-            targetEvent.location = location;
+        try {
+            const btn = document.querySelector('#eventModal .modal-footer .btn-primary');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sauvegarde...';
+            btn.disabled = true;
 
-            this.saveAllEvents();
-            Components.closeModal('eventModal');
-            Components.showToast('Soumis avec succès !', 'success');
-            this.renderStats();
-            this.renderList();
+            const response = await fetch('/projet2a22/Controller/EventController.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            if (result.success) {
+                Components.showToast(result.message || 'Événement sauvegardé', 'success');
+                Components.closeModal('eventModal');
+                await this.loadEvents();
+            } else {
+                Components.showToast(result.message || 'Erreur de sauvegarde', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            Components.showToast('Erreur serveur.', 'error');
         }
     },
 
-    cancelEvent(id) {
+    async cancelEvent(id) {
         if (confirm('Voulez-vous vraiment annuler cet événement ?')) {
-            const index = this.events.findIndex(e => e.id === id);
-            if(index > -1) {
-                this.events.splice(index, 1);
-                this.saveAllEvents();
-                Components.showToast('Événement annulé', 'success');
-                this.renderStats();
-                this.renderList();
+            try {
+                const response = await fetch('/projet2a22/Controller/EventController.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete', id_evenement: id, partner_id: App.getCurrentUser().id })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    Components.showToast('Événement annulé', 'success');
+                    await this.loadEvents();
+                } else {
+                    Components.showToast(result.message || 'Erreur lors de l\'annulation', 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                Components.showToast('Erreur serveur', 'error');
             }
         }
     },

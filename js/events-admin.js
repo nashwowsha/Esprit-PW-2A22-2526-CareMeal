@@ -117,21 +117,29 @@ const EventsAdmin = {
 
         let actionsHtml = '';
         let badgeDeTraitement = '';
+        const eventId = e.id || e.id_evenement;
+
+        const participantsBtn = `<button onclick="EventsAdmin.showParticipants(${eventId})"
+            style="width:100%; margin-top:10px; padding:9px; border-radius:6px; border:1px solid #334155; background:#1e293b; color:#94a3b8; font-size:0.88rem; cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fa-solid fa-users"></i> Voir les participants (${participantsCount})
+        </button>`;
+
         if (status === 'En attente') {
             actionsHtml = `
                 <div style="display:flex; gap:10px; margin-top: 16px;">
-                    <button class="btn" style="flex:1; background:rgba(16, 185, 129, 0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:10px; font-weight:600; cursor:pointer;" onclick="EventsAdmin.validateEvent(${e.id || e.id_evenement})">
+                    <button class="btn" style="flex:1; background:rgba(16, 185, 129, 0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:10px; font-weight:600; cursor:pointer;" onclick="EventsAdmin.validateEvent(${eventId})">
                         <i class="fa-solid fa-check"></i> Valider
                     </button>
-                    <button class="btn" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:10px; font-weight:600; cursor:pointer;" onclick="EventsAdmin.rejectEventModal(${e.id || e.id_evenement})">
+                    <button class="btn" style="flex:1; background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:10px; font-weight:600; cursor:pointer;" onclick="EventsAdmin.rejectEventModal(${eventId})">
                         <i class="fa-solid fa-xmark"></i> Rejeter
                     </button>
                 </div>
+                ${participantsBtn}
             `;
         } else {
-             badgeDeTraitement = `<span style="font-size:0.75rem; color: var(--color-text-muted); background:rgba(0,0,0,0.5); padding:4px 10px; border-radius:4px; position:absolute; top:12px; right:12px; z-index:5;">Traité</span>`;
+            badgeDeTraitement = `<span style="font-size:0.75rem; color: var(--color-text-muted); background:rgba(0,0,0,0.5); padding:4px 10px; border-radius:4px; position:absolute; top:12px; right:12px; z-index:5;">Traité</span>`;
+            actionsHtml = participantsBtn;
         }
-
         let motifHtml = '';
         if (status === 'Rejeté' && motif) {
             motifHtml = `
@@ -375,6 +383,83 @@ const EventsAdmin = {
             Components.showToast('Événement supprimé', 'success');
             this.renderList();
         }
+    },
+
+    // ── Jointure : afficher les participants d'un événement ──────
+    allParticipantsForEvent: [],
+
+    async showParticipants(eventId) {
+        // Basculer vers la vue détail
+        document.getElementById('events-main-view').style.display = 'none';
+        document.getElementById('event-examine-view').style.display = 'block';
+        document.getElementById('admin-detail-content').innerHTML = '';
+
+        const section = document.getElementById('event-participants-section');
+        const tbody   = document.getElementById('participants-table-body');
+        const badge   = document.getElementById('participants-count-badge');
+        const searchEl = document.getElementById('part-search');
+        if (section) section.style.display = 'block';
+        if (searchEl) searchEl.value = '';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;"><i class="fa-solid fa-circle-notch fa-spin"></i> Chargement...</td></tr>';
+
+        try {
+            const res  = await fetch('/projet2a22/Controller/EventParticipationController.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_participants_by_event', evenement_id: eventId })
+            });
+            const data = await res.json();
+            this.allParticipantsForEvent = (data.success && data.participants) ? data.participants : [];
+        } catch(err) {
+            this.allParticipantsForEvent = [];
+        }
+
+        if (badge) badge.textContent = this.allParticipantsForEvent.length;
+        this.renderParticipantsTable(this.allParticipantsForEvent);
+    },
+
+    filterParticipants() {
+        const term = (document.getElementById('part-search')?.value || '').toLowerCase();
+        const filtered = this.allParticipantsForEvent.filter(p =>
+            (p.nom     || '').toLowerCase().includes(term) ||
+            (p.prenom  || '').toLowerCase().includes(term) ||
+            (p.email   || '').toLowerCase().includes(term) ||
+            (p.universite || '').toLowerCase().includes(term)
+        );
+        this.renderParticipantsTable(filtered);
+    },
+
+    renderParticipantsTable(list) {
+        const tbody = document.getElementById('participants-table-body');
+        if (!tbody) return;
+
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">Aucun participant inscrit.</td></tr>';
+            return;
+        }
+
+        const statusColors = {
+            'Inscrit': { bg: 'rgba(16,185,129,0.15)', color: '#10b981' },
+            'Présent': { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' },
+            'Absent':  { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' },
+            'Annulé':  { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444' },
+        };
+
+        tbody.innerHTML = list.map((p, i) => {
+            const sc = statusColors[p.statut] || { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' };
+            return `<tr style="border-bottom:1px solid #1e293b;">
+                <td style="padding:12px 16px; color:#64748b; font-size:0.85rem;">${i + 1}</td>
+                <td style="padding:12px 16px; font-weight:600; color:#f1f5f9;">${p.nom || ''} ${p.prenom || ''}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:0.88rem;">${p.email || '—'}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:0.88rem;">${p.telephone || '—'}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:0.88rem;">${p.universite || '—'}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:0.88rem;">${p.annee_etude || '—'}</td>
+                <td style="padding:12px 16px; color:#94a3b8; font-size:0.88rem; white-space:nowrap;">${p.date_inscription || '—'}</td>
+                <td style="padding:12px 16px;">
+                    <span style="padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; background:${sc.bg}; color:${sc.color};">${p.statut}</span>
+                </td>
+            </tr>`;
+        }).join('');
     }
 };
 

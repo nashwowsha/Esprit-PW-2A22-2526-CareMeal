@@ -125,10 +125,10 @@
                     <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--color-text-muted);"></i>
                     <input type="text" id="searchInput" placeholder="Rechercher par titre ou lieu..." style="padding:10px 10px 10px 35px; border-radius:20px; border:1px solid var(--color-border); background:var(--color-surface); color:white; width: 250px;">
                 </div>
-                <select id="sortSelect" style="padding:10px; border-radius:20px; border:1px solid var(--color-border); background:var(--color-surface); color:white; cursor:pointer;">
-                    <option style="background:#1e293b; color:white;" value="date_asc">🗓 Date (Croissante)</option>
-                    <option style="background:#1e293b; color:white;" value="date_desc">🗓 Date (Décroissante)</option>
-                    <option style="background:#1e293b; color:white;" value="title_asc">🔤 Titre (A-Z)</option>
+                <select id="sortSelect" class="sort-select">
+                    <option value="date_asc">Trier par : Date (Croissante)</option>
+                    <option value="date_desc">Trier par : Date (Décroissante)</option>
+                    <option value="title_asc">Trier par : Titre (A-Z)</option>
                 </select>
             </div>
         </div>
@@ -139,6 +139,151 @@
             </div>
         </div>
 
+        <!-- === MODAL D'INSCRIPTION ÉTUDIANT === -->
+        <div id="subscribeModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:var(--color-surface); padding:24px; border-radius:12px; width:450px; max-width:90%; position:relative; border: 1px solid var(--color-border); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                <button type="button" onclick="document.getElementById('subscribeModal').style.display='none'" style="position:absolute; top:15px; right:15px; background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem;"><i class="fa-solid fa-xmark"></i></button>
+                <h3 style="color:white; margin-bottom: 5px; font-size:1.5rem;">Inscription</h3>
+                <p id="subModalEventTitle" style="color:var(--color-primary); margin-bottom:20px; font-weight:bold; font-size:1.1rem;"></p>
+
+                <form id="subscribeForm" onsubmit="event.preventDefault(); EventsStudent.confirmSubscribe();">
+                    <input type="hidden" id="subEventId">
+                    
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label for="subRemarque" style="color:white; display:block; margin-bottom:8px; font-weight:500;">Motivation / Remarque :</label>
+                        <textarea id="subRemarque" rows="4" placeholder="Pourquoi souhaitez-vous participer à cet événement ?..." style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--color-border); background:var(--color-background); color:white; resize:vertical;"></textarea>
+                    </div>
+
+                    <div style="display:flex; gap:12px; margin-top:24px;">
+                        <button type="button" class="btn btn-outline" style="flex:1;" onclick="document.getElementById('subscribeModal').style.display='none'">Annuler</button>
+                        <button type="submit" class="btn btn-primary" style="flex:1;">Valider mon inscription</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- === MODALE : Formulaire d'inscription étudiant === -->
+        <div id="registerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; align-items:center; justify-content:center; overflow-y:auto; padding:20px; box-sizing:border-box;">
+          <div style="background:#1e293b; border-radius:16px; width:100%; max-width:540px; margin:auto; position:relative; border:1px solid #334155; box-shadow:0 25px 60px rgba(0,0,0,0.7);">
+            
+            <!-- Header orange -->
+            <div style="background:linear-gradient(135deg, #fe5516 0%, #c44010 100%); padding:22px 28px; border-radius:16px 16px 0 0;">
+              <button type="button" onclick="document.getElementById('registerModal').style.display='none'" style="position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.25); border:none; color:white; cursor:pointer; font-size:0.9rem; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-xmark"></i></button>
+              <div style="display:flex; align-items:center; gap:14px;">
+                <div style="background:rgba(255,255,255,0.2); width:46px; height:46px; border-radius:10px; display:flex; align-items:center; justify-content:center;">
+                  <i class="fa-solid fa-user-pen" style="color:white; font-size:1.2rem;"></i>
+                </div>
+                <div>
+                  <h3 id="regModalTitle" style="color:white; margin:0; font-size:1.15rem; font-weight:700;">Formulaire d'inscription</h3>
+                  <p id="regModalEventTitle" style="color:rgba(255,255,255,0.8); margin:3px 0 0; font-size:0.88rem;"></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Corps -->
+            <div style="padding:26px 28px; background:#1e293b; border-radius:0 0 16px 16px;">
+              <form id="registerModalForm" onsubmit="event.preventDefault(); EventsStudent.submitRegisterAndSubscribe(event)">
+                <input type="hidden" id="regModalEventId">
+
+                <!-- Nom + Prénom -->
+                <div id="regmod-identity-section">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+                    <div>
+                      <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Nom *</label>
+                      <input type="text" id="regmod-nom" placeholder="Votre nom" style="width:100%; padding:11px 13px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                      <div id="regmod-nom-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                    </div>
+                    <div>
+                      <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Prénom *</label>
+                      <input type="text" id="regmod-prenom" placeholder="Votre prénom" style="width:100%; padding:11px 13px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                      <div id="regmod-prenom-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Email -->
+                  <div style="margin-bottom:14px;">
+                    <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Email *</label>
+                    <div style="position:relative;">
+                      <i class="fa-solid fa-envelope" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.82rem;"></i>
+                      <input type="text" id="regmod-email" placeholder="votre@email.com" style="width:100%; padding:11px 13px 11px 34px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                    </div>
+                    <div id="regmod-email-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                  </div>
+
+                  <!-- Mot de passe (caché si connecté) -->
+                  <div id="regmod-password-row" style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+                    <div>
+                      <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Mot de passe *</label>
+                      <input type="password" id="regmod-password" placeholder="Min. 6 caractères" style="width:100%; padding:11px 13px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                      <div id="regmod-password-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                    </div>
+                    <div>
+                      <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Confirmer *</label>
+                      <input type="password" id="regmod-confirm" placeholder="Retapez le mot de passe" style="width:100%; padding:11px 13px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                      <div id="regmod-confirm-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Téléphone -->
+                  <div style="margin-bottom:14px;">
+                    <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Téléphone</label>
+                    <div style="position:relative;">
+                      <i class="fa-solid fa-phone" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.82rem;"></i>
+                      <input type="text" id="regmod-telephone" placeholder="+216 9X XXX XXX" style="width:100%; padding:11px 13px 11px 34px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                    </div>
+                    <div id="regmod-telephone-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                  </div>
+                </div>
+
+                <!-- Séparateur -->
+                <div id="regmod-separator" style="border-top:1px solid #334155; margin:4px 0 16px;"></div>
+
+                <!-- Université + Année -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px;">
+                  <div>
+                    <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Université *</label>
+                    <select id="regmod-university" style="width:100%; padding:11px 13px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; cursor:pointer; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                      <option value="">Sélectionnez</option>
+                      <option value="ESPRIT">ESPRIT</option>
+                      <option value="INSAT">INSAT</option>
+                      <option value="ENIT">ENIT</option>
+                      <option value="FST">FST</option>
+                      <option value="IHEC">IHEC</option>
+                      <option value="ENSI">ENSI</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                    <div id="regmod-university-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                  </div>
+                  <div>
+                    <label style="color:#94a3b8; display:block; margin-bottom:6px; font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.6px;">Année d'étude *</label>
+                    <select id="regmod-annee" style="width:100%; padding:11px 13px; border-radius:8px; border:1.5px solid #334155; background:#0f172a; color:#f1f5f9; font-size:0.93rem; box-sizing:border-box; cursor:pointer; outline:none;" onfocus="this.style.borderColor='#fe5516'" onblur="this.style.borderColor='#334155'">
+                      <option value="">Sélectionnez</option>
+                      <option value="1ere">1ère année</option>
+                      <option value="2eme">2ème année</option>
+                      <option value="3eme">3ème année</option>
+                      <option value="4eme">4ème année</option>
+                      <option value="5eme">5ème année</option>
+                      <option value="Master 1">Master 1</option>
+                      <option value="Master 2">Master 2</option>
+                    </select>
+                    <div id="regmod-annee-error" style="color:#f87171; font-size:0.78rem; margin-top:4px;"></div>
+                  </div>
+                </div>
+
+                <!-- Boutons -->
+                <div style="display:flex; gap:12px;">
+                  <button type="button" onclick="document.getElementById('registerModal').style.display='none'" style="flex:1; padding:12px; border-radius:8px; border:1.5px solid #475569; background:transparent; color:#94a3b8; font-size:0.95rem; cursor:pointer; font-weight:600;">
+                    <i class="fa-solid fa-xmark"></i> Annuler
+                  </button>
+                  <button type="submit" id="regmod-submit" style="flex:2; padding:12px; border-radius:8px; border:none; background:linear-gradient(135deg, #fe5516, #c44010); color:white; font-size:0.95rem; cursor:pointer; font-weight:700;">
+                    <i class="fa-solid fa-check"></i> S'inscrire
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
@@ -146,9 +291,12 @@
   <script src="/projet2a22/js/app.js"></script>
   <script src="/projet2a22/js/components.js"></script>
   <script src="/projet2a22/js/student.js"></script>
-  <script src="/projet2a22/js/events-student.js?v=5"></script>
+  <script src="/projet2a22/js/events-student.js?v=14"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => Student.init());
+    document.addEventListener('DOMContentLoaded', () => {
+      Student.init();
+    });
+  </script>
   </script>
 </body>
 </html>

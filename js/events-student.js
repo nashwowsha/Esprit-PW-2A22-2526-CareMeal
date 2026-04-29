@@ -64,16 +64,244 @@ const EventsStudent = {
     }
   },
 
-  async subscribeEvent(id) {
+    openSubscribeModal(id) {
+        const e = this.events.find(x => x.id === id);
+        if (!e || e.registered >= e.capacity || e.userSubscribed) return;
+
+        const regModal = document.getElementById('registerModal');
+        if (!regModal) return;
+
+        document.getElementById('regModalEventId').value = id;
+        document.getElementById('regModalEventTitle').innerText = e.title;
+        this.clearRegisterModal();
+
+        const user = App.getCurrentUser();
+        const pwdRow = document.getElementById('regmod-password-row');
+        const submitBtn = document.getElementById('regmod-submit');
+        const modalTitle = document.getElementById('regModalTitle');
+
+        if (user) {
+            // Connecté : afficher tous les champs sauf mot de passe, pré-remplir
+            if (pwdRow) pwdRow.style.display = 'none';
+            if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirmer mon inscription';
+            if (modalTitle) modalTitle.textContent = "Confirmer l'inscription";
+
+            const set = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val || ''; };
+            set('regmod-nom',        user.nom || '');
+            set('regmod-prenom',     user.prenom || '');
+            set('regmod-email',      user.email || '');
+            set('regmod-telephone',  user.phone || user.telephone || '');
+            set('regmod-university', user.ecole || user.university || '');
+            set('regmod-annee',      user.annee || user.annee_etude || '');
+
+            // Email en lecture seule
+            const emailEl = document.getElementById('regmod-email');
+            if (emailEl) { emailEl.readOnly = true; emailEl.style.opacity = '0.65'; }
+        } else {
+            // Visiteur : tous les champs visibles
+            if (pwdRow) pwdRow.style.display = '';
+            if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Créer mon compte et m\'inscrire';
+            if (modalTitle) modalTitle.textContent = "Formulaire d'inscription";
+            const emailEl = document.getElementById('regmod-email');
+            if (emailEl) { emailEl.readOnly = false; emailEl.style.opacity = '1'; }
+        }
+
+        regModal.style.display = 'flex';
+    },
+
+    clearRegisterModal() {
+        const fields = ['nom','prenom','email','password','confirm','telephone','university','annee'];
+        fields.forEach(f => {
+            const el = document.getElementById('regmod-' + f);
+            if (el) el.value = '';
+            const err = document.getElementById('regmod-' + f + '-error');
+            if (err) err.innerText = '';
+        });
+    },
+
+    showRegisterError(field, msg) {
+        const err = document.getElementById('regmod-' + field + '-error');
+        if (err) err.innerText = msg;
+    },
+
+    isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    },
+
+    async submitRegisterAndSubscribe(e) {
+        e.preventDefault();
+        ['nom','prenom','email','password','confirm','telephone','university','annee'].forEach(f => {
+            const err = document.getElementById('regmod-' + f + '-error'); if (err) err.innerText = '';
+        });
+
+        const nom        = document.getElementById('regmod-nom')?.value.trim() || '';
+        const prenom     = document.getElementById('regmod-prenom')?.value.trim() || '';
+        const email      = document.getElementById('regmod-email')?.value.trim() || '';
+        const password   = document.getElementById('regmod-password')?.value || '';
+        const confirm    = document.getElementById('regmod-confirm')?.value || '';
+        const telephone  = document.getElementById('regmod-telephone')?.value.trim() || '';
+        const university = document.getElementById('regmod-university')?.value || '';
+        const annee      = document.getElementById('regmod-annee')?.value || '';
+        const eventId    = parseInt(document.getElementById('regModalEventId')?.value || 0, 10);
+
+        // ── Validations ──────────────────────────────────────────────
+        let valid = true;
+
+        // Nom : obligatoire, min 2 lettres, pas de chiffres
+        if (!nom || nom.length < 2) {
+            this.showRegisterError('nom', 'Nom requis (min. 2 caractères)'); valid = false;
+        } else if (/\d/.test(nom)) {
+            this.showRegisterError('nom', 'Le nom ne doit pas contenir de chiffres'); valid = false;
+        } else if (!/^[a-zA-ZÀ-ÿ\s\-']+$/.test(nom)) {
+            this.showRegisterError('nom', 'Le nom ne doit contenir que des lettres'); valid = false;
+        }
+
+        // Prénom : obligatoire, min 2 lettres, pas de chiffres
+        if (!prenom || prenom.length < 2) {
+            this.showRegisterError('prenom', 'Prénom requis (min. 2 caractères)'); valid = false;
+        } else if (/\d/.test(prenom)) {
+            this.showRegisterError('prenom', 'Le prénom ne doit pas contenir de chiffres'); valid = false;
+        } else if (!/^[a-zA-ZÀ-ÿ\s\-']+$/.test(prenom)) {
+            this.showRegisterError('prenom', 'Le prénom ne doit contenir que des lettres'); valid = false;
+        }
+
+        // Email
+        if (!email) {
+            this.showRegisterError('email', 'Email requis'); valid = false;
+        } else if (!this.isValidEmail(email)) {
+            this.showRegisterError('email', 'Format d\'email invalide (ex: nom@domaine.com)'); valid = false;
+        }
+
+        // Téléphone : si renseigné, exactement 8 chiffres
+        if (telephone) {
+            if (/[a-zA-Z]/.test(telephone)) {
+                this.showRegisterError('telephone', 'Le numéro ne doit pas contenir de lettres'); valid = false;
+            } else if (!/^\d{8}$/.test(telephone.replace(/[\s\-().+]/g, ''))) {
+                this.showRegisterError('telephone', 'Le numéro doit contenir exactement 8 chiffres'); valid = false;
+            }
+        }
+
+        // Université + Année
+        if (!university) { this.showRegisterError('university', 'Sélectionnez votre université'); valid = false; }
+        if (!annee)      { this.showRegisterError('annee', 'Sélectionnez votre année d\'étude'); valid = false; }
+
+        if (!valid) return;
+
+        const btn = document.getElementById('regmod-submit');
+        const oldHtml = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> En cours...'; }
+
+        // === CAS 1 : Utilisateur déjà connecté → inscription directe ===
+        if (App.isLoggedIn()) {
+            document.getElementById('registerModal').style.display = 'none';
+            await this.confirmSubscribe(eventId, '', {
+                nom, prenom, email, telephone, universite: university, annee
+            });
+            if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+            return;
+        }
+
+        // === CAS 2 : Visiteur → validation mot de passe + création de compte ===
+        if (!password || password.length < 6) { this.showRegisterError('password', 'Minimum 6 caractères'); if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; } return; }
+        if (password !== confirm)             { this.showRegisterError('confirm', 'Les mots de passe ne correspondent pas'); if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; } return; }
+
+        try {
+            // Vérifier disponibilité email
+            const checkRaw = await fetch('/projet2a22/Controller/AuthController.php', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'check-email', email })
+            });
+            const checkText = await checkRaw.text();
+            let checkJson; try { checkJson = JSON.parse(checkText.substring(checkText.indexOf('{'))); } catch { checkJson = { success: false }; }
+            if (!checkJson.success) {
+                this.showRegisterError('email', 'Cet email est déjà utilisé');
+                if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+                return;
+            }
+
+            // Créer le compte
+            const regRaw = await fetch('/projet2a22/Controller/AuthController.php', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'register-student', nom, prenom, email, password, ecole: university, annee, telephone, quartier: '' })
+            });
+            const regText = await regRaw.text();
+            let regJson; try { regJson = JSON.parse(regText.substring(regText.indexOf('{'))); } catch { regJson = { success: false, message: 'Réponse invalide' }; }
+            if (!regJson.success) {
+                alert('Erreur: ' + (regJson.message || 'Inscription échouée'));
+                if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+                return;
+            }
+
+            // Auto-login
+            const loginRaw = await fetch('/projet2a22/Controller/AuthController.php', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'login', email, password })
+            });
+            const loginText = await loginRaw.text();
+            let loginJson; try { loginJson = JSON.parse(loginText.substring(loginText.indexOf('{'))); } catch { loginJson = { success: false }; }
+
+            if (loginJson.success && loginJson.user) {
+                const dbUser = loginJson.user;
+                App.setCurrentUser({
+                    id: dbUser.id, email: dbUser.email, role: dbUser.role, status: dbUser.status,
+                    name: ((dbUser.prenom || '') + ' ' + (dbUser.nom || '')).trim() || dbUser.email,
+                    phone: dbUser.telephone || '', ecole: dbUser.ecole || '',
+                    university: dbUser.ecole || '', annee: dbUser.annee_etude || '',
+                    prenom: dbUser.prenom || '', nom: dbUser.nom || ''
+                });
+            }
+
+            document.getElementById('registerModal').style.display = 'none';
+            await this.confirmSubscribe(eventId, '', { nom, prenom, email, telephone, universite: university, annee });
+            alert('Compte créé et inscription réussie !');
+
+        } catch(err) {
+            console.error(err);
+            alert('Erreur réseau. Réessayez plus tard.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+        }
+    },
+
+  async confirmSubscribe(directId = null, directRemarque = null, extraData = {}) {
+    const isModal = directId === null;
+    const id = isModal ? parseInt(document.getElementById('subEventId').value) : directId;
+    const remarque = isModal ? document.getElementById('subRemarque').value.trim() : directRemarque;
+
     const e = this.events.find(x => x.id === id);
-    if (!e || e.registered >= e.capacity || e.userSubscribed) return;
-    
+    if (!e) return;
+
+    if(isModal) {
+        document.getElementById('subscribeModal').style.display = 'none';
+    }
+
     try {
         const studentId = App.getCurrentUser()?.id || null;
+        const user = App.getCurrentUser();
+
+        // Récupérer les infos depuis le formulaire ou l'utilisateur connecté
+        const nom        = extraData.nom        || user?.nom    || '';
+        const prenom     = extraData.prenom     || user?.prenom || '';
+        const email      = extraData.email      || user?.email  || '';
+        const telephone  = extraData.telephone  || user?.phone  || '';
+        const universite = extraData.universite || user?.ecole  || user?.university || '';
+        const annee      = extraData.annee      || user?.annee  || '';
+
         const response = await fetch('/projet2a22/Controller/EventParticipationController.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ action: 'participate', evenement_id: id, student_id: studentId })
+            body: JSON.stringify({ 
+                action: 'participate', 
+                evenement_id: id, 
+                student_id: studentId,
+                remarque: remarque,
+                nom: nom,
+                prenom: prenom,
+                email: email,
+                telephone: telephone,
+                universite: universite,
+                annee: annee
+            })
         });
         const data = await response.json();
         if(data.success) {
@@ -94,21 +322,29 @@ const EventsStudent = {
     const e = this.events.find(x => x.id === id);
     if (!e || !e.userSubscribed) return;
     
-    if (!confirm("Êtes-vous sûr de vouloir vous désinscrire de cet événement ?")) return;
+    if (!confirm("Êtes-vous sûr de vouloir vous désinscrire de cet événement ?\nVotre inscription sera marquée comme annulée.")) return;
 
     try {
-        const studentId = App.getCurrentUser()?.id || null;
+        const user = App.getCurrentUser();
+        const studentId = user?.id || null;
+        const email     = user?.email || '';
+
         const response = await fetch('/projet2a22/Controller/EventParticipationController.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ action: 'unparticipate', evenement_id: id, student_id: studentId })
+            body: JSON.stringify({
+                action: 'cancel_participation',
+                evenement_id: id,
+                student_id: studentId,
+                email: email
+            })
         });
         const data = await response.json();
         if (data.success) {
             e.registered--;
             e.userSubscribed = false;
             this.render();
-            alert('Désinscription réussie.');
+            alert('Désinscription effectuée. Votre inscription est marquée comme annulée.');
         } else {
             alert('Erreur: ' + data.message);
         }
@@ -188,7 +424,7 @@ const EventsStudent = {
       } else if(isFull) {
         btnHtml = `<button class="btn btn-secondary" style="width:100%; opacity:0.6; cursor:not-allowed;" disabled><i class="fa-solid fa-lock"></i> Complet</button>`;
       } else {
-        btnHtml = `<button class="btn btn-primary" style="width:100%;" onclick="EventsStudent.subscribeEvent(${e.id})"><i class="fa-solid fa-plus"></i> S'inscrire</button>`;
+        btnHtml = `<button class="btn btn-primary" style="width:100%;" onclick="EventsStudent.openSubscribeModal(${e.id})"><i class="fa-solid fa-plus"></i> S'inscrire</button>`;
       }
 
       return `<div class="event-card">

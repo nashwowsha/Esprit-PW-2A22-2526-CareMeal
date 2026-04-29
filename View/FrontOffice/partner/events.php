@@ -92,6 +92,7 @@ foreach($events as $e) {
   <title>Mes Événements — CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="/projet2a22/css/main.css">
+  <link rel="stylesheet" href="/projet2a22/css/components.css">
   <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
   <style>
     .form-container {
@@ -233,19 +234,19 @@ foreach($events as $e) {
                 </div>
                 <div class="form-group">
                     <label>Type d'événement *</label>
-                    <select id="type_evenement" name="type_evenement">
+                    <select id="type_evenement" name="type_evenement" onchange="toggleLocationFields()">
                         <option value="Présentiel" <?= ($eventToEdit && $eventToEdit['type_evenement'] == 'Présentiel') ? 'selected' : '' ?>>Présentiel</option>
                         <option value="En ligne" <?= ($eventToEdit && $eventToEdit['type_evenement'] == 'En ligne') ? 'selected' : '' ?>>En ligne</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="group-lieu">
                     <label>Lieu (si présentiel)</label>
-                    <input type="text" id="lieu" name="lieu" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lieu']) : '' ?>">
+                    <input type="text" id="lieu" name="lieu" placeholder="Ex: Campus El Manar, Tunis" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lieu']) : '' ?>">
                     <span class="error-msg" id="err-lieu" style="color: #f44336; font-size: 0.85em; display: none;">Le lieu est requis pour un événement en présentiel.</span>
                 </div>
-                <div class="form-group">
-                    <label>Lien online (si en ligne)</label>
-                    <input type="text" id="lien_online" name="lien_online" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lien_online']) : '' ?>">
+                <div class="form-group" id="group-lien">
+                    <label>Lien online (Zoom / Meet)</label>
+                    <input type="text" id="lien_online" name="lien_online" placeholder="Ex: https://meet.google.com/xxx" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lien_online']) : '' ?>">
                     <span class="error-msg" id="err-lien" style="color: #f44336; font-size: 0.85em; display: none;">Un lien valide est requis.</span>
                 </div>
                 <div class="form-group">
@@ -288,10 +289,10 @@ foreach($events as $e) {
                 <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--color-text-muted);"></i>
                 <input type="text" id="partnerSearchInput" placeholder="Rechercher un événement..." style="width:100%; padding:12px 16px 12px 40px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:24px; color:white; font-size:0.95rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" oninput="PartnerEventsFilter.filterAndSort()">
             </div>
-            <select id="partnerSortSelect" style="padding:12px 20px; border-radius:24px; border:1px solid var(--color-border); background:var(--color-surface); color:white; cursor:pointer;" onchange="PartnerEventsFilter.filterAndSort()">
-                <option style="background:#1e293b; color:white;" value="date_asc">🗓 Date (Croissante)</option>
-                <option style="background:#1e293b; color:white;" value="date_desc">🗓 Date (Décroissante)</option>
-                <option style="background:#1e293b; color:white;" value="title_asc">🔤 Titre (A-Z)</option>
+            <select id="partnerSortSelect" class="sort-select" onchange="PartnerEventsFilter.filterAndSort()">
+                <option value="date_asc">Trier par : Date (Croissante)</option>
+                <option value="date_desc">Trier par : Date (Décroissante)</option>
+                <option value="title_asc">Trier par : Titre (A-Z)</option>
             </select>
         </div>
 
@@ -489,6 +490,28 @@ foreach($events as $e) {
             cards.forEach(card => grid.appendChild(card));
         }
     };
+
+    // ── Afficher/cacher lieu ou lien selon le type d'événement ──
+    function toggleLocationFields() {
+        var type = document.getElementById('type_evenement').value;
+        var groupLieu = document.getElementById('group-lieu');
+        var groupLien = document.getElementById('group-lien');
+        var inputLieu = document.getElementById('lieu');
+        var inputLien = document.getElementById('lien_online');
+
+        if (type === 'En ligne') {
+            groupLieu.style.display = 'none';
+            groupLien.style.display = 'block';
+            inputLieu.value = '';
+        } else {
+            groupLieu.style.display = 'block';
+            groupLien.style.display = 'none';
+            inputLien.value = '';
+        }
+    }
+
+    // Appliquer au chargement de la page
+    toggleLocationFields();
   </script>
 </body>
 </html>

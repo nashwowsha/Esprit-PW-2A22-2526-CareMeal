@@ -95,8 +95,15 @@ CREATE TABLE PARTICIPATION (
     id_participation INT PRIMARY KEY AUTO_INCREMENT,
     evenement_id INT NOT NULL,
     etudiant_id INT NOT NULL,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL,
+    telephone VARCHAR(20) DEFAULT NULL,
+    universite VARCHAR(150) DEFAULT NULL,
+    annee_etude VARCHAR(50) DEFAULT NULL,
     date_inscription DATE NOT NULL,
     statut VARCHAR(20) NOT NULL DEFAULT 'Inscrit',
+    remarque TEXT DEFAULT NULL,
     FOREIGN KEY (evenement_id) REFERENCES EVENEMENT(id_evenement)
 );
 

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../Model/Event.php';
 require_once __DIR__ . '/../config/database.php';
 
 class EventController {
+
     private $conn;
     private $table_name = "EVENEMENT";
 
@@ -11,6 +12,9 @@ class EventController {
         $this->conn = $database->getConnection();
     }
 
+    //===============
+    // CRUD ajout evenement
+    //=====
     public function create(Event $event) {
         $query = "INSERT INTO " . $this->table_name . " 
         (titre, description, date_evenement, heure_debut, heure_fin, type_evenement, lieu, lien_online, capacite_max, statut, createur_type, createur_id, statut_validation) 
@@ -49,8 +53,12 @@ class EventController {
         return false;
     }
     
+    //===============
+    // CRUD afficher les evenements du partenaire
+    //=====
     public function getPartnerEvents($partner_id) {
-        $query = "SELECT e.*, (SELECT COUNT(*) FROM PARTICIPATION p WHERE p.evenement_id = e.id_evenement) as inscrits 
+        $query = "SELECT e.*,
+                  (SELECT COUNT(*) FROM participation p WHERE p.nom_evenement = e.titre) as inscrits 
                   FROM " . $this->table_name . " e 
                   WHERE createur_type = 'Partenaire' AND createur_id = :partner_id 
                   ORDER BY date_evenement DESC";
@@ -60,12 +68,21 @@ class EventController {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    //===============
+    // CRUD suppression evenement
+    //=====
     public function deleteEvent($event_id, $partner_id) {
-        // Supprimer d'abord les participations pour éviter l'erreur de clé étrangère
-        $queryPart = "DELETE FROM PARTICIPATION WHERE evenement_id = :event_id";
-        $stmtPart = $this->conn->prepare($queryPart);
-        $stmtPart->bindParam(":event_id", $event_id, PDO::PARAM_INT);
-        $stmtPart->execute();
+        // Récupérer le titre avant suppression pour nettoyer les participations
+        $stmtTitre = $this->conn->prepare("SELECT titre FROM " . $this->table_name . " WHERE id_evenement = :event_id");
+        $stmtTitre->bindParam(":event_id", $event_id, PDO::PARAM_INT);
+        $stmtTitre->execute();
+        $row = $stmtTitre->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $titre = $row['titre'];
+            $stmtPart = $this->conn->prepare("DELETE FROM participation WHERE nom_evenement = :titre");
+            $stmtPart->bindParam(":titre", $titre);
+            $stmtPart->execute();
+        }
 
         $query = "DELETE FROM " . $this->table_name . " WHERE id_evenement = :event_id AND createur_type = 'Partenaire' AND createur_id = :partner_id";
         $stmt = $this->conn->prepare($query);
@@ -74,6 +91,9 @@ class EventController {
         return $stmt->execute();
     }
 
+    //===============
+    // CRUD afficher un evenement par id
+    //=====
     public function getEventById($event_id, $partner_id) {
         $query = "SELECT * FROM " . $this->table_name . " WHERE id_evenement = :event_id AND createur_type = 'Partenaire' AND createur_id = :partner_id";
         $stmt = $this->conn->prepare($query);
@@ -83,6 +103,9 @@ class EventController {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    //===============
+    // CRUD modification evenement
+    //=====
     public function updateEvent($event_id, $partner_id, Event $event) {
         $query = "UPDATE " . $this->table_name . " 
                   SET titre = :titre, description = :description, date_evenement = :date_evenement, 
@@ -118,10 +141,13 @@ class EventController {
         return $stmt->execute();
     }
 
+    //===============
+    // CRUD afficher tous les evenements
+    //=====
     public function getAllEventsWithPartner() {
         $sql = "SELECT e.*, u.email as partner_email, p.nom_entreprise as partner_name,
-                (SELECT COUNT(*) FROM PARTICIPATION par WHERE par.evenement_id = e.id_evenement) as inscrits
-                FROM EVENEMENT e
+                (SELECT COUNT(*) FROM participation par WHERE par.nom_evenement = e.titre) as inscrits
+                FROM " . $this->table_name . " e
                 LEFT JOIN users u ON e.createur_id = u.id
                 LEFT JOIN profiles p ON u.id = p.user_id
                 ORDER BY e.date_evenement DESC, e.heure_debut DESC";
@@ -130,8 +156,11 @@ class EventController {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    //===============
+    // CRUD valide evenement
+    //=====
     public function setValidationStatus($id_evenement, $statut, $motif_refus = null) {
-        $sql = "UPDATE EVENEMENT SET statut_validation = :statut, motif_refus = :motif_refus WHERE id_evenement = :id";
+        $sql = "UPDATE " . $this->table_name . " SET statut_validation = :statut, motif_refus = :motif_refus WHERE id_evenement = :id";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":statut", $statut);
         $stmt->bindParam(":motif_refus", $motif_refus);
@@ -185,7 +214,7 @@ if (basename($_SERVER['PHP_SELF']) == 'EventController.php' && $_SERVER['REQUEST
         exit;
     }
 
-    if ($action === 'add') {
+    if ($action === 'add' || $action === 'update') {
         $event = new Event(
             $data['titre'] ?? '',
             $data['description'] ?? '',
@@ -201,17 +230,49 @@ if (basename($_SERVER['PHP_SELF']) == 'EventController.php' && $_SERVER['REQUEST
             $data['createur_id'] ?? null
         );
         
-        if (empty($event->getTitre()) || empty($event->getDateEvenement())) {
-            echo json_encode(["success" => false, "message" => "Données incomplètes"]);
+        // Backend Validation sans HTML5
+        $errors = [];
+        if (trim($event->getTitre()) === '') $errors[] = "Le titre est obligatoire.";
+        if (strlen($event->getTitre()) < 3) $errors[] = "Le titre doit faire au moins 3 caractères.";
+        if (trim($event->getDateEvenement()) === '') $errors[] = "La date est obligatoire.";
+        if (trim($event->getHeureDebut()) === '') $errors[] = "L'heure de début est obligatoire.";
+        if (trim($event->getHeureFin()) === '') $errors[] = "L'heure de fin est obligatoire.";
+        if (!is_numeric($event->getCapaciteMax()) || $event->getCapaciteMax() <= 0) $errors[] = "La capacité doit être un nombre positif.";
+        
+        $type = $event->getTypeEvenement();
+        if ($type === 'Présentiel' && trim($event->getLieu()) === '') {
+            $errors[] = "Le lieu est exigé pour un événement présentiel.";
+        }
+        if ($type === 'En ligne' && trim($event->getLienOnline()) === '') {
+            $errors[] = "Le lien est exigé pour un événement en ligne.";
+        }
+
+        if (!empty($errors)) {
+            echo json_encode(["success" => false, "message" => implode(" ", $errors)]);
             exit;
         }
 
-        $ok = $controller->create($event);
-        if ($ok) {
-            echo json_encode(["success" => true, "message" => "Événement ajouté avec succès"]);
+        if ($action === 'add') {
+            $ok = $controller->create($event);
+            $msg = "Événement ajouté avec succès";
         } else {
-            echo json_encode(["success" => false, "message" => "Erreur lors de l'ajout de l'événement"]);
+            $id_event = intval($data['id_evenement']);
+            $partner_id = intval($data['createur_id']);
+            $ok = $controller->updateEvent($id_event, $partner_id, $event);
+            $msg = "Événement modifié avec succès";
         }
+
+        if ($ok) {
+            echo json_encode(["success" => true, "message" => $msg]);
+        } else {
+            echo json_encode(["success" => false, "message" => "Erreur lors de l'opération en base de données"]);
+        }
+        exit;
+    }
+
+    if ($action === 'delete' && !empty($data['id_evenement']) && !empty($data['partner_id'])) {
+        $ok = $controller->deleteEvent($data['id_evenement'], $data['partner_id']);
+        echo json_encode(["success" => $ok, "message" => $ok ? "Supprimé avec succès" : "Erreur de suppression"]);
         exit;
     }
 

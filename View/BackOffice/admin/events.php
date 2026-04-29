@@ -53,6 +53,7 @@
           <a href="users.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
           <a href="partners.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
           <a href="events.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
+          <a href="participations.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-ticket"></i></span> Participations</a>
           <a href="logs.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activite</a>
         </div>
       </nav>
@@ -103,10 +104,10 @@
                     <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--color-text-muted);"></i>
                     <input type="text" id="searchInput" class="form-control" placeholder="Recherche globale..." style="width:100%; padding:12px 16px 12px 40px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:24px; color:white; font-size:0.95rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onkeyup="EventsAdmin.handleSearch()">
                 </div>
-                <select id="sortSelect" style="padding:12px 20px; border-radius:24px; border:1px solid var(--color-border); background:var(--color-surface); color:white; cursor:pointer;" onchange="EventsAdmin.handleSearch()">
-                    <option style="background:#1e293b; color:white;" value="date_asc">🗓 Date (Croissante)</option>
-                    <option style="background:#1e293b; color:white;" value="date_desc">🗓 Date (Décroissante)</option>
-                    <option style="background:#1e293b; color:white;" value="title_asc">🔤 Titre (A-Z)</option>
+                <select id="sortSelect" class="sort-select" onchange="EventsAdmin.handleSearch()">
+                    <option value="date_asc">Trier par : Date (Croissante)</option>
+                    <option value="date_desc">Trier par : Date (Décroissante)</option>
+                    <option value="title_asc">Trier par : Titre (A-Z)</option>
                 </select>
             </div>
             <div class="filters" id="filterBtns" style="display:flex; gap:12px;">
@@ -136,6 +137,40 @@
         <button class="btn btn-secondary btn-sm" style="margin-bottom:24px;" onclick="EventsAdmin.showList()">
               <i class="fa-solid fa-arrow-left"></i> Retour</button>
         <div id="admin-detail-content"></div>
+
+        <!-- Jointure : Participants de l'événement -->
+        <div id="event-participants-section" style="margin-top:32px; display:none;">
+          <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+            <i class="fa-solid fa-users" style="color:var(--color-primary);"></i> Participants inscrits
+            <span id="participants-count-badge" style="background:var(--color-primary); color:white; font-size:0.8rem; padding:3px 10px; border-radius:20px; font-weight:600;"></span>
+          </h3>
+
+          <!-- Recherche participants -->
+          <div style="position:relative; width:300px; margin-bottom:16px;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.85rem;"></i>
+            <input type="text" id="part-search" placeholder="Rechercher un participant..." onkeyup="EventsAdmin.filterParticipants()" style="width:100%; padding:10px 14px 10px 36px; background:#1e293b; border:1px solid #334155; border-radius:20px; color:white; font-size:0.9rem; box-sizing:border-box; outline:none;">
+          </div>
+
+          <div style="overflow-x:auto; background:#1e293b; border-radius:12px; border:1px solid #334155;">
+            <table style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="background:rgba(0,0,0,0.3);">
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">#</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Nom & Prénom</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Email</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Téléphone</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Université</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Année</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Date inscription</th>
+                  <th style="padding:14px 16px; text-align:left; color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.6px; font-weight:600;">Statut</th>
+                </tr>
+              </thead>
+              <tbody id="participants-table-body">
+                <tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;"><i class="fa-solid fa-circle-notch fa-spin"></i> Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </main>
   </div>
