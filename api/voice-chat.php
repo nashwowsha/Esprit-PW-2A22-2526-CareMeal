@@ -32,8 +32,6 @@ if ($text === '') {
 
 $apiKeys = AIConfig::geminiApiKeys();
 $models = AIConfig::geminiModels();
-$xaiKey = AIConfig::xaiApiKey();
-$xaiModels = AIConfig::xaiModels();
 
 $payload = [
     'contents' => [
@@ -54,9 +52,6 @@ $quotaRetryAfterMax = null;
 $quotaFailures = 0;
 $authFailures = 0;
 $attempts = 0;
-$xaiTried = false;
-$xaiHttpCode = null;
-$xaiErrorMessage = null;
 
 foreach ($models as $model) {
     foreach ($apiKeys as $apiKey) {
@@ -82,6 +77,7 @@ foreach ($models as $model) {
         }
 
         $json = json_decode($response, true);
+
         if ($httpCode < 400) {
             $reply = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
             if (trim((string)$reply) !== '') {
@@ -136,60 +132,6 @@ foreach ($models as $model) {
 }
 
 if ($quotaFailures > 0) {
-    if ($xaiKey !== '') {
-        $xaiTried = true;
-        $xaiUrl = 'https://api.x.ai/v1/chat/completions';
-        foreach ($xaiModels as $xaiModel) {
-            $xaiPayload = [
-                'model' => $xaiModel,
-                'messages' => [
-                    ['role' => 'user', 'content' => $text],
-                ],
-                'temperature' => 0.4,
-                'max_tokens' => 220,
-                'stream' => false,
-            ];
-
-            $xch = curl_init($xaiUrl);
-            curl_setopt_array($xch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $xaiKey,
-                ],
-                CURLOPT_POSTFIELDS => json_encode($xaiPayload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
-                CURLOPT_TIMEOUT => 30,
-            ]);
-
-            $xResponse = curl_exec($xch);
-            $xHttpCode = (int)curl_getinfo($xch, CURLINFO_HTTP_CODE);
-            curl_close($xch);
-            $xaiHttpCode = $xHttpCode;
-
-            if ($xResponse !== false) {
-                $xJson = json_decode($xResponse, true);
-                if ($xHttpCode < 400) {
-                    $xReply = $xJson['choices'][0]['message']['content'] ?? '';
-                    if (trim((string)$xReply) !== '') {
-                        send_json(200, [
-                            'reply' => $xReply,
-                            'meta' => [
-                                'provider' => 'xai',
-                                'model' => $xaiModel,
-                                'attempts' => $attempts,
-                            ],
-                        ]);
-                    }
-                } else {
-                    $xaiErrorMessage = (string)($xJson['error']['message'] ?? ('xAI fallback failed (HTTP ' . $xHttpCode . ')'));
-                }
-            } else {
-                $xaiErrorMessage = 'xAI request failed (network/curl).';
-            }
-        }
-    }
-
     send_json(429, [
         'error' => 'Gemini quota exceeded for all keys/models.',
         'code' => 'quota_exceeded',
@@ -198,9 +140,6 @@ if ($quotaFailures > 0) {
             'attempts' => $attempts,
             'quota_failures' => $quotaFailures,
             'auth_failures' => $authFailures,
-            'xai_tried' => $xaiTried,
-            'xai_http_code' => $xaiHttpCode,
-            'xai_error' => $xaiErrorMessage,
         ],
     ]);
 }
@@ -218,7 +157,7 @@ if ($authFailures > 0) {
 }
 
 send_json(502, [
-    'error' => 'No provider produced a response.',
+    'error' => 'No Gemini key/model produced a response.',
     'code' => 'no_response',
     'meta' => [
         'attempts' => $attempts,
