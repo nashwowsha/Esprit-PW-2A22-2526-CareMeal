@@ -317,9 +317,13 @@
     if (localHandled) return;
 
     // 4) Gemini-driven admin intent resolution
-    if (this.looksLikeAdminIntent(text)) {
+    if (this.looksLikeAdminIntent(text) || this.isLikelyAdminEntityOnly(text)) {
       const aiHandled = await this.askGeminiAction(text);
       if (aiHandled) return;
+      if (this.isLikelyAdminEntityOnly(text)) {
+        this.respond(`J ai reconnu "${this.cleanEntityName(text)}". Que veux-tu faire exactement: supprimer, modifier, bloquer ou debloquer ?`, true);
+        return;
+      }
       this.respond("Je n ai pas compris assez clairement la commande admin. Redonne la demande avec le nom exact, ou dis annule pour recommencer.", true);
       return;
     }
@@ -747,9 +751,9 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: [
-            "Tu es l assistant vocal de l administrateur CareMeal.",
-            "Reponds en francais et ne devine jamais des chiffres.",
-            "Si tu ne sais pas, dis que tu ne sais pas.",
+            "Tu es l assistant vocal admin CareMeal (CRUD admin uniquement).",
+            "N ecris JAMAIS de reponse generaliste hors CareMeal.",
+            "Si la demande n est pas assez precise, demande uniquement la precision manquante en une phrase courte.",
             "",
             "Demande admin: " + text,
           ].join("\n"),
@@ -829,6 +833,7 @@
   buildGeminiActionPrompt(userText) {
     return [
       "Tu es un parseur de commandes admin CareMeal.",
+      "Tu n es PAS un chatbot general.",
       "Convertis la demande en JSON strict SANS markdown et SANS texte autour.",
       "Schema exact:",
       '{"action":"","target_name":"","target_email":"","source_name":"","new_name":"","title":"","source_title":"","description":"","categorie":"","prix":"","prix_original":"","quantite":"","statut":"","icone":""}',
@@ -838,6 +843,7 @@
       "- Si info manquante, mets des champs vides et choisis quand meme la meilleure action.",
       "- Ne fabrique jamais d ids.",
       "- 'etablissement' est un synonyme de partenaire.",
+      "- Si la demande contient seulement un nom (ex: 'glucides'), renvoie action='unknown' et mets ce nom dans target_name.",
       "- Reponds uniquement le JSON.",
       "",
       "Demande admin:",
@@ -873,6 +879,10 @@
     const targetEmail = String(cmd.target_email || "").trim().toLowerCase();
 
     if (action === "delete_user") {
+      if (!targetEmail && this.isWeakIdentityTarget(targetName)) {
+        this.setPendingIntent({ type: "delete_user" }, "Quel utilisateur, partenaire ou etablissement veux-tu supprimer ?");
+        return true;
+      }
       const target =
         targetEmail ? { type: "email", value: targetEmail } :
           (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
@@ -891,6 +901,15 @@
     }
 
     if (action === "block_user" || action === "unblock_user") {
+      if (!targetEmail && this.isWeakIdentityTarget(targetName)) {
+        this.setPendingIntent(
+          { type: action === "block_user" ? "block_user" : "unblock_user" },
+          action === "block_user"
+            ? "Quel utilisateur, partenaire ou etablissement veux-tu bloquer ?"
+            : "Quel utilisateur, partenaire ou etablissement veux-tu debloquer ?"
+        );
+        return true;
+      }
       const target =
         targetEmail ? { type: "email", value: targetEmail } :
           (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
@@ -1324,6 +1343,26 @@
   looksLikeAdminIntent(text) {
     const n = this.normalize(text);
     return /(utilisateur|partenaire|etablissement|commerce|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|statut|quantite|prix|description)/.test(n);
+  },
+
+  isLikelyAdminEntityOnly(text) {
+    const n = this.normalize(text).trim();
+    if (!n) return false;
+    if (this.isConversationFiller(n)) return false;
+    if (/(bonjour|salut|aide|help|qui es tu|comment tu t)/.test(n)) return false;
+    const words = n.split(/\s+/).filter(Boolean);
+    if (words.length > 3) return false;
+    return /^[a-z0-9\s'’\-]+$/i.test(n);
+  },
+
+  isWeakIdentityTarget(value) {
+    const n = this.normalize(value || "").trim();
+    if (!n || n.length < 3) return true;
+    if (/^(un|une|le|la|les|utilisateur|partenaire|etablissement|commerce)s?$/.test(n)) return true;
+    const weakTokens = new Set(["un", "une", "le", "la", "les", "utilisateur", "partenaire", "etablissement", "commerce", "je", "veux"]);
+    const tokens = n.split(/\s+/).filter(Boolean);
+    const strong = tokens.filter((t) => !weakTokens.has(t));
+    return strong.length === 0;
   },
 
   buildApiUrl() {
