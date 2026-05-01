@@ -316,7 +316,15 @@
     const localHandled = this.executeLocalCommand(text);
     if (localHandled) return;
 
-    // 4) fallback LLM
+    // 4) Gemini-driven admin intent resolution
+    if (this.looksLikeAdminIntent(text)) {
+      const aiHandled = await this.askGeminiAction(text);
+      if (aiHandled) return;
+      this.respond("Je n ai pas compris assez clairement la commande admin. Redonne la demande avec le nom exact, ou dis annule pour recommencer.", true);
+      return;
+    }
+
+    // 5) fallback LLM
     this.setStatus("Analyse IA...");
     await this.askGemini(text);
   },
@@ -385,6 +393,20 @@
       await this.callAdminApi({ action: "delete_offer", titre: answer });
       this.clearPendingIntent();
       this.respond(`Offre supprimee: ${answer}.`, true);
+      return true;
+    }
+
+    if (pending.type === "delete_user") {
+      const target = this.parseIdentityFromText(text) || { type: "name", value: answer };
+      const user = this.findUserLocal(target);
+      if (!user) {
+        this.clearPendingIntent();
+        this.respond("Utilisateur introuvable. J annule cette action. Redonne une nouvelle demande complete.", true);
+        return true;
+      }
+      this.deleteUserLocal(user.id, user.name);
+      this.clearPendingIntent();
+      this.respond(`${user.name} a ete supprime.`, true);
       return true;
     }
 
@@ -546,8 +568,24 @@
       return true;
     }
 
+    if (actionDelete && isUserOrPartner) {
+      const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
+      if (!target) {
+        this.setPendingIntent({ type: "delete_user" }, "D accord. Quel utilisateur/partenaire veux-tu supprimer ?");
+        return true;
+      }
+      const user = this.findUserLocal(target);
+      if (!user) {
+        this.respond("Utilisateur introuvable.", true);
+        return true;
+      }
+      this.deleteUserLocal(user.id, user.name);
+      this.respond(`${user.name} a ete supprime.`, true);
+      return true;
+    }
+
     if (/(bloque|bloquer|ban|bannir)/.test(normalized) && isUserOrPartner) {
-      const target = this.parseIdentityFromText(text);
+      const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
       if (!target) {
         this.setPendingIntent({ type: "block_user" }, "D accord. Quel utilisateur/partenaire veux-tu bloquer ?");
         return true;
@@ -563,7 +601,7 @@
     }
 
     if (/(debloque|debloquer|reactive|reactiver|unban)/.test(normalized) && isUserOrPartner) {
-      const target = this.parseIdentityFromText(text);
+      const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
       if (!target) {
         this.setPendingIntent({ type: "unblock_user" }, "D accord. Quel utilisateur/partenaire veux-tu debloquer ?");
         return true;
@@ -606,8 +644,9 @@
     }
 
     if (actionUpdate && isCategory) {
-      const source = this.extractLabeledValue(text, ["source", "ancien", "old"]) || this.extractCategoryName(text);
-      const target = this.extractLabeledValue(text, ["nom", "nouveau", "new"]);
+      const renamePair = this.extractRenamePair(text, "categorie");
+      const source = this.extractLabeledValue(text, ["source", "ancien", "old"]) || renamePair.source || this.extractCategoryName(text);
+      const target = this.extractLabeledValue(text, ["nom", "nouveau", "new"]) || renamePair.target;
 
       if (!source) {
         this.respond("Quelle categorie veux-tu modifier ?", true);
@@ -655,13 +694,21 @@
     }
 
     if (actionUpdate && isOffer) {
-      const source = this.extractLabeledValue(text, ["source", "ancien", "old"]) || this.extractOfferTitle(text);
+      const renamePair = this.extractRenamePair(text, "offre");
+      const source =
+        this.extractLabeledValue(text, ["source", "ancien", "old"]) ||
+        renamePair.source ||
+        this.extractOfferSourceFromUpdate(text) ||
+        this.extractOfferTitle(text);
       if (!source) {
         this.respond("Quelle offre veux-tu modifier ?", true);
         return true;
       }
 
       const payload = this.extractOfferPayload(text);
+      if (!payload.titre && renamePair.target) {
+        payload.titre = renamePair.target;
+      }
       const hasAnyField =
         payload.titre || payload.description || payload.prix || payload.prix_original ||
         payload.quantite || payload.nom_categorie || payload.heure_debut || payload.heure_fin ||
@@ -725,6 +772,258 @@
     }
   },
 
+  async askGeminiAction(text) {
+    if (this.isRequestInFlight) {
+      this.setStatus("Une requete est deja en cours...");
+      return false;
+    }
+    this.isRequestInFlight = true;
+    this.setStatus("Analyse action admin via Gemini...");
+
+    try {
+      const response = await fetch(this.buildApiUrl(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: this.buildGeminiActionPrompt(text),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        const error = new Error(data.error || "Erreur serveur");
+        error.code = data.code || null;
+        error.retryAfter = data.retry_after_seconds || null;
+        error.meta = data.meta || null;
+        throw error;
+      }
+
+      const parsed = this.parseGeminiActionReply((data.reply || "").trim());
+      if (!parsed || !parsed.action) {
+        return false;
+      }
+
+      return await this.executeGeminiAction(parsed);
+    } catch (error) {
+      if (error.code === "quota_exceeded") {
+        const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
+        this.setStatus("Quota Gemini depasse.");
+        this.respond("Le quota Gemini est depasse." + waitPart, false);
+        return true;
+      }
+      this.setStatus("Erreur interpretation action.");
+      return false;
+    } finally {
+      this.isRequestInFlight = false;
+    }
+  },
+
+  buildGeminiActionPrompt(userText) {
+    return [
+      "Tu es un parseur de commandes admin CareMeal.",
+      "Convertis la demande en JSON strict SANS markdown et SANS texte autour.",
+      "Schema exact:",
+      '{"action":"","target_name":"","target_email":"","source_name":"","new_name":"","title":"","source_title":"","description":"","categorie":"","prix":"","prix_original":"","quantite":"","statut":""}',
+      "Actions autorisees:",
+      "delete_user, block_user, unblock_user, get_counts, create_category, update_category, delete_category, create_offer, update_offer, delete_offer, unknown",
+      "Regles:",
+      "- Si info manquante, mets des champs vides et choisis quand meme la meilleure action.",
+      "- Ne fabrique jamais d ids.",
+      "- Reponds uniquement le JSON.",
+      "",
+      "Demande admin:",
+      userText,
+    ].join("\n");
+  },
+
+  parseGeminiActionReply(reply) {
+    if (!reply) return null;
+    const cleaned = reply.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+    try {
+      const obj = JSON.parse(cleaned);
+      if (obj && typeof obj === "object") return obj;
+    } catch (_e) {}
+
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      const sub = cleaned.slice(start, end + 1);
+      try {
+        const obj = JSON.parse(sub);
+        if (obj && typeof obj === "object") return obj;
+      } catch (_e) {}
+    }
+    return null;
+  },
+
+  async executeGeminiAction(cmd) {
+    const action = String(cmd.action || "").trim().toLowerCase();
+    if (!action || action === "unknown") return false;
+
+    const targetName = this.cleanEntityName(cmd.target_name || "");
+    const targetEmail = String(cmd.target_email || "").trim().toLowerCase();
+
+    if (action === "delete_user") {
+      const target =
+        targetEmail ? { type: "email", value: targetEmail } :
+          (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
+      if (!target) {
+        this.setPendingIntent({ type: "delete_user" }, "Quel utilisateur/partenaire veux-tu supprimer ?");
+        return true;
+      }
+      const user = this.findUserLocal(target);
+      if (!user) {
+        this.respond("Utilisateur introuvable.", true);
+        return true;
+      }
+      this.deleteUserLocal(user.id, user.name);
+      this.respond(`${user.name} a ete supprime.`, true);
+      return true;
+    }
+
+    if (action === "block_user" || action === "unblock_user") {
+      const target =
+        targetEmail ? { type: "email", value: targetEmail } :
+          (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
+      if (!target) {
+        this.setPendingIntent(
+          { type: action === "block_user" ? "block_user" : "unblock_user" },
+          action === "block_user"
+            ? "Quel utilisateur/partenaire veux-tu bloquer ?"
+            : "Quel utilisateur/partenaire veux-tu debloquer ?"
+        );
+        return true;
+      }
+      const user = this.findUserLocal(target);
+      if (!user) {
+        this.respond("Utilisateur introuvable.", true);
+        return true;
+      }
+      const nextStatus = action === "block_user" ? "banned" : "active";
+      this.updateUserStatusLocal(user.id, nextStatus, `Utilisateur ${nextStatus === "banned" ? "banni" : "reactive"}: ${user.name}`);
+      this.respond(
+        nextStatus === "banned"
+          ? `${user.name} est maintenant bloque.`
+          : `${user.name} est maintenant actif.`,
+        true
+      );
+      return true;
+    }
+
+    if (action === "get_counts") {
+      const db = await this.callAdminApi({ action: "get_counts" });
+      this.respond(`Il y a ${db.offers_count} offres et ${db.categories_count} categories.`, true);
+      return true;
+    }
+
+    if (action === "create_category") {
+      const name = this.cleanEntityName(cmd.new_name || cmd.source_name || cmd.title || "");
+      if (!name) {
+        this.respond("Quel nom pour la categorie ?", true);
+        return true;
+      }
+      const created = await this.callAdminApi({
+        action: "create_category",
+        nom_categorie: name,
+        description: String(cmd.description || "").trim(),
+      });
+      this.respond(`Categorie creee: ${created.nom_categorie}.`, true);
+      return true;
+    }
+
+    if (action === "update_category") {
+      const source = this.cleanEntityName(cmd.source_name || "");
+      const target = this.cleanEntityName(cmd.new_name || "");
+      if (!source) {
+        this.respond("Quelle categorie veux-tu modifier ?", true);
+        return true;
+      }
+      if (!target) {
+        this.setPendingIntent({ type: "update_category_target_name", sourceName: source }, `Quel nouveau nom pour la categorie ${source} ?`);
+        return true;
+      }
+      await this.callAdminApi({ action: "update_category", nom_categorie_source: source, nom_categorie: target });
+      this.respond(`Categorie modifiee: ${source} -> ${target}.`, true);
+      return true;
+    }
+
+    if (action === "delete_category") {
+      const name = this.cleanEntityName(cmd.source_name || cmd.target_name || cmd.new_name || "");
+      if (!name) {
+        this.setPendingIntent({ type: "delete_category" }, "Quelle categorie veux-tu supprimer ?");
+        return true;
+      }
+      await this.callAdminApi({ action: "delete_category", nom_categorie: name });
+      this.respond(`Categorie supprimee: ${name}.`, true);
+      return true;
+    }
+
+    if (action === "create_offer") {
+      const title = this.sanitizeOfferTitle(cmd.title || cmd.new_name || "");
+      const payload = {
+        action: "create_offer",
+        titre: title,
+        description: String(cmd.description || "").trim(),
+        prix: String(cmd.prix || "").trim(),
+        prix_original: String(cmd.prix_original || "").trim(),
+        quantite: String(cmd.quantite || "").trim(),
+        nom_categorie: this.cleanEntityName(cmd.categorie || ""),
+        statut: String(cmd.statut || "publiee").trim() || "publiee",
+      };
+      if (!this.isMeaningfulOfferTitle(payload.titre)) {
+        const pendingPayload = { ...payload };
+        delete pendingPayload.titre;
+        this.setPendingIntent({ type: "create_offer_title", payload: pendingPayload }, "Quel titre pour la nouvelle offre ?");
+        return true;
+      }
+      const created = await this.callAdminApi(payload);
+      this.respond(`Offre creee: ${created.titre}.`, true);
+      return true;
+    }
+
+    if (action === "update_offer") {
+      const source = this.cleanEntityName(cmd.source_title || cmd.source_name || "");
+      if (!source) {
+        this.respond("Quelle offre veux-tu modifier ?", true);
+        return true;
+      }
+      const payload = {
+        action: "update_offer",
+        titre_source: source,
+        titre: this.sanitizeOfferTitle(cmd.title || cmd.new_name || ""),
+        description: String(cmd.description || "").trim(),
+        prix: String(cmd.prix || "").trim(),
+        prix_original: String(cmd.prix_original || "").trim(),
+        quantite: String(cmd.quantite || "").trim(),
+        nom_categorie: this.cleanEntityName(cmd.categorie || ""),
+        statut: String(cmd.statut || "").trim(),
+      };
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === "") delete payload[k];
+      });
+      if (Object.keys(payload).length <= 2) {
+        this.setPendingIntent({ type: "update_offer_target_title", sourceTitle: source }, `Quel nouveau titre pour l offre ${source} ?`);
+        return true;
+      }
+      await this.callAdminApi(payload);
+      this.respond(`Offre modifiee: ${source}.`, true);
+      return true;
+    }
+
+    if (action === "delete_offer") {
+      const title = this.cleanEntityName(cmd.source_title || cmd.title || cmd.target_name || "");
+      if (!title) {
+        this.setPendingIntent({ type: "delete_offer" }, "Quelle offre veux-tu supprimer ?");
+        return true;
+      }
+      await this.callAdminApi({ action: "delete_offer", titre: title });
+      this.respond(`Offre supprimee: ${title}.`, true);
+      return true;
+    }
+
+    return false;
+  },
+
   parseIdentityFromText(text) {
     const email = this.extractLabeledValue(text, ["email", "mail"]);
     if (email) return { type: "email", value: email.toLowerCase() };
@@ -734,6 +1033,18 @@
     const q = this.extractQuoted(text);
     if (q) return { type: "name", value: q.toLowerCase() };
     return null;
+  },
+
+  extractNaturalUserTarget(text) {
+    const raw = (text || "")
+      .replace(/\b(supprime|supprimer|efface|retire|delete|bloque|bloquer|bannir|ban|debloque|debloquer|reactive|reactiver|unban)\b/gi, " ")
+      .replace(/\b(utilisateur|utilisateurs|user|users|partenaire|partenaires)\b/gi, " ")
+      .replace(/\b(stp|svp|merci)\b/gi, " ")
+      .replace(/[,:;!?]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!raw || raw.length < 3) return null;
+    return { type: "name", value: raw.toLowerCase() };
   },
 
   extractQuoted(text) {
@@ -761,6 +1072,23 @@
     const m = text.match(/offre\s+(.+)$/i);
     if (m && m[1]) return this.cleanEntityName(m[1]);
     return "";
+  },
+
+  extractOfferSourceFromUpdate(text) {
+    const m = (text || "").match(/\boffre\s+(.+?)\s+(?:prix|prix original|prix_original|quantite|categorie|category|description|desc|statut|heure|photo|image|vers|en)\b/i);
+    if (!m || !m[1]) return "";
+    return this.cleanEntityName(m[1]);
+  },
+
+  extractRenamePair(text, entityKeyword) {
+    const escaped = entityKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\b${escaped}\\s+(.+?)\\s+(?:en|vers|to)\\s+(.+)$`, "i");
+    const m = (text || "").match(regex);
+    if (!m) return { source: "", target: "" };
+    return {
+      source: this.cleanEntityName(m[1]),
+      target: this.cleanEntityName(m[2]),
+    };
   },
 
   cleanEntityName(value) {
@@ -881,14 +1209,47 @@
 
   findUserLocal(target) {
     const users = this.safeGetUsers();
-    if (target.type === "email") return users.find((u) => (u.email || "").toLowerCase() === target.value) || null;
-    return users.find((u) => (u.name || "").toLowerCase() === target.value) || null;
+    if (target.type === "email") {
+      return users.find((u) => (u.email || "").toLowerCase() === target.value) || null;
+    }
+
+    const wanted = this.normalize((target.value || "").trim());
+    if (!wanted) return null;
+
+    const exact = users.find((u) => this.normalize(u.name || "") === wanted);
+    if (exact) return exact;
+
+    const contains = users.find((u) => this.normalize(u.name || "").includes(wanted) || wanted.includes(this.normalize(u.name || "")));
+    return contains || null;
   },
 
   updateUserStatusLocal(id, status, logMessage) {
     if (typeof App === "undefined") return;
     if (typeof App.updateUser === "function") App.updateUser(id, { status });
     if (typeof App.addLog === "function") App.addLog(logMessage);
+    if (typeof Admin !== "undefined" && typeof Admin.loadUsers === "function") {
+      Admin.loadUsers();
+    }
+    if (typeof Admin !== "undefined" && typeof Admin.loadPartners === "function") {
+      Admin.loadPartners();
+    }
+  },
+
+  deleteUserLocal(id, name) {
+    if (typeof App === "undefined") return;
+    if (typeof App.deleteUser === "function") App.deleteUser(id);
+    if (typeof App.addLog === "function") App.addLog(`Utilisateur supprime: ${name}`);
+    if (typeof Admin !== "undefined" && typeof Admin.loadUsers === "function") {
+      Admin.loadUsers();
+    }
+    if (typeof Admin !== "undefined" && typeof Admin.loadPartners === "function") {
+      Admin.loadPartners();
+    }
+  },
+
+  looksLikeAdminIntent(text) {
+    const n = this.normalize(text);
+    return /(utilisateur|partenaire|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|statut|quantite|prix)/.test(n);
   },
 
   buildApiUrl() {
