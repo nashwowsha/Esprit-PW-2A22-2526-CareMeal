@@ -474,10 +474,11 @@
         payload.statut = explicitStatus;
       }
 
-      const hasAnyField =
-        payload.titre || payload.description || payload.prix || payload.prix_original ||
-        payload.quantite || payload.nom_categorie || payload.heure_debut || payload.heure_fin ||
-        payload.photo_url || payload.statut;
+      if (payload.titre && this.normalize(payload.titre) === this.normalize(pending.sourceTitle || "")) {
+        delete payload.titre;
+      }
+      const cleanedPayload = this.cleanOfferPayload(payload);
+      const hasAnyField = Object.keys(cleanedPayload).length > 0;
 
       if (!hasAnyField) {
         this.respond("Dis exactement le champ a modifier, par exemple: prix 5.5, categorie glucides, statut brouillon, description sandwich chaud.", true);
@@ -487,7 +488,7 @@
       await this.callAdminApi({
         action: "update_offer",
         titre_source: pending.sourceTitle,
-        ...payload,
+        ...cleanedPayload,
       });
       this.clearPendingIntent();
       this.respond(`Offre modifiee: ${pending.sourceTitle}.`, true);
@@ -767,10 +768,8 @@
         payload.statut = explicitStatus;
       }
 
-      const hasAnyField =
-        payload.titre || payload.description || payload.prix || payload.prix_original ||
-        payload.quantite || payload.nom_categorie || payload.heure_debut || payload.heure_fin ||
-        payload.photo_url || payload.statut;
+      const cleanedPayload = this.cleanOfferPayload(payload);
+      const hasAnyField = Object.keys(cleanedPayload).length > 0;
 
       if (!hasAnyField) {
         this.setPendingIntent(
@@ -780,7 +779,7 @@
         return true;
       }
 
-      await this.callAdminApi({ action: "update_offer", titre_source: source, ...payload });
+      await this.callAdminApi({ action: "update_offer", titre_source: source, ...cleanedPayload });
       this.respond(`Offre modifiee: ${source}.`, true);
       return true;
     }
@@ -1349,6 +1348,30 @@
       .replace(/^[\s:=,;.-]+/, "")
       .replace(/[\s,;.-]+$/, "")
       .trim();
+  },
+
+  cleanOfferPayload(payload) {
+    const allowedKeys = [
+      "titre",
+      "description",
+      "prix",
+      "prix_original",
+      "quantite",
+      "nom_categorie",
+      "heure_debut",
+      "heure_fin",
+      "photo_url",
+      "statut",
+    ];
+    const out = {};
+    for (const key of allowedKeys) {
+      if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
+      const value = payload[key];
+      if (value === null || value === undefined) continue;
+      if (typeof value === "string" && value.trim() === "") continue;
+      out[key] = value;
+    }
+    return out;
   },
 
   normalize(text) {
