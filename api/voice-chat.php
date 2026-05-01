@@ -60,9 +60,29 @@ if ($response === false) {
 $json = json_decode($response, true);
 
 if ($httpCode >= 400) {
+    $errMsg = (string)($json['error']['message'] ?? 'Gemini error');
+    $errLower = strtolower($errMsg);
+
+    if ($httpCode === 429 || str_contains($errLower, 'quota') || str_contains($errLower, 'rate limit')) {
+        $retryAfter = null;
+        if (preg_match('/retry in\s+([0-9.]+)s/i', $errMsg, $m) === 1) {
+            $retryAfter = (int)ceil((float)$m[1]);
+        }
+
+        http_response_code(429);
+        echo json_encode([
+            'error' => 'Quota Gemini dépassé pour le moment.',
+            'code' => 'quota_exceeded',
+            'retry_after_seconds' => $retryAfter,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     http_response_code($httpCode);
-    $errMsg = $json['error']['message'] ?? 'Gemini error';
-    echo json_encode(['error' => $errMsg]);
+    echo json_encode([
+        'error' => 'Erreur Gemini: impossible de générer une réponse pour le moment.',
+        'code' => 'gemini_error',
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 

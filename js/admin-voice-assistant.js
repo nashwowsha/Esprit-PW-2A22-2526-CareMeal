@@ -1,6 +1,7 @@
 const AdminVoiceAssistant = {
   recognition: null,
   listening: false,
+  isRequestInFlight: false,
   elements: {},
 
   init() {
@@ -297,6 +298,11 @@ const AdminVoiceAssistant = {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+    if (/(^|\s)(salut|bonjour|bonsoir|hello|hi)(\s|$)/.test(normalized)) {
+      this.respond("Bonjour. Je suis pret a t aider sur l espace admin.", true);
+      return true;
+    }
+
     const navCommands = [
       { words: ["utilisateur", "utilisateurs", "user", "users"], url: "users.html", message: "J ouvre la page Utilisateurs." },
       { words: ["partenaire", "partenaires"], url: "partners.html", message: "J ouvre la page Partenaires." },
@@ -339,6 +345,12 @@ const AdminVoiceAssistant = {
   },
 
   async askGemini(text) {
+    if (this.isRequestInFlight) {
+      this.setStatus("Une requete est deja en cours...");
+      return;
+    }
+
+    this.isRequestInFlight = true;
     const apiUrl = this.buildApiUrl();
     const prompt = [
       "Tu es l assistant vocal de l administrateur CareMeal.",
@@ -355,14 +367,25 @@ const AdminVoiceAssistant = {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Erreur serveur");
+        const error = new Error(data.error || "Erreur serveur");
+        error.code = data.code || null;
+        error.retryAfter = data.retry_after_seconds || null;
+        throw error;
       }
 
       const reply = (data.reply || "").trim() || "Je n ai pas de reponse pour le moment.";
       this.respond(reply, true);
     } catch (error) {
-      this.setStatus("Erreur assistant: " + error.message);
-      this.elements.reply.textContent = "Je n ai pas pu contacter le serveur.";
+      if (error.code === "quota_exceeded") {
+        const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
+        this.setStatus("Quota Gemini temporairement depasse.");
+        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart;
+      } else {
+        this.setStatus("Erreur assistant: " + error.message);
+        this.elements.reply.textContent = "Je n ai pas pu contacter le serveur.";
+      }
+    } finally {
+      this.isRequestInFlight = false;
     }
   },
 
