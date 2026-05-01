@@ -230,6 +230,9 @@ const AdminVoiceAssistant = {
         return;
       }
 
+      const dataAction = await this.handleDataCommand(text);
+      if (dataAction) return;
+
       const localAction = this.executeLocalCommand(text);
       if (localAction) return;
 
@@ -314,7 +317,7 @@ const AdminVoiceAssistant = {
       { words: ["dashboard", "vue globale", "accueil"], url: "dashboard.html", message: "Retour au dashboard." },
     ];
 
-    const wantsOpen = /(ouvre|va|aller|affiche|montre|navigue|ajoute|ajouter|cree|creer|nouvelle)/.test(normalized);
+    const wantsOpen = /(ouvre|va|aller|affiche|montre|navigue)/.test(normalized);
     if (wantsOpen) {
       for (const cmd of navCommands) {
         if (cmd.words.some((word) => normalized.includes(word))) {
@@ -325,14 +328,6 @@ const AdminVoiceAssistant = {
           return true;
         }
       }
-    }
-
-    if (/(ajoute|ajouter|cree|creer|nouvelle)/.test(normalized) && /(offre|offres)/.test(normalized)) {
-      this.respond("Je t envoie vers la gestion des offres pour ajouter une offre.", false);
-      setTimeout(() => {
-        window.location.href = "offers.php";
-      }, 450);
-      return true;
     }
 
     if (/(rafraichis|rafraichir|actualise|actualiser|recharge|recharger)/.test(normalized)) {
@@ -347,6 +342,104 @@ const AdminVoiceAssistant = {
         const btn = document.querySelector("[data-action='logout']");
         if (btn) btn.click();
       }, 450);
+      return true;
+    }
+
+    return false;
+  },
+
+  async handleDataCommand(text) {
+    const normalized = text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    const asksCount = /(combien|nombre|total)/.test(normalized);
+    const mentionsOffers = /(offre|offres)/.test(normalized);
+    const mentionsCategories = /(categorie|categories)/.test(normalized);
+
+    if (asksCount && (mentionsOffers || mentionsCategories)) {
+      this.setStatus("Lecture des donnees reelles...");
+      try {
+        const stats = await this.callAdminApi({ action: "get_counts" });
+        if (mentionsOffers && mentionsCategories) {
+          this.respond(
+            `Il y a ${stats.offers_count} offres et ${stats.categories_count} categories en base.`,
+            true
+          );
+        } else if (mentionsOffers) {
+          this.respond(`Il y a ${stats.offers_count} offres en base.`, true);
+        } else {
+          this.respond(`Il y a ${stats.categories_count} categories en base.`, true);
+        }
+      } catch (error) {
+        this.setStatus("Erreur donnees: " + error.message);
+      }
+      return true;
+    }
+
+    if (/(ajoute|ajouter|cree|creer|nouvelle|nouveau)/.test(normalized) && mentionsCategories) {
+      let name = "";
+      const quoted = text.match(/["“](.+?)["”]/);
+      if (quoted) {
+        name = quoted[1].trim();
+      } else {
+        const m = text.match(/cat[eé]gorie\s*(?:nomm[ée]e?|appel[ée]e?|:|=)?\s*(.+)$/i);
+        if (m) name = m[1].trim();
+      }
+
+      name = name.replace(/^(de|la|le|une|un)\s+/i, "").trim();
+
+      if (name.length < 2) {
+        this.respond('Donne le nom de categorie comme: ajoute categorie "Desserts".', true);
+        return true;
+      }
+
+      this.setStatus("Creation de categorie...");
+      try {
+        const created = await this.callAdminApi({
+          action: "create_category",
+          nom_categorie: name,
+        });
+        this.respond(`Categorie creee: ${created.nom_categorie}.`, true);
+      } catch (error) {
+        this.setStatus("Erreur creation categorie: " + error.message);
+      }
+      return true;
+    }
+
+    if (/(ajoute|ajouter|cree|creer|nouvelle|nouveau)/.test(normalized) && mentionsOffers) {
+      const titre = this.extractLabeledValue(text, ["titre"]);
+      const prixOriginal = this.extractLabeledValue(text, ["prix_original", "prix original", "original"]);
+      const prix = this.extractLabeledValue(text, ["prix"]);
+      const quantite = this.extractLabeledValue(text, ["quantite", "qte"]);
+      const categorie = this.extractLabeledValue(text, ["categorie", "category"]);
+      const description = this.extractLabeledValue(text, ["description", "desc"]);
+
+      if (!titre || !prix || !prixOriginal || !quantite || !categorie) {
+        this.respond(
+          "Pour ajouter une offre, utilise ce format: ajoute offre titre=Salade; prix=8; prix_original=12; quantite=20; categorie=Desserts; description=Fraiche.",
+          true
+        );
+        return true;
+      }
+
+      this.setStatus("Creation de l offre...");
+      try {
+        const created = await this.callAdminApi({
+          action: "create_offer",
+          titre,
+          prix,
+          prix_original: prixOriginal,
+          quantite,
+          nom_categorie: categorie,
+          description: description || "",
+          statut: "publiée",
+        });
+        this.respond(`Offre creee: ${created.titre}.`, true);
+      } catch (error) {
+        this.setStatus("Erreur creation offre: " + error.message);
+      }
       return true;
     }
 
@@ -419,6 +512,9 @@ const AdminVoiceAssistant = {
     this.elements.heard.textContent = text;
     this.elements.textInput.value = "";
 
+    const dataAction = await this.handleDataCommand(text);
+    if (dataAction) return;
+
     const localAction = this.executeLocalCommand(text);
     if (localAction) return;
 
@@ -430,6 +526,37 @@ const AdminVoiceAssistant = {
     const pathParts = window.location.pathname.split("/").filter(Boolean);
     const projectBase = pathParts.length > 0 ? "/" + pathParts[0] : "";
     return projectBase + "/api/voice-chat.php";
+  },
+
+  buildAdminApiUrl() {
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const projectBase = pathParts.length > 0 ? "/" + pathParts[0] : "";
+    return projectBase + "/api/admin-assistant.php";
+  },
+
+  async callAdminApi(payload) {
+    const response = await fetch(this.buildAdminApiUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Erreur API admin");
+    }
+    return data;
+  },
+
+  extractLabeledValue(text, labels) {
+    for (const label of labels) {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`${escaped}\\s*[:=]\\s*([^;,\\n]+)`, "i");
+      const match = text.match(regex);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    return "";
   },
 
   respond(message, speak) {
