@@ -10,7 +10,7 @@ const AdminVoiceAssistant = {
   },
 
   injectUI() {
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       .voice-assistant-fab {
         position: fixed;
@@ -20,7 +20,7 @@ const AdminVoiceAssistant = {
         height: 56px;
         border: 0;
         border-radius: 50%;
-        background: linear-gradient(135deg, #EF4444, #F97316);
+        background: linear-gradient(135deg, #ef4444, #f97316);
         color: #fff;
         box-shadow: 0 12px 30px rgba(239, 68, 68, 0.45);
         z-index: 1000;
@@ -102,6 +102,37 @@ const AdminVoiceAssistant = {
         white-space: pre-wrap;
       }
 
+      .voice-assistant-input-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .voice-assistant-input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e7edf8;
+        border-radius: 10px;
+        padding: 10px 12px;
+        outline: none;
+      }
+
+      .voice-assistant-input::placeholder {
+        color: #9fb0cf;
+      }
+
+      .voice-assistant-send {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: linear-gradient(135deg, #ef4444, #f97316);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
       @keyframes voicePulse {
         0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
         70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
@@ -110,28 +141,32 @@ const AdminVoiceAssistant = {
     `;
     document.head.appendChild(style);
 
-    const panel = document.createElement('section');
-    panel.className = 'voice-assistant-panel hidden';
+    const panel = document.createElement("section");
+    panel.className = "voice-assistant-panel hidden";
     panel.innerHTML = `
       <div class="voice-assistant-head">
         <div class="voice-assistant-title">Assistant vocal admin</div>
-        <button class="voice-assistant-close" type="button" aria-label="Fermer">✕</button>
+        <button class="voice-assistant-close" type="button" aria-label="Fermer">x</button>
       </div>
-      <div class="voice-assistant-status">Prêt. Clique sur le micro puis parle.</div>
+      <div class="voice-assistant-status">Pret. Clique sur le micro puis parle.</div>
       <div class="voice-assistant-block">
         <div class="voice-assistant-label">Texte reconnu</div>
         <div class="voice-assistant-text" data-role="heard">...</div>
       </div>
       <div class="voice-assistant-block">
-        <div class="voice-assistant-label">Réponse</div>
+        <div class="voice-assistant-label">Reponse</div>
         <div class="voice-assistant-text" data-role="reply">...</div>
+      </div>
+      <div class="voice-assistant-input-row">
+        <input class="voice-assistant-input" type="text" data-role="text-input" placeholder="Ecris une demande si le micro ne marche pas">
+        <button class="voice-assistant-send" type="button" data-role="send-btn">Envoyer</button>
       </div>
     `;
 
-    const fab = document.createElement('button');
-    fab.className = 'voice-assistant-fab';
-    fab.type = 'button';
-    fab.title = 'Parler avec l’assistant';
+    const fab = document.createElement("button");
+    fab.className = "voice-assistant-fab";
+    fab.type = "button";
+    fab.title = "Parler avec l assistant";
     fab.innerHTML = '<i class="fa-solid fa-microphone"></i>';
 
     document.body.appendChild(panel);
@@ -140,24 +175,34 @@ const AdminVoiceAssistant = {
     this.elements = {
       panel,
       fab,
-      closeBtn: panel.querySelector('.voice-assistant-close'),
-      status: panel.querySelector('.voice-assistant-status'),
+      closeBtn: panel.querySelector(".voice-assistant-close"),
+      status: panel.querySelector(".voice-assistant-status"),
       heard: panel.querySelector('[data-role="heard"]'),
-      reply: panel.querySelector('[data-role="reply"]')
+      reply: panel.querySelector('[data-role="reply"]'),
+      textInput: panel.querySelector('[data-role="text-input"]'),
+      sendBtn: panel.querySelector('[data-role="send-btn"]'),
     };
   },
 
   bindUI() {
-    this.elements.closeBtn.addEventListener('click', () => {
-      this.elements.panel.classList.add('hidden');
+    this.elements.closeBtn.addEventListener("click", () => {
+      this.elements.panel.classList.add("hidden");
     });
 
-    this.elements.fab.addEventListener('click', () => {
-      this.elements.panel.classList.remove('hidden');
+    this.elements.fab.addEventListener("click", () => {
+      this.elements.panel.classList.remove("hidden");
       if (this.listening) {
         this.stopListening();
       } else {
         this.startListening();
+      }
+    });
+
+    this.elements.sendBtn.addEventListener("click", () => this.handleTypedPrompt());
+    this.elements.textInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        this.handleTypedPrompt();
       }
     });
   },
@@ -165,61 +210,78 @@ const AdminVoiceAssistant = {
   initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.setStatus('Web Speech API non supportée par ce navigateur.');
+      this.setStatus("Web Speech API non supportee par ce navigateur.");
       this.elements.fab.disabled = true;
       return;
     }
 
     this.recognition = new SpeechRecognition();
-    this.recognition.lang = 'fr-FR';
+    this.recognition.lang = "fr-FR";
     this.recognition.continuous = false;
     this.recognition.interimResults = false;
 
     this.recognition.onresult = async (event) => {
-      const text = event.results?.[0]?.[0]?.transcript?.trim() || '';
-      this.elements.heard.textContent = text || '(aucun texte)';
+      const text = event.results?.[0]?.[0]?.transcript?.trim() || "";
+      this.elements.heard.textContent = text || "(aucun texte)";
       if (!text) {
-        this.setStatus('Aucun texte reconnu.');
+        this.setStatus("Aucun texte reconnu.");
         return;
       }
 
       const localAction = this.executeLocalCommand(text);
-      if (localAction) {
-        return;
-      }
+      if (localAction) return;
 
-      this.setStatus('Analyse de la demande...');
+      this.setStatus("Analyse de la demande...");
       await this.askGemini(text);
     };
 
     this.recognition.onerror = (event) => {
-      const err = event.error || 'inconnue';
-      if (err === 'network') {
-        this.setStatus('Erreur micro réseau. Autorise le micro et vérifie Internet.');
-      } else if (err === 'not-allowed') {
-        this.setStatus('Micro refusé. Autorise le micro dans le navigateur.');
+      const err = event.error || "inconnue";
+      if (err === "network") {
+        const isEdge = /Edg\//.test(navigator.userAgent);
+        this.setStatus(
+          isEdge
+            ? "Erreur STT reseau sur Edge. Essaie Chrome ou utilise la zone texte."
+            : "Erreur STT reseau. Verifie Internet ou utilise la zone texte."
+        );
+      } else if (err === "not-allowed") {
+        this.setStatus("Micro refuse. Autorise le micro pour ce site.");
+      } else if (err === "audio-capture") {
+        this.setStatus("Aucun micro detecte.");
       } else {
-        this.setStatus('Erreur micro: ' + err);
+        this.setStatus("Erreur micro: " + err);
       }
     };
 
     this.recognition.onend = () => {
       this.listening = false;
-      this.elements.fab.classList.remove('listening');
+      this.elements.fab.classList.remove("listening");
       this.elements.fab.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-      if (this.elements.status.textContent === 'J’écoute...') {
-        this.setStatus('Écoute terminée.');
+      if (this.elements.status.textContent === "J ecoute...") {
+        this.setStatus("Ecoute terminee.");
       }
     };
   },
 
-  startListening() {
+  async startListening() {
     if (!this.recognition) return;
 
-    this.elements.reply.textContent = '...';
-    this.setStatus('J’écoute...');
+    this.elements.reply.textContent = "...";
+    this.setStatus("Verification micro...");
+
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch (_error) {
+      this.setStatus("Micro bloque. Autorise le micro pour ce site.");
+      return;
+    }
+
+    this.setStatus("J ecoute...");
     this.listening = true;
-    this.elements.fab.classList.add('listening');
+    this.elements.fab.classList.add("listening");
     this.elements.fab.innerHTML = '<i class="fa-solid fa-stop"></i>';
     this.recognition.start();
   },
@@ -232,23 +294,23 @@ const AdminVoiceAssistant = {
   executeLocalCommand(text) {
     const normalized = text
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
     const navCommands = [
-      { words: ['utilisateur', 'utilisateurs', 'user', 'users'], url: 'users.html', message: 'J’ouvre la page Utilisateurs.' },
-      { words: ['partenaire', 'partenaires'], url: 'partners.html', message: 'J’ouvre la page Partenaires.' },
-      { words: ['categorie', 'categories'], url: 'categorie.php', message: 'J’ouvre la page Catégories.' },
-      { words: ['offre', 'offres'], url: 'offers.php', message: 'J’ouvre la page Offres.' },
-      { words: ['evenement', 'evenements', 'event', 'events'], url: 'events.html', message: 'J’ouvre la page Événements.' },
-      { words: ['log', 'logs', 'activite'], url: 'logs.html', message: 'J’ouvre la page Logs.' },
-      { words: ['dashboard', 'vue globale', 'accueil'], url: 'dashboard.html', message: 'Retour au dashboard.' }
+      { words: ["utilisateur", "utilisateurs", "user", "users"], url: "users.html", message: "J ouvre la page Utilisateurs." },
+      { words: ["partenaire", "partenaires"], url: "partners.html", message: "J ouvre la page Partenaires." },
+      { words: ["categorie", "categories"], url: "categorie.php", message: "J ouvre la page Categories." },
+      { words: ["offre", "offres"], url: "offers.php", message: "J ouvre la page Offres." },
+      { words: ["evenement", "evenements", "event", "events"], url: "events.html", message: "J ouvre la page Evenements." },
+      { words: ["log", "logs", "activite"], url: "logs.html", message: "J ouvre la page Logs." },
+      { words: ["dashboard", "vue globale", "accueil"], url: "dashboard.html", message: "Retour au dashboard." },
     ];
 
     const wantsOpen = /(ouvre|va|aller|affiche|montre|navigue)/.test(normalized);
     if (wantsOpen) {
       for (const cmd of navCommands) {
-        if (cmd.words.some(word => normalized.includes(word))) {
+        if (cmd.words.some((word) => normalized.includes(word))) {
           this.respond(cmd.message, false);
           setTimeout(() => {
             window.location.href = cmd.url;
@@ -259,15 +321,15 @@ const AdminVoiceAssistant = {
     }
 
     if (/(rafraichis|rafraichir|actualise|actualiser|recharge|recharger)/.test(normalized)) {
-      this.respond('Je rafraîchis la page.', false);
+      this.respond("Je rafraichis la page.", false);
       setTimeout(() => window.location.reload(), 450);
       return true;
     }
 
     if (/(deconnexion|deconnecte|logout)/.test(normalized)) {
-      this.respond('Je lance la déconnexion.', false);
+      this.respond("Je lance la deconnexion.", false);
       setTimeout(() => {
-        const btn = document.querySelector('[data-action="logout"]');
+        const btn = document.querySelector("[data-action='logout']");
         if (btn) btn.click();
       }, 450);
       return true;
@@ -279,42 +341,58 @@ const AdminVoiceAssistant = {
   async askGemini(text) {
     const apiUrl = this.buildApiUrl();
     const prompt = [
-      'Tu es l assistant vocal de l administrateur CareMeal.',
-      'Reponds en francais, court et concret.',
-      'Si la demande implique une action que tu ne peux pas faire directement depuis cette page, dis exactement l action manuelle a faire.'
-    ].join(' ');
+      "Tu es l assistant vocal de l administrateur CareMeal.",
+      "Reponds en francais, court et concret.",
+      "Si la demande implique une action que tu ne peux pas faire directement depuis cette page, dis exactement l action manuelle a faire.",
+    ].join(" ");
 
     try {
       const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: `${prompt}\n\nDemande admin: ${text}` })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: `${prompt}\n\nDemande admin: ${text}` }),
       });
+
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur serveur');
+        throw new Error(data.error || "Erreur serveur");
       }
 
-      const reply = (data.reply || '').trim() || 'Je n ai pas de reponse pour le moment.';
+      const reply = (data.reply || "").trim() || "Je n ai pas de reponse pour le moment.";
       this.respond(reply, true);
     } catch (error) {
-      this.setStatus('Erreur assistant: ' + error.message);
-      this.elements.reply.textContent = 'Je n ai pas pu contacter le serveur.';
+      this.setStatus("Erreur assistant: " + error.message);
+      this.elements.reply.textContent = "Je n ai pas pu contacter le serveur.";
     }
   },
 
+  async handleTypedPrompt() {
+    const text = (this.elements.textInput.value || "").trim();
+    if (!text) return;
+
+    this.elements.panel.classList.remove("hidden");
+    this.elements.heard.textContent = text;
+    this.elements.textInput.value = "";
+
+    const localAction = this.executeLocalCommand(text);
+    if (localAction) return;
+
+    this.setStatus("Analyse de la demande...");
+    await this.askGemini(text);
+  },
+
   buildApiUrl() {
-    const pathParts = window.location.pathname.split('/').filter(Boolean);
-    const projectBase = pathParts.length > 0 ? '/' + pathParts[0] : '';
-    return projectBase + '/api/voice-chat.php';
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const projectBase = pathParts.length > 0 ? "/" + pathParts[0] : "";
+    return projectBase + "/api/voice-chat.php";
   },
 
   respond(message, speak) {
     this.elements.reply.textContent = message;
-    this.setStatus('Réponse prête.');
+    this.setStatus("Reponse prete.");
     if (speak) {
       const utterance = new SpeechSynthesisUtterance(message);
-      utterance.lang = 'fr-FR';
+      utterance.lang = "fr-FR";
       utterance.rate = 1;
       utterance.pitch = 1;
       window.speechSynthesis.cancel();
@@ -324,5 +402,5 @@ const AdminVoiceAssistant = {
 
   setStatus(message) {
     this.elements.status.textContent = message;
-  }
+  },
 };
