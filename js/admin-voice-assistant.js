@@ -451,6 +451,64 @@
       return true;
     }
 
+    if (pending.type === "update_category_source") {
+      const sourceName = this.cleanEntityName(answer);
+      if (!sourceName) {
+        this.respond("Je n ai pas compris le nom de categorie. Redonne le nom exact.", true);
+        return true;
+      }
+      this.setPendingIntent(
+        { type: "update_category_fields", sourceName },
+        `D accord. Pour la categorie ${sourceName}, tu veux modifier quoi: titre, description ou icone ?`
+      );
+      return true;
+    }
+
+    if (pending.type === "update_category_fields") {
+      const sourceName = this.cleanEntityName(pending.sourceName || "");
+      if (!sourceName) {
+        this.clearPendingIntent();
+        this.respond("La demande a expire. Redonne la commande de modification de categorie.", true);
+        return true;
+      }
+
+      const textRaw = String(text || "").trim();
+      const newTitle =
+        this.cleanEntityName(this.extractLabeledValue(textRaw, ["titre", "nom", "nouveau", "new"])) ||
+        "";
+      const description = this.extractCategoryDescription(textRaw);
+      const icone = this.cleanFieldText(this.extractLabeledValue(textRaw, ["icone", "icon"]));
+
+      const payload = {
+        action: "update_category",
+        nom_categorie_source: sourceName,
+      };
+
+      let hasField = false;
+      if (newTitle) {
+        payload.nom_categorie = newTitle;
+        hasField = true;
+      }
+      if (description) {
+        payload.description = description;
+        hasField = true;
+      }
+      if (icone) {
+        payload.icone = icone;
+        hasField = true;
+      }
+
+      if (!hasField) {
+        this.respond("Dis par exemple: titre desserts, ou description plats sucres, ou icone fa-solid fa-cake-candles.", true);
+        return true;
+      }
+
+      await this.callAdminApi(payload);
+      this.clearPendingIntent();
+      this.respond(`Categorie modifiee: ${sourceName}.`, true);
+      return true;
+    }
+
     if (pending.type === "update_offer_target_title") {
       await this.callAdminApi({
         action: "update_offer",
@@ -493,6 +551,19 @@
       });
       this.clearPendingIntent();
       this.respond(`Offre modifiee: ${pending.sourceTitle}.`, true);
+      return true;
+    }
+
+    if (pending.type === "update_offer_source") {
+      const sourceTitle = this.cleanEntityName(answer);
+      if (!sourceTitle) {
+        this.respond("Je n ai pas compris le nom de l offre. Redonne le titre exact.", true);
+        return true;
+      }
+      this.setPendingIntent(
+        { type: "update_offer_fields", sourceTitle },
+        `D accord. Pour l offre ${sourceTitle}, tu veux modifier quoi: prix, categorie, statut, description ou titre ?`
+      );
       return true;
     }
 
@@ -822,9 +893,11 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: [
-            "Tu es l assistant vocal admin CareMeal (CRUD admin uniquement).",
-            "N ecris JAMAIS de reponse generaliste hors CareMeal.",
-            "Si la demande n est pas assez precise, demande uniquement la precision manquante en une phrase courte.",
+            "Tu es l assistant vocal admin CareMeal.",
+            "Reponds en francais, court et clair.",
+            "Si on te pose une question personnelle (ex: age, identite, ce que tu fais), reponds factuellement sans inventer.",
+            "Ne fabrique jamais d informations sur des donnees que tu n as pas.",
+            "Si la demande n est pas assez precise, demande UNE precision manquante, en une phrase courte.",
             "",
             "Demande admin: " + text,
           ].join("\n"),
@@ -910,13 +983,15 @@
       "Schema exact:",
       '{"action":"","target_name":"","target_email":"","source_name":"","new_name":"","title":"","source_title":"","description":"","categorie":"","prix":"","prix_original":"","quantite":"","statut":"","icone":""}',
       "Actions autorisees:",
-      "delete_user, block_user, unblock_user, get_counts, create_category, update_category, delete_category, create_offer, update_offer, delete_offer, unknown",
+      "delete_user, block_user, unblock_user, open_user_profile, get_counts, create_category, update_category, delete_category, create_offer, update_offer, delete_offer, unknown",
       "Regles:",
       "- Si info manquante, mets des champs vides et choisis quand meme la meilleure action.",
       "- Ne fabrique jamais d ids.",
       "- 'etablissement' est un synonyme de partenaire.",
+      "- 'consulter/voir/ouvrir profil utilisateur X' => action='open_user_profile' avec target_name ou target_email.",
       "- Si la demande contient seulement un nom (ex: 'glucides'), renvoie action='unknown' et mets ce nom dans target_name.",
       "- Pour update_offer: source_title = offre existante a modifier. new_name = nouveau titre seulement si renommage explicite.",
+      "- Pour update_category: si l utilisateur dit juste 'modifier categorie', mets action='update_category' et laisse source_name/new_name/description/icone vides.",
       "- Reponds uniquement le JSON.",
       "",
       "Demande admin:",
@@ -950,6 +1025,29 @@
 
     const targetName = this.cleanEntityName(cmd.target_name || "");
     const targetEmail = String(cmd.target_email || "").trim().toLowerCase();
+
+    if (action === "open_user_profile") {
+      const target =
+        targetEmail ? { type: "email", value: targetEmail } :
+          (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
+
+      if (!target) {
+        this.respond("Quel utilisateur veux-tu consulter ?", true);
+        return true;
+      }
+
+      const user = this.findUserLocal(target);
+      if (!user || !user.id) {
+        this.respond("Utilisateur introuvable.", true);
+        return true;
+      }
+
+      this.respond(`J ouvre la fiche de ${user.name}.`, false);
+      setTimeout(() => {
+        window.location.href = `user-detail.html?id=${encodeURIComponent(user.id)}`;
+      }, 250);
+      return true;
+    }
 
     if (action === "delete_user") {
       if (!targetEmail && this.isWeakIdentityTarget(targetName)) {
@@ -1038,11 +1136,14 @@
       const description = this.cleanFieldText(cmd.description || "");
       const icone = this.cleanFieldText(cmd.icone || "");
       if (!source) {
-        this.respond("Quelle categorie veux-tu modifier ?", true);
+        this.setPendingIntent({ type: "update_category_source" }, "Quelle categorie veux-tu modifier ?");
         return true;
       }
       if (!target && !description && !icone) {
-        this.setPendingIntent({ type: "update_category_target_name", sourceName: source }, `Quel nouveau nom pour la categorie ${source} ?`);
+        this.setPendingIntent(
+          { type: "update_category_fields", sourceName: source },
+          `Pour la categorie ${source}, tu veux modifier quoi: titre, description ou icone ?`
+        );
         return true;
       }
       await this.callAdminApi({
@@ -1093,7 +1194,7 @@
     if (action === "update_offer") {
       const source = this.cleanEntityName(cmd.source_title || cmd.source_name || cmd.target_name || "");
       if (!source) {
-        this.respond("Quelle offre veux-tu modifier ?", true);
+        this.setPendingIntent({ type: "update_offer_source" }, "Quelle offre veux-tu modifier ?");
         return true;
       }
       const payload = {
