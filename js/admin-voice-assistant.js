@@ -291,6 +291,11 @@ const AdminVoiceAssistant = {
       return;
     }
 
+    // If user starts a clearly new request, do not stay trapped in previous pending flow.
+    if (this.state.pendingIntent && this.isNewIntentCommand(text)) {
+      this.clearPendingIntent();
+    }
+
     // 1) If assistant is waiting for details, continue conversation first.
     if (this.state.pendingIntent) {
       try {
@@ -368,7 +373,8 @@ const AdminVoiceAssistant = {
       const target = this.parseIdentityFromText(text) || { type: "name", value: answer };
       const user = this.findUserLocal(target);
       if (!user) {
-        this.respond("Utilisateur introuvable. Redonne nom ou email.", true);
+        this.clearPendingIntent();
+        this.respond("Utilisateur introuvable. J annule cette action. Redonne une nouvelle demande complete.", true);
         return true;
       }
       this.updateUserStatusLocal(user.id, "banned", `Utilisateur banni: ${user.name}`);
@@ -381,7 +387,8 @@ const AdminVoiceAssistant = {
       const target = this.parseIdentityFromText(text) || { type: "name", value: answer };
       const user = this.findUserLocal(target);
       if (!user) {
-        this.respond("Utilisateur introuvable. Redonne nom ou email.", true);
+        this.clearPendingIntent();
+        this.respond("Utilisateur introuvable. J annule cette action. Redonne une nouvelle demande complete.", true);
         return true;
       }
       this.updateUserStatusLocal(user.id, "active", `Utilisateur reactive: ${user.name}`);
@@ -423,6 +430,11 @@ const AdminVoiceAssistant = {
   isConversationFiller(text) {
     const n = this.normalize(text);
     return /^(salut|bonjour|bonsoir|hello|hi|ok|d accord|merci|ca va|oui|non)$/.test(n.trim());
+  },
+
+  isNewIntentCommand(text) {
+    const n = this.normalize(text);
+    return /(comment tu t|qui es tu|aide|help|ouvre|ouvrir|va |affiche|montre|combien|supprime|modifier|modifie|ajoute|cree|bloque|debloque|annule|reset|logout|deconnexion|rafraich)/.test(n);
   },
 
   executeLocalCommand(text) {
