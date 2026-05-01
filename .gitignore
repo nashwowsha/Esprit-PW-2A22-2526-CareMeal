@@ -1,0 +1,16 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# IDE
+.vscode/
+.idea/
