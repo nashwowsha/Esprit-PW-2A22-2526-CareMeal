@@ -355,6 +355,25 @@
     const answer = this.cleanEntityName(this.extractQuoted(text) || text);
     if (!answer) return false;
 
+    if (pending.type === "create_offer_title") {
+      const title = this.sanitizeOfferTitle(answer);
+      if (!this.isMeaningfulOfferTitle(title)) {
+        this.respond("Je n ai pas compris le titre. Dis juste le nom de l offre, par exemple: pizza margherita.", true);
+        return true;
+      }
+
+      const basePayload = pending.payload && typeof pending.payload === "object" ? pending.payload : {};
+      const created = await this.callAdminApi({
+        action: "create_offer",
+        ...basePayload,
+        titre: title,
+        statut: "publiee",
+      });
+      this.clearPendingIntent();
+      this.respond(`Offre creee: ${created.titre}.`, true);
+      return true;
+    }
+
     if (pending.type === "delete_category") {
       await this.callAdminApi({ action: "delete_category", nom_categorie: answer });
       this.clearPendingIntent();
@@ -610,8 +629,13 @@
 
     if (actionCreate && isOffer) {
       const payload = this.extractOfferPayload(text);
-      if (!payload.titre) {
-        this.respond("Donne au moins un titre, exemple: ajoute une offre salade cesar.", true);
+      if (!this.isMeaningfulOfferTitle(payload.titre)) {
+        const pendingPayload = { ...payload };
+        delete pendingPayload.titre;
+        this.setPendingIntent(
+          { type: "create_offer_title", payload: pendingPayload },
+          "D accord. Quel titre pour la nouvelle offre ?"
+        );
         return true;
       }
       const created = await this.callAdminApi({ action: "create_offer", ...payload, statut: "publiee" });
@@ -751,7 +775,7 @@
   extractOfferPayload(text) {
     const inferredTitle = this.inferOfferTitle(text);
     return {
-      titre: this.extractLabeledValue(text, ["titre"]) || inferredTitle,
+      titre: this.sanitizeOfferTitle(this.extractLabeledValue(text, ["titre"]) || inferredTitle),
       description: this.extractLabeledValue(text, ["description", "desc"]),
       prix: this.extractLabeledValue(text, ["prix"]),
       prix_original: this.extractLabeledValue(text, ["prix_original", "prix original", "original"]),
@@ -768,17 +792,52 @@
 
   inferOfferTitle(text) {
     const quoted = this.extractQuoted(text);
-    if (quoted) return this.cleanEntityName(quoted);
+    if (quoted) {
+      const directTitle = this.sanitizeOfferTitle(quoted);
+      return this.isMeaningfulOfferTitle(directTitle) ? directTitle : "";
+    }
 
     const cleaned = (text || "")
+      .replace(/\b(je veux|j veux|je voudrais|j voudrais|je souhaite|j souhaite)\b/gi, " ")
       .replace(/\b(ajoute|ajouter|cree|creer|nouvelle|nouveau)\b/gi, " ")
       .replace(/\b(une|un|la|le|les|des|du|de)\b/gi, " ")
       .replace(/\boffre(s)?\b/gi, " ")
+      .replace(/\b(nomme|nomme[e]?|appele|appel[eé]e|intitule|intitul[eé]e)\b/gi, " ")
       .replace(/\b(avec|prix|prix_original|prix original|quantite|categorie|category|description|desc)\b[\s:=].*$/i, " ")
       .replace(/[;,]/g, " ")
       .trim();
 
-    return this.cleanEntityName(cleaned);
+    const title = this.sanitizeOfferTitle(cleaned);
+    return this.isMeaningfulOfferTitle(title) ? title : "";
+  },
+
+  sanitizeOfferTitle(value) {
+    return (value || "")
+      .trim()
+      .replace(/^[\s,;:.!?=+\-_/\\]+/, "")
+      .replace(/[\s,;:.!?=+\-_/\\]+$/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  },
+
+  isMeaningfulOfferTitle(value) {
+    const title = this.sanitizeOfferTitle(value);
+    if (!title || title.length < 3) return false;
+
+    const normalized = this.normalize(title);
+    if (/^(je|j)$/.test(normalized)) return false;
+    if (/^(je|j)\s+(veux|voudrais|souhaite)$/.test(normalized)) return false;
+    if (/^(ajoute|ajouter|cree|creer|offre|nouveau|nouvelle)$/.test(normalized)) return false;
+    if (/^(une|un)\s+offre$/.test(normalized)) return false;
+    if (/^(titre|nom|nomme|nommee)$/.test(normalized)) return false;
+
+    const weakTokens = new Set([
+      "je", "j", "veux", "voudrais", "souhaite", "ajoute", "ajouter", "cree", "creer",
+      "offre", "un", "une", "le", "la", "les", "de", "des", "du", "stp", "svp", "merci"
+    ]);
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    const strongTokens = tokens.filter((t) => !weakTokens.has(t));
+    return strongTokens.length > 0;
   },
 
   extractCategoryFromNaturalText(text) {
