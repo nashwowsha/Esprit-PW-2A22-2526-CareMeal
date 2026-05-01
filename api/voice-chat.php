@@ -22,9 +22,8 @@ if ($text === '') {
     exit;
 }
 
-$apiKey = AIConfig::geminiApiKey();
-$model = Env::get('GEMINI_MODEL', 'gemini-2.0-flash');
-$url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey);
+$apiKeys = AIConfig::geminiApiKeys();
+$model = Env::get('GEMINI_MODEL', 'gemini-2.5-flash-lite');
 
 $payload = [
     'contents' => [
@@ -41,45 +40,69 @@ $payload = [
     ],
 ];
 
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-    CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-    CURLOPT_TIMEOUT => 30,
-]);
+$quotaRetryAfterMax = null;
+$quotaFailures = 0;
+$authFailures = 0;
 
-$response = curl_exec($ch);
-$curlErr = curl_error($ch);
-$httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+foreach ($apiKeys as $apiKey) {
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey);
 
-if ($response === false) {
-    http_response_code(502);
-    echo json_encode(['error' => 'Gemini request failed', 'details' => $curlErr]);
-    exit;
-}
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_TIMEOUT => 30,
+    ]);
 
-$json = json_decode($response, true);
+    $response = curl_exec($ch);
+    $curlErr = curl_error($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
 
-if ($httpCode >= 400) {
+    if ($response === false) {
+        http_response_code(502);
+        echo json_encode(['error' => 'Gemini request failed', 'details' => $curlErr]);
+        exit;
+    }
+
+    $json = json_decode($response, true);
+
+    if ($httpCode < 400) {
+        $reply = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        if (trim((string)$reply) !== '') {
+            echo json_encode(['reply' => $reply], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        continue;
+    }
+
     $errMsg = (string)($json['error']['message'] ?? 'Gemini error');
     $errLower = strtolower($errMsg);
 
-    if ($httpCode === 429 || str_contains($errLower, 'quota') || str_contains($errLower, 'rate limit')) {
-        $retryAfter = null;
+    $isQuota = $httpCode === 429 || str_contains($errLower, 'quota') || str_contains($errLower, 'rate limit');
+    if ($isQuota) {
+        $quotaFailures++;
         if (preg_match('/retry in\s+([0-9.]+)s/i', $errMsg, $m) === 1) {
             $retryAfter = (int)ceil((float)$m[1]);
+            if ($quotaRetryAfterMax === null || $retryAfter > $quotaRetryAfterMax) {
+                $quotaRetryAfterMax = $retryAfter;
+            }
         }
+        continue;
+    }
 
-        http_response_code(429);
-        echo json_encode([
-            'error' => 'Quota Gemini dépassé pour le moment.',
-            'code' => 'quota_exceeded',
-            'retry_after_seconds' => $retryAfter,
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
+    $isAuth =
+        $httpCode === 401 ||
+        $httpCode === 403 ||
+        str_contains($errLower, 'api key not valid') ||
+        str_contains($errLower, 'invalid api key') ||
+        str_contains($errLower, 'permission denied');
+
+    if ($isAuth) {
+        $authFailures++;
+        continue;
     }
 
     http_response_code($httpCode);
@@ -90,13 +113,27 @@ if ($httpCode >= 400) {
     exit;
 }
 
-$reply = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
-if (trim((string)$reply) === '') {
-    http_response_code(502);
-    echo json_encode(['error' => 'Empty response from Gemini']);
+if ($quotaFailures > 0) {
+    http_response_code(429);
+    echo json_encode([
+        'error' => 'Quota Gemini dépassé pour toutes les clés disponibles.',
+        'code' => 'quota_exceeded',
+        'retry_after_seconds' => $quotaRetryAfterMax,
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
+if ($authFailures > 0) {
+    http_response_code(401);
+    echo json_encode([
+        'error' => 'Toutes les clés Gemini sont invalides ou non autorisées.',
+        'code' => 'all_keys_invalid',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+http_response_code(502);
 echo json_encode([
-    'reply' => $reply,
+    'error' => 'Aucune clé Gemini n a pu produire une réponse.',
+    'code' => 'no_response',
 ], JSON_UNESCAPED_UNICODE);
