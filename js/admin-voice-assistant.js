@@ -4,13 +4,54 @@ const AdminVoiceAssistant = {
   isRequestInFlight: false,
   isInitialized: false,
   elements: {},
+  stateKey: "caremeal_admin_assistant_state_v2",
+  state: {
+    open: false,
+    pendingIntent: null,
+    lastHeard: "",
+    lastReply: "",
+  },
 
   init() {
     if (this.isInitialized) return;
     this.isInitialized = true;
+    this.loadState();
     this.injectUI();
     this.bindUI();
     this.initSpeechRecognition();
+    this.restoreUIState();
+  },
+
+  loadState() {
+    try {
+      const raw = localStorage.getItem(this.stateKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        this.state = { ...this.state, ...parsed };
+      }
+    } catch (_e) {}
+  },
+
+  saveState() {
+    try {
+      localStorage.setItem(this.stateKey, JSON.stringify(this.state));
+    } catch (_e) {}
+  },
+
+  restoreUIState() {
+    if (this.state.open) {
+      this.elements.panel.classList.remove("hidden");
+    }
+    if (this.state.lastHeard) {
+      this.elements.heard.textContent = this.state.lastHeard;
+    }
+    if (this.state.lastReply) {
+      this.elements.reply.textContent = this.state.lastReply;
+    }
+    if (this.state.pendingIntent) {
+      this.setStatus("En attente de precision...");
+    }
   },
 
   injectUI() {
@@ -39,7 +80,7 @@ const AdminVoiceAssistant = {
         position: fixed;
         right: 24px;
         bottom: 92px;
-        width: min(420px, calc(100vw - 24px));
+        width: min(440px, calc(100vw - 24px));
         background: #0f1e34;
         border: 1px solid rgba(255, 255, 255, 0.14);
         border-radius: 16px;
@@ -119,7 +160,7 @@ const AdminVoiceAssistant = {
         <div class="voice-assistant-text" data-role="reply">...</div>
       </div>
       <div class="voice-assistant-input-row">
-        <input class="voice-assistant-input" type="text" data-role="text-input" placeholder="Ecris une demande admin">
+        <input class="voice-assistant-input" type="text" data-role="text-input" placeholder="Dis ou ecris une demande">
         <button class="voice-assistant-send" type="button" data-role="send-btn">Envoyer</button>
       </div>
     `;
@@ -146,12 +187,20 @@ const AdminVoiceAssistant = {
   },
 
   bindUI() {
-    this.elements.closeBtn.addEventListener("click", () => this.elements.panel.classList.add("hidden"));
+    this.elements.closeBtn.addEventListener("click", () => {
+      this.state.open = false;
+      this.saveState();
+      this.elements.panel.classList.add("hidden");
+    });
+
     this.elements.fab.addEventListener("click", () => {
+      this.state.open = true;
+      this.saveState();
       this.elements.panel.classList.remove("hidden");
       if (this.listening) this.stopListening();
       else this.startListening();
     });
+
     this.elements.sendBtn.addEventListener("click", () => this.handleTypedPrompt());
     this.elements.textInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -159,6 +208,8 @@ const AdminVoiceAssistant = {
         this.handleTypedPrompt();
       }
     });
+
+    window.addEventListener("beforeunload", () => this.saveState());
   },
 
   initSpeechRecognition() {
@@ -177,6 +228,8 @@ const AdminVoiceAssistant = {
     this.recognition.onresult = async (event) => {
       const text = event.results?.[0]?.[0]?.transcript?.trim() || "";
       this.elements.heard.textContent = text || "(aucun texte)";
+      this.state.lastHeard = text;
+      this.saveState();
       if (!text) {
         this.setStatus("Aucun texte reconnu.");
         return;
@@ -185,8 +238,7 @@ const AdminVoiceAssistant = {
     };
 
     this.recognition.onerror = (event) => {
-      const err = event.error || "inconnue";
-      this.setStatus("Erreur micro: " + err);
+      this.setStatus("Erreur micro: " + (event.error || "inconnue"));
     };
 
     this.recognition.onend = () => {
@@ -198,19 +250,16 @@ const AdminVoiceAssistant = {
 
   async startListening() {
     if (!this.recognition) return;
-    this.elements.reply.textContent = "...";
     this.setStatus("Verification micro...");
-
     try {
       if (navigator.mediaDevices?.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((t) => t.stop());
       }
-    } catch (_error) {
+    } catch (_e) {
       this.setStatus("Micro bloque. Autorise le micro.");
       return;
     }
-
     this.listening = true;
     this.elements.fab.classList.add("listening");
     this.elements.fab.innerHTML = '<i class="fa-solid fa-stop"></i>';
@@ -225,21 +274,116 @@ const AdminVoiceAssistant = {
   async handleTypedPrompt() {
     const text = (this.elements.textInput.value || "").trim();
     if (!text) return;
+    this.state.open = true;
     this.elements.panel.classList.remove("hidden");
     this.elements.heard.textContent = text;
+    this.state.lastHeard = text;
+    this.saveState();
     this.elements.textInput.value = "";
     await this.handlePrompt(text);
   },
 
   async handlePrompt(text) {
-    const dataAction = await this.handleDataCommand(text);
-    if (dataAction) return;
+    // 1) If assistant is waiting for details, continue conversation first.
+    if (this.state.pendingIntent) {
+      const handledPending = await this.handlePendingIntent(text);
+      if (handledPending) return;
+    }
 
-    const localAction = this.executeLocalCommand(text);
-    if (localAction) return;
+    // 2) deterministic admin actions
+    const dataHandled = await this.handleDataCommand(text);
+    if (dataHandled) return;
 
+    // 3) local navigation/actions
+    const localHandled = this.executeLocalCommand(text);
+    if (localHandled) return;
+
+    // 4) fallback LLM
     this.setStatus("Analyse IA...");
     await this.askGemini(text);
+  },
+
+  setPendingIntent(intent, askMessage) {
+    this.state.pendingIntent = intent;
+    this.saveState();
+    this.respond(askMessage, true);
+  },
+
+  clearPendingIntent() {
+    this.state.pendingIntent = null;
+    this.saveState();
+  },
+
+  async handlePendingIntent(text) {
+    const pending = this.state.pendingIntent;
+    if (!pending) return false;
+
+    const answer = this.cleanEntityName(this.extractQuoted(text) || text);
+    if (!answer) return false;
+
+    if (pending.type === "delete_category") {
+      await this.callAdminApi({ action: "delete_category", nom_categorie: answer });
+      this.clearPendingIntent();
+      this.respond(`Categorie supprimee: ${answer}.`, true);
+      return true;
+    }
+
+    if (pending.type === "delete_offer") {
+      await this.callAdminApi({ action: "delete_offer", titre: answer });
+      this.clearPendingIntent();
+      this.respond(`Offre supprimee: ${answer}.`, true);
+      return true;
+    }
+
+    if (pending.type === "block_user") {
+      const target = this.parseIdentityFromText(text) || { type: "name", value: answer };
+      const user = this.findUserLocal(target);
+      if (!user) {
+        this.respond("Utilisateur introuvable. Redonne nom ou email.", true);
+        return true;
+      }
+      this.updateUserStatusLocal(user.id, "banned", `Utilisateur banni: ${user.name}`);
+      this.clearPendingIntent();
+      this.respond(`${user.name} est maintenant bloque.`, true);
+      return true;
+    }
+
+    if (pending.type === "unblock_user") {
+      const target = this.parseIdentityFromText(text) || { type: "name", value: answer };
+      const user = this.findUserLocal(target);
+      if (!user) {
+        this.respond("Utilisateur introuvable. Redonne nom ou email.", true);
+        return true;
+      }
+      this.updateUserStatusLocal(user.id, "active", `Utilisateur reactive: ${user.name}`);
+      this.clearPendingIntent();
+      this.respond(`${user.name} est maintenant actif.`, true);
+      return true;
+    }
+
+    if (pending.type === "update_category_target_name") {
+      await this.callAdminApi({
+        action: "update_category",
+        nom_categorie_source: pending.sourceName,
+        nom_categorie: answer,
+      });
+      this.clearPendingIntent();
+      this.respond(`Categorie modifiee: ${pending.sourceName} -> ${answer}.`, true);
+      return true;
+    }
+
+    if (pending.type === "update_offer_target_title") {
+      await this.callAdminApi({
+        action: "update_offer",
+        titre_source: pending.sourceTitle,
+        titre: answer,
+      });
+      this.clearPendingIntent();
+      this.respond(`Offre modifiee: ${pending.sourceTitle} -> ${answer}.`, true);
+      return true;
+    }
+
+    return false;
   },
 
   executeLocalCommand(text) {
@@ -254,7 +398,7 @@ const AdminVoiceAssistant = {
       return true;
     }
     if (/(que peux tu faire|tu peux faire quoi|aide|help)/.test(normalized)) {
-      this.respond("Je peux naviguer, compter, creer, modifier, supprimer offres/categories, et gerer utilisateurs/partenaires.", true);
+      this.respond("Je peux naviguer, compter, creer, modifier, supprimer, bloquer, debloquer sur l espace admin.", true);
       return true;
     }
 
@@ -272,10 +416,12 @@ const AdminVoiceAssistant = {
     if (wantsOpen || /(page|onglet|section)/.test(normalized) || normalized.split(/\s+/).length <= 2) {
       for (const cmd of navCommands) {
         if (cmd.words.some((word) => normalized.includes(word))) {
+          this.state.open = true;
+          this.saveState();
           this.respond(cmd.message, false);
           setTimeout(() => {
             window.location.href = cmd.url;
-          }, 350);
+          }, 300);
           return true;
         }
       }
@@ -283,7 +429,7 @@ const AdminVoiceAssistant = {
 
     if (/(rafraichis|rafraichir|actualise|actualiser|recharge|recharger)/.test(normalized)) {
       this.respond("Je rafraichis la page.", false);
-      setTimeout(() => window.location.reload(), 350);
+      setTimeout(() => window.location.reload(), 300);
       return true;
     }
 
@@ -292,7 +438,7 @@ const AdminVoiceAssistant = {
       setTimeout(() => {
         const btn = document.querySelector("[data-action='logout']");
         if (btn) btn.click();
-      }, 350);
+      }, 300);
       return true;
     }
 
@@ -301,38 +447,39 @@ const AdminVoiceAssistant = {
 
   async handleDataCommand(text) {
     const normalized = this.normalize(text);
+    const actionDelete = /(supprime|supprimer|efface|retire|delete)/.test(normalized);
+    const actionUpdate = /(modifie|modifier|update|edite|editer|renomme|renommer)/.test(normalized);
+    const actionCreate = /(ajoute|ajouter|cree|creer|nouvelle|nouveau)/.test(normalized);
 
-    // Deterministic local stats for users/partners from App local storage.
-    if (/(combien|nombre|total)/.test(normalized) && /(utilisateur|utilisateurs)/.test(normalized)) {
-      const stats = this.getUserStatsLocal();
-      this.respond(`Il y a ${stats.totalUsers} utilisateurs hors admin.`, true);
+    const asksCount = /(combien|nombre|total)/.test(normalized);
+    const isCategory = /(categorie|categories)/.test(normalized);
+    const isOffer = /(offre|offres)/.test(normalized);
+    const isUserOrPartner = /(utilisateur|utilisateurs|partenaire|partenaires)/.test(normalized);
+
+    if (asksCount && /utilisateur/.test(normalized)) {
+      const s = this.getUserStatsLocal();
+      this.respond(`Il y a ${s.totalUsers} utilisateurs hors admin.`, true);
       return true;
     }
 
-    if (/(combien|nombre|total)/.test(normalized) && /(partenaire|partenaires)/.test(normalized)) {
-      const stats = this.getUserStatsLocal();
-      this.respond(`Il y a ${stats.totalPartners} partenaires. Actifs: ${stats.activePartners}, en attente: ${stats.pendingPartners}.`, true);
+    if (asksCount && /partenaire/.test(normalized)) {
+      const s = this.getUserStatsLocal();
+      this.respond(`Il y a ${s.totalPartners} partenaires. Actifs: ${s.activePartners}, en attente: ${s.pendingPartners}.`, true);
       return true;
     }
 
-    if (/(liste|voir|montre)/.test(normalized) && /(partenaire|partenaires)/.test(normalized)) {
-      const users = this.safeGetUsers().filter((u) => u.role === "partner");
-      const names = users.slice(0, 5).map((u) => u.name).join(", ");
-      this.respond(users.length > 0 ? `Partenaires (${users.length}): ${names}` : "Aucun partenaire.", true);
+    if (asksCount && (isCategory || isOffer)) {
+      const db = await this.callAdminApi({ action: "get_counts" });
+      if (isCategory && isOffer) this.respond(`Il y a ${db.offers_count} offres et ${db.categories_count} categories.`, true);
+      else if (isOffer) this.respond(`Il y a ${db.offers_count} offres.`, true);
+      else this.respond(`Il y a ${db.categories_count} categories.`, true);
       return true;
     }
 
-    if (/(liste|voir|montre)/.test(normalized) && /(utilisateur|utilisateurs)/.test(normalized)) {
-      const users = this.safeGetUsers().filter((u) => u.role !== "admin");
-      const names = users.slice(0, 5).map((u) => u.name).join(", ");
-      this.respond(users.length > 0 ? `Utilisateurs (${users.length}): ${names}` : "Aucun utilisateur.", true);
-      return true;
-    }
-
-    if (/(bloque|bloquer|ban|bannir)/.test(normalized) && /(utilisateur|partenaire)/.test(normalized)) {
-      const target = this.extractTargetIdentity(text);
+    if (/(bloque|bloquer|ban|bannir)/.test(normalized) && isUserOrPartner) {
+      const target = this.parseIdentityFromText(text);
       if (!target) {
-        this.respond("Utilise: bloque utilisateur email=nom@mail.com ou bloque partenaire nom=Nom Etablissement.", true);
+        this.setPendingIntent({ type: "block_user" }, "D accord. Quel utilisateur/partenaire veux-tu bloquer ?");
         return true;
       }
       const user = this.findUserLocal(target);
@@ -345,10 +492,10 @@ const AdminVoiceAssistant = {
       return true;
     }
 
-    if (/(debloque|debloquer|reactive|reactiver|unban)/.test(normalized) && /(utilisateur|partenaire)/.test(normalized)) {
-      const target = this.extractTargetIdentity(text);
+    if (/(debloque|debloquer|reactive|reactiver|unban)/.test(normalized) && isUserOrPartner) {
+      const target = this.parseIdentityFromText(text);
       if (!target) {
-        this.respond("Utilise: debloque utilisateur email=nom@mail.com ou debloque partenaire nom=Nom Etablissement.", true);
+        this.setPendingIntent({ type: "unblock_user" }, "D accord. Quel utilisateur/partenaire veux-tu debloquer ?");
         return true;
       }
       const user = this.findUserLocal(target);
@@ -361,77 +508,59 @@ const AdminVoiceAssistant = {
       return true;
     }
 
-    const asksCount = /(combien|nombre|total)/.test(normalized);
-    const mentionsOffers = /(offre|offres)/.test(normalized);
-    const mentionsCategories = /(categorie|categories)/.test(normalized);
-
-    if (asksCount && (mentionsOffers || mentionsCategories)) {
-      this.setStatus("Lecture DB reelle...");
-      const stats = await this.callAdminApi({ action: "get_counts" });
-      if (mentionsOffers && mentionsCategories) {
-        this.respond(`Il y a ${stats.offers_count} offres et ${stats.categories_count} categories en base.`, true);
-      } else if (mentionsOffers) {
-        this.respond(`Il y a ${stats.offers_count} offres en base.`, true);
-      } else {
-        this.respond(`Il y a ${stats.categories_count} categories en base.`, true);
-      }
-      return true;
-    }
-
-    if (/(ajoute|ajouter|cree|creer|nouvelle|nouveau)/.test(normalized) && mentionsCategories) {
+    if (actionCreate && isCategory) {
       const name = this.extractCategoryName(text);
       if (!name || name.length < 2) {
-        this.respond('Format: ajoute categorie "Desserts" ou ajoute categorie nom=Desserts; description=...; icone=fa-tag', true);
+        this.respond('Donne juste le nom, exemple: "ajoute categorie desserts".', true);
         return true;
       }
-      const description = this.extractLabeledValue(text, ["description", "desc"]);
-      const icon = this.extractLabeledValue(text, ["icone", "icon"]);
       const created = await this.callAdminApi({
         action: "create_category",
         nom_categorie: name,
-        description: description || "",
-        icone: icon || "",
+        description: this.extractLabeledValue(text, ["description", "desc"]) || "",
+        icone: this.extractLabeledValue(text, ["icone", "icon"]) || "",
       });
       this.respond(`Categorie creee: ${created.nom_categorie}.`, true);
       return true;
     }
 
-    if (/(modifie|modifier|update|renomme|renommer)/.test(normalized) && mentionsCategories) {
-      const source = this.extractLabeledValue(text, ["source", "ancien", "old", "nom_source"]) || this.extractCategoryName(text);
-      const target = this.extractLabeledValue(text, ["nom", "nouveau", "new"]);
-      if (!source || !target) {
-        this.respond("Format: modifie categorie source=Snacks; nom=Snacking; description=...; icone=fa-tag", true);
+    if (actionDelete && isCategory) {
+      const name = this.extractCategoryName(text);
+      if (!name) {
+        this.setPendingIntent({ type: "delete_category" }, "D accord. Quelle categorie veux-tu supprimer ?");
         return true;
       }
+      await this.callAdminApi({ action: "delete_category", nom_categorie: name });
+      this.respond(`Categorie supprimee: ${name}.`, true);
+      return true;
+    }
+
+    if (actionUpdate && isCategory) {
+      const source = this.extractLabeledValue(text, ["source", "ancien", "old"]) || this.extractCategoryName(text);
+      const target = this.extractLabeledValue(text, ["nom", "nouveau", "new"]);
+
+      if (!source) {
+        this.respond("Quelle categorie veux-tu modifier ?", true);
+        return true;
+      }
+      if (!target) {
+        this.setPendingIntent({ type: "update_category_target_name", sourceName: source }, `D accord. Quel nouveau nom pour la categorie ${source} ?`);
+        return true;
+      }
+
       await this.callAdminApi({
         action: "update_category",
         nom_categorie_source: source,
         nom_categorie: target,
-        description: this.extractLabeledValue(text, ["description", "desc"]) || "",
-        icone: this.extractLabeledValue(text, ["icone", "icon"]) || "",
       });
       this.respond(`Categorie modifiee: ${source} -> ${target}.`, true);
       return true;
     }
 
-    if (/(supprime|supprimer|delete|efface|retire)/.test(normalized) && mentionsCategories) {
-      const name = this.extractLabeledValue(text, ["nom", "categorie"]) || this.extractCategoryName(text);
-      if (!name) {
-        this.respond("Format: supprime categorie nom=Desserts", true);
-        return true;
-      }
-      await this.callAdminApi({
-        action: "delete_category",
-        nom_categorie: name,
-      });
-      this.respond(`Categorie supprimee: ${name}.`, true);
-      return true;
-    }
-
-    if (/(ajoute|ajouter|cree|creer|nouvelle|nouveau)/.test(normalized) && mentionsOffers) {
+    if (actionCreate && isOffer) {
       const payload = this.extractOfferPayload(text);
       if (!payload.titre || !payload.prix || !payload.prix_original || !payload.quantite || !payload.nom_categorie) {
-        this.respond("Format: ajoute offre titre=Salade; prix=8; prix_original=12; quantite=20; categorie=Desserts; description=Fraiche.", true);
+        this.respond("Pour creer une offre: titre=...; prix=...; prix_original=...; quantite=...; categorie=...", true);
         return true;
       }
       const created = await this.callAdminApi({ action: "create_offer", ...payload, statut: "publiee" });
@@ -439,30 +568,37 @@ const AdminVoiceAssistant = {
       return true;
     }
 
-    if (/(modifie|modifier|update|edite|editer)/.test(normalized) && mentionsOffers) {
-      const source = this.extractLabeledValue(text, ["source", "ancien", "old", "titre_source"]);
-      if (!source) {
-        this.respond("Format: modifie offre source=Salade; titre=Salade XL; prix=9; prix_original=13; quantite=25; categorie=Desserts", true);
-        return true;
-      }
-      const payload = this.extractOfferPayload(text);
-      await this.callAdminApi({
-        action: "update_offer",
-        titre_source: source,
-        ...payload,
-      });
-      this.respond(`Offre modifiee: ${source}.`, true);
-      return true;
-    }
-
-    if (/(supprime|supprimer|delete|efface|retire)/.test(normalized) && mentionsOffers) {
-      const title = this.extractLabeledValue(text, ["titre", "offre", "nom"]);
+    if (actionDelete && isOffer) {
+      const title = this.extractOfferTitle(text);
       if (!title) {
-        this.respond("Format: supprime offre titre=Salade", true);
+        this.setPendingIntent({ type: "delete_offer" }, "D accord. Quelle offre veux-tu supprimer ?");
         return true;
       }
       await this.callAdminApi({ action: "delete_offer", titre: title });
       this.respond(`Offre supprimee: ${title}.`, true);
+      return true;
+    }
+
+    if (actionUpdate && isOffer) {
+      const source = this.extractLabeledValue(text, ["source", "ancien", "old"]) || this.extractOfferTitle(text);
+      if (!source) {
+        this.respond("Quelle offre veux-tu modifier ?", true);
+        return true;
+      }
+
+      const payload = this.extractOfferPayload(text);
+      const hasAnyField =
+        payload.titre || payload.description || payload.prix || payload.prix_original ||
+        payload.quantite || payload.nom_categorie || payload.heure_debut || payload.heure_fin ||
+        payload.photo_url || payload.statut;
+
+      if (!hasAnyField) {
+        this.setPendingIntent({ type: "update_offer_target_title", sourceTitle: source }, `D accord. Quel nouveau titre pour l offre ${source} ?`);
+        return true;
+      }
+
+      await this.callAdminApi({ action: "update_offer", titre_source: source, ...payload });
+      this.respond(`Offre modifiee: ${source}.`, true);
       return true;
     }
 
@@ -474,7 +610,6 @@ const AdminVoiceAssistant = {
       this.setStatus("Une requete est deja en cours...");
       return;
     }
-
     this.isRequestInFlight = true;
     try {
       const response = await fetch(this.buildApiUrl(), {
@@ -483,8 +618,7 @@ const AdminVoiceAssistant = {
         body: JSON.stringify({
           text: [
             "Tu es l assistant vocal de l administrateur CareMeal.",
-            "Reponds en francais, court et concret.",
-            "Ne devine jamais des chiffres.",
+            "Reponds en francais et ne devine jamais des chiffres.",
             "Si tu ne sais pas, dis que tu ne sais pas.",
             "",
             "Demande admin: " + text,
@@ -500,33 +634,67 @@ const AdminVoiceAssistant = {
         error.meta = data.meta || null;
         throw error;
       }
-
-      const reply = (data.reply || "").trim() || "Je n ai pas de reponse.";
-      this.respond(reply, true);
+      this.respond((data.reply || "").trim() || "Je n ai pas de reponse.", true);
     } catch (error) {
       if (error.code === "quota_exceeded") {
         const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
         const attemptsPart = error.meta?.attempts ? ` Tentatives: ${error.meta.attempts}.` : "";
         this.setStatus("Quota Gemini depasse.");
-        this.elements.reply.textContent = "Le quota Gemini est depasse." + waitPart + attemptsPart;
+        this.respond("Le quota Gemini est depasse." + waitPart + attemptsPart, false);
       } else {
         this.setStatus("Erreur assistant.");
-        this.elements.reply.textContent = "Erreur: " + (error.message || "inconnue");
+        this.respond("Erreur: " + (error.message || "inconnue"), false);
       }
     } finally {
       this.isRequestInFlight = false;
     }
   },
 
-  normalize(text) {
-    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  parseIdentityFromText(text) {
+    const email = this.extractLabeledValue(text, ["email", "mail"]);
+    if (email) return { type: "email", value: email.toLowerCase() };
+    const name = this.extractLabeledValue(text, ["nom", "name", "utilisateur", "partenaire"]);
+    if (name) return { type: "name", value: name.toLowerCase() };
+
+    const q = this.extractQuoted(text);
+    if (q) return { type: "name", value: q.toLowerCase() };
+    return null;
+  },
+
+  extractQuoted(text) {
+    const m = text.match(/["“](.+?)["”]/);
+    return m ? m[1].trim() : "";
   },
 
   extractCategoryName(text) {
-    const quoted = text.match(/["“](.+?)["”]/);
-    if (quoted) return quoted[1].trim();
-    const named = this.extractLabeledValue(text, ["nom", "categorie", "category"]);
-    return named || "";
+    const quoted = this.extractQuoted(text);
+    if (quoted) return this.cleanEntityName(quoted);
+    const labeled = this.extractLabeledValue(text, ["nom", "categorie", "category"]);
+    if (labeled) return this.cleanEntityName(labeled);
+
+    const m = text.match(/cat[eé]gorie\s+(.+)$/i);
+    if (m && m[1]) return this.cleanEntityName(m[1]);
+    return "";
+  },
+
+  extractOfferTitle(text) {
+    const quoted = this.extractQuoted(text);
+    if (quoted) return this.cleanEntityName(quoted);
+    const labeled = this.extractLabeledValue(text, ["titre", "offre", "nom"]);
+    if (labeled) return this.cleanEntityName(labeled);
+
+    const m = text.match(/offre\s+(.+)$/i);
+    if (m && m[1]) return this.cleanEntityName(m[1]);
+    return "";
+  },
+
+  cleanEntityName(value) {
+    return (value || "")
+      .trim()
+      .replace(/^[\s,:;=-]+/, "")
+      .replace(/[\s,:;=-]+$/, "")
+      .replace(/^(la|le|les|une|un|du|de|des)\s+/i, "")
+      .trim();
   },
 
   extractOfferPayload(text) {
@@ -554,12 +722,8 @@ const AdminVoiceAssistant = {
     return "";
   },
 
-  extractTargetIdentity(text) {
-    const email = this.extractLabeledValue(text, ["email", "mail"]);
-    if (email) return { type: "email", value: email.toLowerCase() };
-    const name = this.extractLabeledValue(text, ["nom", "name", "utilisateur", "partenaire"]);
-    if (name) return { type: "name", value: name.toLowerCase() };
-    return null;
+  normalize(text) {
+    return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   },
 
   safeGetUsers() {
@@ -595,14 +759,14 @@ const AdminVoiceAssistant = {
 
   buildApiUrl() {
     const pathParts = window.location.pathname.split("/").filter(Boolean);
-    const projectBase = pathParts.length > 0 ? "/" + pathParts[0] : "";
-    return projectBase + "/api/voice-chat.php";
+    const base = pathParts.length > 0 ? "/" + pathParts[0] : "";
+    return base + "/api/voice-chat.php";
   },
 
   buildAdminApiUrl() {
     const pathParts = window.location.pathname.split("/").filter(Boolean);
-    const projectBase = pathParts.length > 0 ? "/" + pathParts[0] : "";
-    return projectBase + "/api/admin-assistant.php";
+    const base = pathParts.length > 0 ? "/" + pathParts[0] : "";
+    return base + "/api/admin-assistant.php";
   },
 
   async callAdminApi(payload) {
@@ -618,6 +782,8 @@ const AdminVoiceAssistant = {
 
   respond(message, speak) {
     this.elements.reply.textContent = message;
+    this.state.lastReply = message;
+    this.saveState();
     this.setStatus("Reponse prete.");
     if (speak) {
       const utterance = new SpeechSynthesisUtterance(message);
@@ -634,18 +800,11 @@ const AdminVoiceAssistant = {
   },
 };
 
-// Auto-init when script is loaded on admin pages.
 (function bootstrapAdminVoice() {
-  const isAdminPage = /\/admin\//.test(window.location.pathname);
-  if (!isAdminPage) return;
-
+  if (!/\/admin\//.test(window.location.pathname)) return;
   const start = () => {
     if (typeof AdminVoiceAssistant !== "undefined") AdminVoiceAssistant.init();
   };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
-  } else {
-    start();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();
