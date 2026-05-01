@@ -87,4 +87,37 @@ class AIConfig
     {
         return trim(Env::get('XAI_MODEL', 'grok-2-latest') ?? 'grok-2-latest');
     }
+
+    /**
+     * Priority:
+     * 1) XAI_MODELS (comma-separated list)
+     * 2) XAI_MODEL (single model fallback)
+     */
+    public static function xaiModels(): array
+    {
+        $raw = Env::get('XAI_MODELS', '');
+        $models = [];
+
+        if ($raw !== '') {
+            $parts = explode(',', $raw);
+            foreach ($parts as $part) {
+                $m = trim($part);
+                if ($m !== '') {
+                    $models[] = $m;
+                }
+            }
+        }
+
+        $single = trim(Env::get('XAI_MODEL', 'grok-4.20-reasoning') ?? 'grok-4.20-reasoning');
+        if ($single !== '') {
+            $models[] = $single;
+        }
+
+        $models = array_values(array_unique($models));
+        if (empty($models)) {
+            $models[] = 'grok-4.20-reasoning';
+        }
+
+        return $models;
+    }
 }

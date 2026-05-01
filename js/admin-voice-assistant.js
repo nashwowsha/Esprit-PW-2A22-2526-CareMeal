@@ -473,14 +473,6 @@ const AdminVoiceAssistant = {
   },
 
   async askGemini(text) {
-    const now = Date.now();
-    if (now < this.quotaBlockedUntilMs) {
-      const seconds = Math.max(1, Math.ceil((this.quotaBlockedUntilMs - now) / 1000));
-      this.setStatus("Quota Gemini temporairement depasse.");
-      this.elements.reply.textContent = `Attends encore ${seconds} secondes avant de reessayer Gemini.`;
-      return;
-    }
-
     if (this.isRequestInFlight) {
       this.setStatus("Une requete est deja en cours...");
       return;
@@ -519,13 +511,14 @@ const AdminVoiceAssistant = {
         const xaiPart = error.meta?.xai_tried
           ? (error.meta?.xai_http_code ? ` Fallback xAI HTTP ${error.meta.xai_http_code}.` : " Fallback xAI essaye.")
           : " Fallback xAI non configure.";
+        const xaiErrPart = error.meta?.xai_error ? ` Detail xAI: ${error.meta.xai_error}` : "";
         if (error.retryAfter) {
           this.quotaBlockedUntilMs = Date.now() + (error.retryAfter * 1000);
         } else {
           this.quotaBlockedUntilMs = Date.now() + 30000;
         }
         this.setStatus("Quota Gemini temporairement depasse.");
-        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart + attemptsPart + xaiPart;
+        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart + attemptsPart + xaiPart + xaiErrPart;
       } else {
         this.setStatus("Erreur assistant: " + error.message);
         this.elements.reply.textContent = "Je n ai pas pu contacter le serveur.";
