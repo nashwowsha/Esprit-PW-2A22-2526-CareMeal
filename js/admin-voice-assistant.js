@@ -284,10 +284,23 @@ const AdminVoiceAssistant = {
   },
 
   async handlePrompt(text) {
+    // Global escape hatch: cancel any pending multi-turn intent.
+    if (this.isCancelCommand(text)) {
+      this.clearPendingIntent();
+      this.respond("D accord, j annule l action en cours. Quelle est ta nouvelle demande ?", true);
+      return;
+    }
+
     // 1) If assistant is waiting for details, continue conversation first.
     if (this.state.pendingIntent) {
-      const handledPending = await this.handlePendingIntent(text);
-      if (handledPending) return;
+      try {
+        const handledPending = await this.handlePendingIntent(text);
+        if (handledPending) return;
+      } catch (error) {
+        this.setStatus("Erreur action en attente.");
+        this.respond("Je n ai pas pu terminer l action: " + (error.message || "erreur inconnue") + ". Tu peux reessayer ou dire annule.", true);
+        return;
+      }
     }
 
     // 2) deterministic admin actions
@@ -304,7 +317,10 @@ const AdminVoiceAssistant = {
   },
 
   setPendingIntent(intent, askMessage) {
-    this.state.pendingIntent = intent;
+    this.state.pendingIntent = {
+      ...intent,
+      createdAt: Date.now(),
+    };
     this.saveState();
     this.respond(askMessage, true);
   },
@@ -317,6 +333,19 @@ const AdminVoiceAssistant = {
   async handlePendingIntent(text) {
     const pending = this.state.pendingIntent;
     if (!pending) return false;
+
+    // Expire old pending intent to avoid sticky lock.
+    if (pending.createdAt && Date.now() - pending.createdAt > 5 * 60 * 1000) {
+      this.clearPendingIntent();
+      this.respond("La demande precedente a expire. Redonne ta demande.", true);
+      return true;
+    }
+
+    // Ignore greeting/small-talk while pending; keep waiting for real value.
+    if (this.isConversationFiller(text)) {
+      this.respond("Je suis en attente d une precision pour continuer. Dis annule pour repartir a zero.", true);
+      return true;
+    }
 
     const answer = this.cleanEntityName(this.extractQuoted(text) || text);
     if (!answer) return false;
@@ -384,6 +413,16 @@ const AdminVoiceAssistant = {
     }
 
     return false;
+  },
+
+  isCancelCommand(text) {
+    const n = this.normalize(text);
+    return /(annule|annuler|stop|arrete|arret|reset|reinitialise|oublie|laisse tomber)/.test(n);
+  },
+
+  isConversationFiller(text) {
+    const n = this.normalize(text);
+    return /^(salut|bonjour|bonsoir|hello|hi|ok|d accord|merci|ca va|oui|non)$/.test(n.trim());
   },
 
   executeLocalCommand(text) {
