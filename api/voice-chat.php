@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $raw = file_get_contents('php://input');
 $data = json_decode($raw ?: '', true);
 $text = trim((string)($data['text'] ?? ''));
+$jsonMode = (bool)($data['json_mode'] ?? false);
 
 if ($text === '') {
     send_json(422, ['error' => 'Text is required']);
@@ -47,6 +48,12 @@ $payload = [
         'maxOutputTokens' => 220,
     ],
 ];
+
+if ($jsonMode) {
+    $payload['generationConfig']['temperature'] = 0.2;
+    $payload['generationConfig']['maxOutputTokens'] = 320;
+    $payload['generationConfig']['responseMimeType'] = 'application/json';
+}
 
 $quotaRetryAfterMax = null;
 $quotaFailures = 0;

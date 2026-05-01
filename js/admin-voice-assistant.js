@@ -313,15 +313,7 @@
       }
     }
 
-    // 2) deterministic admin actions
-    const dataHandled = await this.handleDataCommand(text);
-    if (dataHandled) return;
-
-    // 3) local navigation/actions
-    const localHandled = this.executeLocalCommand(text);
-    if (localHandled) return;
-
-    // 4) Gemini-driven admin intent resolution
+    // 2) Gemini-driven admin intent resolution (priority)
     if (this.looksLikeAdminIntent(text) || this.isLikelyAdminEntityOnly(text)) {
       const aiHandled = await this.askGeminiAction(text);
       if (aiHandled) return;
@@ -329,9 +321,15 @@
         this.respond(`J ai reconnu "${this.cleanEntityName(text)}". Que veux-tu faire exactement: supprimer, modifier, bloquer ou debloquer ?`, true);
         return;
       }
-      this.respond("Je n ai pas compris assez clairement la commande admin. Redonne la demande avec le nom exact, ou dis annule pour recommencer.", true);
-      return;
     }
+
+    // 3) deterministic admin actions (fallback if Gemini parse failed)
+    const dataHandled = await this.handleDataCommand(text);
+    if (dataHandled) return;
+
+    // 4) local navigation/actions
+    const localHandled = this.executeLocalCommand(text);
+    if (localHandled) return;
 
     // 5) fallback LLM
     this.setStatus("Analyse IA...");
@@ -516,6 +514,11 @@
 
   executeLocalCommand(text) {
     const normalized = this.normalize(text);
+
+    // Never hijack CRUD admin commands with navigation shortcuts.
+    if (/(supprime|supprimer|efface|retire|delete|modifie|modifier|update|ajoute|ajouter|cree|creer|prix|statut|description|categorie|reactive|reactiver|debloque|debloquer|bloque|bloquer|ban|unban)/.test(normalized)) {
+      return false;
+    }
 
     if (/(^|\s)(salut|bonjour|bonsoir|hello|hi)(\s|$)/.test(normalized)) {
       this.respond("Bonjour. Je suis pret a t aider sur l espace admin.", true);
@@ -844,6 +847,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: this.buildGeminiActionPrompt(text),
+          json_mode: true,
         }),
       });
 
@@ -1412,7 +1416,7 @@
 
   looksLikeAdminIntent(text) {
     const n = this.normalize(text);
-    return /(utilisateur|partenaire|etablissement|commerce|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|statut|quantite|prix|description)/.test(n);
+    return /(utilisateur|partenaire|etablissement|commerce|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|reactive|reactiver|ban|unban|statut|quantite|prix|description)/.test(n);
   },
 
   isLikelyAdminEntityOnly(text) {
