@@ -473,6 +473,12 @@
       if (explicitStatus) {
         payload.statut = explicitStatus;
       }
+      const explicitTitleTarget = this.extractLabeledValue(text, ["titre", "nom", "nouveau", "new"]);
+      if (explicitTitleTarget) {
+        payload.titre = this.sanitizeOfferTitle(explicitTitleTarget);
+      } else {
+        delete payload.titre;
+      }
 
       if (payload.titre && this.normalize(payload.titre) === this.normalize(pending.sourceTitle || "")) {
         delete payload.titre;
@@ -759,7 +765,11 @@
         this.extractLabeledValue(text, ["titre", "nom", "nouveau", "new"]);
       if (explicitTitleTarget) {
         payload.titre = this.sanitizeOfferTitle(explicitTitleTarget);
-      } else if (payload.titre && this.normalize(payload.titre) === this.normalize(source)) {
+      } else {
+        delete payload.titre;
+      }
+
+      if (payload.titre && this.normalize(payload.titre) === this.normalize(source)) {
         delete payload.titre;
       }
 
@@ -893,6 +903,7 @@
       "- Ne fabrique jamais d ids.",
       "- 'etablissement' est un synonyme de partenaire.",
       "- Si la demande contient seulement un nom (ex: 'glucides'), renvoie action='unknown' et mets ce nom dans target_name.",
+      "- Pour update_offer: source_title = offre existante a modifier. new_name = nouveau titre seulement si renommage explicite.",
       "- Reponds uniquement le JSON.",
       "",
       "Demande admin:",
@@ -1075,7 +1086,7 @@
       const payload = {
         action: "update_offer",
         titre_source: source,
-        titre: this.sanitizeOfferTitle(cmd.title || cmd.new_name || ""),
+        titre: this.sanitizeOfferTitle(cmd.new_name || ""),
         description: String(cmd.description || "").trim(),
         prix: String(cmd.prix || "").trim(),
         prix_original: String(cmd.prix_original || "").trim(),
