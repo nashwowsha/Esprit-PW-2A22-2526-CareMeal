@@ -59,6 +59,10 @@ $quotaRetryAfterMax = null;
 $quotaFailures = 0;
 $authFailures = 0;
 $attempts = 0;
+$otherFailures = 0;
+$lastOtherError = null;
+$lastOtherHttpCode = null;
+$lastOtherModel = null;
 
 foreach ($models as $model) {
     foreach ($apiKeys as $apiKey) {
@@ -127,14 +131,12 @@ foreach ($models as $model) {
             continue;
         }
 
-        send_json($httpCode, [
-            'error' => 'Gemini error',
-            'code' => 'gemini_error',
-            'meta' => [
-                'attempts' => $attempts,
-                'model' => $model,
-            ],
-        ]);
+        // Non-auth/non-quota errors (ex: invalid model name) should not abort all fallbacks.
+        $otherFailures++;
+        $lastOtherError = $errMsg;
+        $lastOtherHttpCode = $httpCode;
+        $lastOtherModel = $model;
+        continue;
     }
 }
 
@@ -159,6 +161,22 @@ if ($authFailures > 0) {
             'attempts' => $attempts,
             'quota_failures' => $quotaFailures,
             'auth_failures' => $authFailures,
+        ],
+    ]);
+}
+
+if ($otherFailures > 0) {
+    send_json(502, [
+        'error' => 'Gemini error',
+        'code' => 'gemini_error',
+        'details' => $lastOtherError,
+        'meta' => [
+            'attempts' => $attempts,
+            'quota_failures' => $quotaFailures,
+            'auth_failures' => $authFailures,
+            'other_failures' => $otherFailures,
+            'last_http_code' => $lastOtherHttpCode,
+            'last_model' => $lastOtherModel,
         ],
     ]);
 }

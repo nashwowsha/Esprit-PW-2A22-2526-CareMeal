@@ -845,6 +845,7 @@
         error.code = data.code || null;
         error.retryAfter = data.retry_after_seconds || null;
         error.meta = data.meta || null;
+        error.details = data.details || null;
         throw error;
       }
       this.respond((data.reply || "").trim() || "Je n ai pas de reponse.", true);
@@ -855,8 +856,9 @@
         this.setStatus("Quota Gemini depasse.");
         this.respond("Le quota Gemini est depasse." + waitPart + attemptsPart, false);
       } else {
-        this.setStatus("Erreur assistant.");
-        this.respond("Erreur: " + (error.message || "inconnue"), false);
+        const details = error.details ? ` (${error.details})` : "";
+        this.setStatus("Erreur Gemini.");
+        this.respond("Erreur Gemini: " + (error.message || "inconnue") + details, false);
       }
     } finally {
       this.isRequestInFlight = false;
@@ -887,6 +889,7 @@
         error.code = data.code || null;
         error.retryAfter = data.retry_after_seconds || null;
         error.meta = data.meta || null;
+        error.details = data.details || null;
         throw error;
       }
 

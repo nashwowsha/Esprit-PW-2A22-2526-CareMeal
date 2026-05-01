@@ -3,6 +3,16 @@ require_once __DIR__ . '/env.php';
 
 class AIConfig
 {
+    private static function normalizeModel(string $model): string
+    {
+        $m = trim(strtolower($model));
+        // Accept only Gemini API model ids (ex: gemini-2.5-flash-lite).
+        if ($m === '' || preg_match('/^gemini-[a-z0-9._-]+$/', $m) !== 1) {
+            return '';
+        }
+        return $m;
+    }
+
     public static function geminiApiKey(): string
     {
         $key = Env::get('GEMINI_API_KEY', '');
@@ -58,21 +68,24 @@ class AIConfig
         if ($modelsRaw !== '') {
             $parts = explode(',', $modelsRaw);
             foreach ($parts as $part) {
-                $m = trim($part);
+                $m = self::normalizeModel($part);
                 if ($m !== '') {
                     $models[] = $m;
                 }
             }
         }
 
-        $single = trim(Env::get('GEMINI_MODEL', 'gemini-2.5-flash-lite') ?? '');
+        $single = self::normalizeModel((string)(Env::get('GEMINI_MODEL', 'gemini-2.5-flash-lite') ?? ''));
         if ($single !== '') {
             $models[] = $single;
         }
 
         $models = array_values(array_unique($models));
         if (empty($models)) {
-            $models[] = 'gemini-2.5-flash-lite';
+            $models = [
+                'gemini-2.5-flash-lite',
+                'gemini-2.5-flash',
+            ];
         }
 
         return $models;
