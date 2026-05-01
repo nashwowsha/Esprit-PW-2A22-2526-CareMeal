@@ -546,7 +546,7 @@
     const asksCount = /(combien|nombre|total)/.test(normalized);
     const isCategory = /(categorie|categories)/.test(normalized);
     const isOffer = /(offre|offres)/.test(normalized);
-    const isUserOrPartner = /(utilisateur|utilisateurs|partenaire|partenaires)/.test(normalized);
+    const isUserOrPartner = /(utilisateur|utilisateurs|partenaire|partenaires|etablissement|etablissements|commerce|commerces)/.test(normalized);
 
     if (asksCount && /utilisateur/.test(normalized)) {
       const s = this.getUserStatsLocal();
@@ -571,7 +571,7 @@
     if (actionDelete && isUserOrPartner) {
       const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
       if (!target) {
-        this.setPendingIntent({ type: "delete_user" }, "D accord. Quel utilisateur/partenaire veux-tu supprimer ?");
+        this.setPendingIntent({ type: "delete_user" }, "D accord. Quel utilisateur, partenaire ou etablissement veux-tu supprimer ?");
         return true;
       }
       const user = this.findUserLocal(target);
@@ -587,7 +587,7 @@
     if (/(bloque|bloquer|ban|bannir)/.test(normalized) && isUserOrPartner) {
       const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
       if (!target) {
-        this.setPendingIntent({ type: "block_user" }, "D accord. Quel utilisateur/partenaire veux-tu bloquer ?");
+        this.setPendingIntent({ type: "block_user" }, "D accord. Quel utilisateur, partenaire ou etablissement veux-tu bloquer ?");
         return true;
       }
       const user = this.findUserLocal(target);
@@ -603,7 +603,7 @@
     if (/(debloque|debloquer|reactive|reactiver|unban)/.test(normalized) && isUserOrPartner) {
       const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
       if (!target) {
-        this.setPendingIntent({ type: "unblock_user" }, "D accord. Quel utilisateur/partenaire veux-tu debloquer ?");
+        this.setPendingIntent({ type: "unblock_user" }, "D accord. Quel utilisateur, partenaire ou etablissement veux-tu debloquer ?");
         return true;
       }
       const user = this.findUserLocal(target);
@@ -645,14 +645,20 @@
 
     if (actionUpdate && isCategory) {
       const renamePair = this.extractRenamePair(text, "categorie");
-      const source = this.extractLabeledValue(text, ["source", "ancien", "old"]) || renamePair.source || this.extractCategoryName(text);
+      const source =
+        this.extractLabeledValue(text, ["source", "ancien", "old"]) ||
+        renamePair.source ||
+        this.extractCategorySourceFromUpdate(text) ||
+        this.extractCategoryName(text);
       const target = this.extractLabeledValue(text, ["nom", "nouveau", "new"]) || renamePair.target;
+      const description = this.extractCategoryDescription(text);
+      const icone = this.extractLabeledValue(text, ["icone", "icon"]);
 
       if (!source) {
         this.respond("Quelle categorie veux-tu modifier ?", true);
         return true;
       }
-      if (!target) {
+      if (!target && !description && !icone) {
         this.setPendingIntent({ type: "update_category_target_name", sourceName: source }, `D accord. Quel nouveau nom pour la categorie ${source} ?`);
         return true;
       }
@@ -660,9 +666,11 @@
       await this.callAdminApi({
         action: "update_category",
         nom_categorie_source: source,
-        nom_categorie: target,
+        nom_categorie: target || source,
+        description: description || "",
+        icone: icone || "",
       });
-      this.respond(`Categorie modifiee: ${source} -> ${target}.`, true);
+      this.respond(`Categorie modifiee: ${source}.`, true);
       return true;
     }
 
@@ -823,12 +831,13 @@
       "Tu es un parseur de commandes admin CareMeal.",
       "Convertis la demande en JSON strict SANS markdown et SANS texte autour.",
       "Schema exact:",
-      '{"action":"","target_name":"","target_email":"","source_name":"","new_name":"","title":"","source_title":"","description":"","categorie":"","prix":"","prix_original":"","quantite":"","statut":""}',
+      '{"action":"","target_name":"","target_email":"","source_name":"","new_name":"","title":"","source_title":"","description":"","categorie":"","prix":"","prix_original":"","quantite":"","statut":"","icone":""}',
       "Actions autorisees:",
       "delete_user, block_user, unblock_user, get_counts, create_category, update_category, delete_category, create_offer, update_offer, delete_offer, unknown",
       "Regles:",
       "- Si info manquante, mets des champs vides et choisis quand meme la meilleure action.",
       "- Ne fabrique jamais d ids.",
+      "- 'etablissement' est un synonyme de partenaire.",
       "- Reponds uniquement le JSON.",
       "",
       "Demande admin:",
@@ -868,7 +877,7 @@
         targetEmail ? { type: "email", value: targetEmail } :
           (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
       if (!target) {
-        this.setPendingIntent({ type: "delete_user" }, "Quel utilisateur/partenaire veux-tu supprimer ?");
+        this.setPendingIntent({ type: "delete_user" }, "Quel utilisateur, partenaire ou etablissement veux-tu supprimer ?");
         return true;
       }
       const user = this.findUserLocal(target);
@@ -889,8 +898,8 @@
         this.setPendingIntent(
           { type: action === "block_user" ? "block_user" : "unblock_user" },
           action === "block_user"
-            ? "Quel utilisateur/partenaire veux-tu bloquer ?"
-            : "Quel utilisateur/partenaire veux-tu debloquer ?"
+            ? "Quel utilisateur, partenaire ou etablissement veux-tu bloquer ?"
+            : "Quel utilisateur, partenaire ou etablissement veux-tu debloquer ?"
         );
         return true;
       }
@@ -932,18 +941,26 @@
     }
 
     if (action === "update_category") {
-      const source = this.cleanEntityName(cmd.source_name || "");
-      const target = this.cleanEntityName(cmd.new_name || "");
+      const source = this.cleanEntityName(cmd.source_name || cmd.target_name || "");
+      const target = this.cleanEntityName(cmd.new_name || cmd.title || "");
+      const description = this.cleanFieldText(cmd.description || "");
+      const icone = this.cleanFieldText(cmd.icone || "");
       if (!source) {
         this.respond("Quelle categorie veux-tu modifier ?", true);
         return true;
       }
-      if (!target) {
+      if (!target && !description && !icone) {
         this.setPendingIntent({ type: "update_category_target_name", sourceName: source }, `Quel nouveau nom pour la categorie ${source} ?`);
         return true;
       }
-      await this.callAdminApi({ action: "update_category", nom_categorie_source: source, nom_categorie: target });
-      this.respond(`Categorie modifiee: ${source} -> ${target}.`, true);
+      await this.callAdminApi({
+        action: "update_category",
+        nom_categorie_source: source,
+        nom_categorie: target || source,
+        description: description || "",
+        icone: icone || "",
+      });
+      this.respond(`Categorie modifiee: ${source}.`, true);
       return true;
     }
 
@@ -982,7 +999,7 @@
     }
 
     if (action === "update_offer") {
-      const source = this.cleanEntityName(cmd.source_title || cmd.source_name || "");
+      const source = this.cleanEntityName(cmd.source_title || cmd.source_name || cmd.target_name || "");
       if (!source) {
         this.respond("Quelle offre veux-tu modifier ?", true);
         return true;
@@ -1027,7 +1044,7 @@
   parseIdentityFromText(text) {
     const email = this.extractLabeledValue(text, ["email", "mail"]);
     if (email) return { type: "email", value: email.toLowerCase() };
-    const name = this.extractLabeledValue(text, ["nom", "name", "utilisateur", "partenaire"]);
+    const name = this.extractLabeledValue(text, ["nom", "name", "utilisateur", "partenaire", "etablissement", "commerce"]);
     if (name) return { type: "name", value: name.toLowerCase() };
 
     const q = this.extractQuoted(text);
@@ -1037,13 +1054,21 @@
 
   extractNaturalUserTarget(text) {
     const raw = (text || "")
+      .replace(/\b(je veux|j veux|je voudrais|j voudrais|je souhaite|j souhaite|peux tu|s il te plait)\b/gi, " ")
       .replace(/\b(supprime|supprimer|efface|retire|delete|bloque|bloquer|bannir|ban|debloque|debloquer|reactive|reactiver|unban)\b/gi, " ")
-      .replace(/\b(utilisateur|utilisateurs|user|users|partenaire|partenaires)\b/gi, " ")
+      .replace(/\b(utilisateur|utilisateurs|user|users|partenaire|partenaires|etablissement|etablissements|commerce|commerces)\b/gi, " ")
       .replace(/\b(stp|svp|merci)\b/gi, " ")
       .replace(/[,:;!?]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+
     if (!raw || raw.length < 3) return null;
+    const normalized = this.normalize(raw);
+    const weakTokens = new Set([
+      "je", "j", "veux", "voudrais", "souhaite", "un", "une", "le", "la", "les", "de", "des", "du", "stp", "svp", "merci"
+    ]);
+    const strongTokens = normalized.split(/\s+/).filter((t) => t && !weakTokens.has(t));
+    if (strongTokens.length === 0) return null;
     return { type: "name", value: raw.toLowerCase() };
   },
 
@@ -1080,6 +1105,12 @@
     return this.cleanEntityName(m[1]);
   },
 
+  extractCategorySourceFromUpdate(text) {
+    const m = (text || "").match(/\bcategorie\s+(.+?)\s+(?:description|desc|icone|icon|en|vers|to)\b/i);
+    if (!m || !m[1]) return "";
+    return this.cleanEntityName(m[1]);
+  },
+
   extractRenamePair(text, entityKeyword) {
     const escaped = entityKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`\\b${escaped}\\s+(.+?)\\s+(?:en|vers|to)\\s+(.+)$`, "i");
@@ -1102,12 +1133,15 @@
 
   extractOfferPayload(text) {
     const inferredTitle = this.inferOfferTitle(text);
+    const naturalDescription = this.extractOfferDescription(text);
     return {
       titre: this.sanitizeOfferTitle(this.extractLabeledValue(text, ["titre"]) || inferredTitle),
-      description: this.extractLabeledValue(text, ["description", "desc"]),
-      prix: this.extractLabeledValue(text, ["prix"]),
-      prix_original: this.extractLabeledValue(text, ["prix_original", "prix original", "original"]),
-      quantite: this.extractLabeledValue(text, ["quantite", "qte"]),
+      description: this.extractLabeledValue(text, ["description", "desc"]) || naturalDescription,
+      prix: this.extractLabeledValue(text, ["prix"]) || this.extractNumberByKeyword(text, ["prix"]),
+      prix_original:
+        this.extractLabeledValue(text, ["prix_original", "prix original", "original"]) ||
+        this.extractNumberByKeyword(text, ["prix original", "prix_original", "original"]),
+      quantite: this.extractLabeledValue(text, ["quantite", "qte"]) || this.extractIntegerByKeyword(text, ["quantite", "qte", "stock"]),
       nom_categorie:
         this.extractLabeledValue(text, ["categorie", "category"]) ||
         this.extractCategoryFromNaturalText(text),
@@ -1184,6 +1218,46 @@
     return "";
   },
 
+  extractNumberByKeyword(text, keywords) {
+    for (const keyword of keywords) {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`\\b${escaped}\\b\\s*(?:[:=]|a|à)?\\s*([0-9]+(?:[.,][0-9]+)?)`, "i");
+      const m = (text || "").match(re);
+      if (m && m[1]) return m[1].trim();
+    }
+    return "";
+  },
+
+  extractIntegerByKeyword(text, keywords) {
+    const value = this.extractNumberByKeyword(text, keywords);
+    if (!value) return "";
+    const n = parseInt(String(value).replace(",", "."), 10);
+    if (Number.isNaN(n)) return "";
+    return String(n);
+  },
+
+  extractCategoryDescription(text) {
+    const labeled = this.extractLabeledValue(text, ["description", "desc"]);
+    if (labeled) return this.cleanFieldText(labeled);
+
+    const m = (text || "").match(/\bdescription\b\s+(?:de|du|pour)?\s*(?:la\s+)?(?:categorie\s+)?(.+)$/i);
+    if (!m || !m[1]) return "";
+    return this.cleanFieldText(m[1]);
+  },
+
+  extractOfferDescription(text) {
+    const m = (text || "").match(/\bdescription\b\s+(?:de|du|pour)?\s*(?:l['’]?\s*)?(?:offre\s+)?(.+)$/i);
+    if (!m || !m[1]) return "";
+    return this.cleanFieldText(m[1]);
+  },
+
+  cleanFieldText(value) {
+    return (value || "")
+      .replace(/^[\s:=,;.-]+/, "")
+      .replace(/[\s,;.-]+$/, "")
+      .trim();
+  },
+
   normalize(text) {
     return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   },
@@ -1249,7 +1323,7 @@
 
   looksLikeAdminIntent(text) {
     const n = this.normalize(text);
-    return /(utilisateur|partenaire|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|statut|quantite|prix)/.test(n);
+    return /(utilisateur|partenaire|etablissement|commerce|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|statut|quantite|prix|description)/.test(n);
   },
 
   buildApiUrl() {
