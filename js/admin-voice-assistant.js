@@ -321,20 +321,12 @@
       if (aiHandled) return;
     }
 
-    // 3) deterministic admin actions (fallback if Gemini parse failed)
-    const dataHandled = await this.handleDataCommand(text);
-    if (dataHandled) return;
-
-    // 4) local navigation/actions
-    const localHandled = this.executeLocalCommand(text);
-    if (localHandled) return;
-
     if (isAdminRequest) {
-      this.respond("Commande admin incomplete. Dis par exemple: modifier offre pizza prix 5.5, ou supprimer utilisateur Fatma Trabelsi.", true);
+      this.respond("Je n ai pas pu interpreter la commande via Gemini. Reformule avec plus de precision.", true);
       return;
     }
 
-    // 5) fallback LLM
+    // 3) Gemini direct for non-admin requests
     this.setStatus("Analyse IA...");
     await this.askGemini(text);
   },
@@ -845,7 +837,6 @@
         error.code = data.code || null;
         error.retryAfter = data.retry_after_seconds || null;
         error.meta = data.meta || null;
-        error.details = data.details || null;
         throw error;
       }
       this.respond((data.reply || "").trim() || "Je n ai pas de reponse.", true);
@@ -856,9 +847,8 @@
         this.setStatus("Quota Gemini depasse.");
         this.respond("Le quota Gemini est depasse." + waitPart + attemptsPart, false);
       } else {
-        const details = error.details ? ` (${error.details})` : "";
-        this.setStatus("Erreur Gemini.");
-        this.respond("Erreur Gemini: " + (error.message || "inconnue") + details, false);
+        this.setStatus("Erreur assistant.");
+        this.respond("Erreur: " + (error.message || "inconnue"), false);
       }
     } finally {
       this.isRequestInFlight = false;
@@ -889,7 +879,6 @@
         error.code = data.code || null;
         error.retryAfter = data.retry_after_seconds || null;
         error.meta = data.meta || null;
-        error.details = data.details || null;
         throw error;
       }
 
@@ -1560,4 +1549,3 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();
-
