@@ -313,14 +313,12 @@
       }
     }
 
+    const isAdminRequest = this.looksLikeAdminIntent(text);
+
     // 2) Gemini-driven admin intent resolution (priority)
-    if (this.looksLikeAdminIntent(text) || this.isLikelyAdminEntityOnly(text)) {
+    if (isAdminRequest) {
       const aiHandled = await this.askGeminiAction(text);
       if (aiHandled) return;
-      if (this.isLikelyAdminEntityOnly(text)) {
-        this.respond(`J ai reconnu "${this.cleanEntityName(text)}". Que veux-tu faire exactement: supprimer, modifier, bloquer ou debloquer ?`, true);
-        return;
-      }
     }
 
     // 3) deterministic admin actions (fallback if Gemini parse failed)
@@ -330,6 +328,11 @@
     // 4) local navigation/actions
     const localHandled = this.executeLocalCommand(text);
     if (localHandled) return;
+
+    if (isAdminRequest) {
+      this.respond("Commande admin incomplete. Dis par exemple: modifier offre pizza prix 5.5, ou supprimer utilisateur Fatma Trabelsi.", true);
+      return;
+    }
 
     // 5) fallback LLM
     this.setStatus("Analyse IA...");
@@ -630,6 +633,19 @@
       return true;
     }
 
+    // Allow natural commands like "supprimer Fatma Trabelsi" without saying "utilisateur".
+    if (actionDelete && !isOffer && !isCategory) {
+      const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
+      if (target) {
+        const user = this.findUserLocal(target);
+        if (user) {
+          this.deleteUserLocal(user.id, user.name);
+          this.respond(`${user.name} a ete supprime.`, true);
+          return true;
+        }
+      }
+    }
+
     if (/(bloque|bloquer|ban|bannir)/.test(normalized) && isUserOrPartner) {
       const target = this.parseIdentityFromText(text) || this.extractNaturalUserTarget(text);
       if (!target) {
@@ -659,6 +675,11 @@
       }
       this.updateUserStatusLocal(user.id, "active", `Utilisateur reactive: ${user.name}`);
       this.respond(`${user.name} est maintenant actif.`, true);
+      return true;
+    }
+
+    if (actionUpdate && !isOffer && /(prix|statut|description|quantite|categorie|category)/.test(normalized)) {
+      this.respond("Tu veux modifier quel offre ? Exemple: modifier offre pizza prix 5.5.", true);
       return true;
     }
 
