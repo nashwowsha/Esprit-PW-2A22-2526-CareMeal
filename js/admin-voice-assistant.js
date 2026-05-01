@@ -307,7 +307,7 @@ const AdminVoiceAssistant = {
       return true;
     }
 
-    if (/(comment tu t appelles|ton nom|qui es tu|tu es qui)/.test(normalized)) {
+    if (/(comment tu t[ '’]?appelles|ton nom|qui es tu|tu es qui)/.test(normalized)) {
       this.respond("Je suis l assistant vocal admin de CareMeal.", true);
       return true;
     }
@@ -516,13 +516,16 @@ const AdminVoiceAssistant = {
       if (error.code === "quota_exceeded") {
         const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
         const attemptsPart = error.meta?.attempts ? ` Tentatives: ${error.meta.attempts}.` : "";
+        const xaiPart = error.meta?.xai_tried
+          ? (error.meta?.xai_http_code ? ` Fallback xAI HTTP ${error.meta.xai_http_code}.` : " Fallback xAI essaye.")
+          : " Fallback xAI non configure.";
         if (error.retryAfter) {
           this.quotaBlockedUntilMs = Date.now() + (error.retryAfter * 1000);
         } else {
           this.quotaBlockedUntilMs = Date.now() + 30000;
         }
         this.setStatus("Quota Gemini temporairement depasse.");
-        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart + attemptsPart;
+        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart + attemptsPart + xaiPart;
       } else {
         this.setStatus("Erreur assistant: " + error.message);
         this.elements.reply.textContent = "Je n ai pas pu contacter le serveur.";

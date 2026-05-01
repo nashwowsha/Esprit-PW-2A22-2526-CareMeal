@@ -46,6 +46,9 @@ $quotaRetryAfterMax = null;
 $quotaFailures = 0;
 $authFailures = 0;
 $attempts = 0;
+$xaiTried = false;
+$xaiHttpCode = null;
+$xaiErrorMessage = null;
 
 foreach ($models as $model) {
     foreach ($apiKeys as $apiKey) {
@@ -132,6 +135,7 @@ foreach ($models as $model) {
 if ($quotaFailures > 0) {
     // Fallback to xAI (Grok) when Gemini quota is exhausted.
     if ($xaiKey !== '') {
+        $xaiTried = true;
         $xaiUrl = 'https://api.x.ai/v1/chat/completions';
         $xaiPayload = [
             'model' => $xaiModel,
@@ -156,7 +160,6 @@ if ($quotaFailures > 0) {
         ]);
 
         $xResponse = curl_exec($xch);
-        $xCurlErr = curl_error($xch);
         $xHttpCode = (int)curl_getinfo($xch, CURLINFO_HTTP_CODE);
         curl_close($xch);
 
@@ -175,7 +178,11 @@ if ($quotaFailures > 0) {
                     ], JSON_UNESCAPED_UNICODE);
                     exit;
                 }
+            } else {
+                $xaiErrorMessage = (string)($xJson['error']['message'] ?? 'xAI fallback failed');
             }
+        } else {
+            $xaiErrorMessage = 'xAI request failed (network/curl).';
         }
     }
 
@@ -188,6 +195,9 @@ if ($quotaFailures > 0) {
             'attempts' => $attempts,
             'quota_failures' => $quotaFailures,
             'auth_failures' => $authFailures,
+            'xai_tried' => $xaiTried,
+            'xai_http_code' => $xaiHttpCode,
+            'xai_error' => $xaiErrorMessage,
         ],
     ], JSON_UNESCAPED_UNICODE);
     exit;
