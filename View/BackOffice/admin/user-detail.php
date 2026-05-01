@@ -97,5 +97,7 @@
   <script src="../js/components.js"></script>
   <script src="../js/admin.js"></script>
   <script>document.addEventListener('DOMContentLoaded', () => Admin.initUserDetail());</script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
 </html>
+

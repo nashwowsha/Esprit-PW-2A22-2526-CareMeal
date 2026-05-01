@@ -145,5 +145,8 @@
   <script src="../js/app.js"></script>
   <script src="../js/components.js"></script>
   <script src="../js/events-admin.js"></script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
 </html>
+
+

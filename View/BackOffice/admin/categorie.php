@@ -683,4 +683,6 @@ document.querySelectorAll('[data-action="logout"]').forEach(function(btn) {
   });
 });
 </script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
+

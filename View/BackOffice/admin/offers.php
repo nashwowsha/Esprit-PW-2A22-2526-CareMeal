@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // Variables disponibles : $offers, $categories, $counts, $flash, $errors, $old
 function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 ?>
@@ -13,7 +13,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   <link rel="stylesheet" href="/caremeal/css/components.css">
   <link rel="stylesheet" href="/caremeal/css/dashboard.css">
   <style>
-    /* ── Table ── */
+    /* -- Table -- */
     .form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     .badge-statut { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.72rem; font-weight:600; }
     .s-publiee   { background:rgba(34,197,94,.15);  color:#4ade80; }
@@ -32,7 +32,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .alert-success { background:rgba(34,197,94,.12); color:#4ade80; border:1px solid rgba(34,197,94,.2); }
     .alert-error   { background:rgba(239,68,68,.12);  color:#f87171; border:1px solid rgba(239,68,68,.2); }
 
-    /* ── Photo upload ── */
+    /* -- Photo upload -- */
     .photo-upload-area { border:2px dashed var(--color-dark-border); border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:border-color .2s; position:relative; }
     .photo-upload-area:hover { border-color:var(--color-primary); }
     .photo-upload-area input[type="file"] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
@@ -40,7 +40,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .photo-placeholder { color:var(--color-text-muted); font-size:.85rem; pointer-events:none; }
     .photo-placeholder i { font-size:2rem; display:block; margin-bottom:6px; opacity:.5; }
 
-    /* ── Category pills ── */
+    /* -- Category pills -- */
     .cat-checkbox-list { display:flex; flex-wrap:wrap; gap:10px; padding:10px 0; }
     .cat-pill-label {
       display:flex; align-items:center; gap:8px; cursor:pointer;
@@ -60,7 +60,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     select.form-input option { background-color:var(--color-dark-card,#1e2433); color:var(--color-text,#e2e8f0); }
     select.form-input { background-color:var(--color-dark-input,#252d3d); color:var(--color-text,#e2e8f0); }
 
-    /* ── Custom Category Dropdown ── */
+    /* -- Custom Category Dropdown -- */
     .cat-dropdown-wrapper {
       position: relative;
       min-width: 230px;
@@ -215,9 +215,9 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
       display: none;
     }
 
-    /* ══════════════════════════════════════
-       VUE INLINE — Formulaire dans la page
-    ══════════════════════════════════════ */
+    /* --------------------------------------
+       VUE INLINE � Formulaire dans la page
+    -------------------------------------- */
     #view-list   { display: block; }
     #view-form   { display: none; }
 
@@ -288,7 +288,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .delete-inline-card p  { color: var(--color-text-muted); margin: 0 0 24px; }
     .delete-inline-card .form-actions { justify-content: center; border: none; margin-top: 0; padding-top: 0; }
 
-    /* ── Alerte stock faible ── */
+    /* -- Alerte stock faible -- */
     .stock-alert-banner {
       display: none;
       align-items: center;
@@ -331,7 +331,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
     .stock-low-icon { font-size: .75rem; margin-left: 4px; animation: pulse-warn 1.4s infinite; }
     @keyframes pulse-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-    /* ── Bouton tri stock ── */
+    /* -- Bouton tri stock -- */
     .btn-sort-stock {
       background: none;
       border: none;
@@ -369,7 +369,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         <a href="/caremeal/admin/categorie.php"  class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Categorie offres</a>
         <a href="offers.php"                     class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
         <a href="/caremeal/admin/events.html"    class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Evenements</a>
-        <a href="/caremeal/admin/logs.html"      class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activités</a>
+        <a href="/caremeal/admin/logs.html"      class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activit�s</a>
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -379,7 +379,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
           <div class="sidebar-user-role">Administrateur</div>
         </div>
-        <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+        <button class="sidebar-logout" data-action="logout" title="D�connexion"><i class="fa-solid fa-door-open"></i></button>
       </div>
     </div>
   </aside>
@@ -421,9 +421,9 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
       <?php endif; ?>
 
-      <!-- ══════════════════════════════════════
+      <!-- --------------------------------------
            VUE 1 : LISTE DES OFFRES
-      ══════════════════════════════════════ -->
+      -------------------------------------- -->
       <div id="view-list">
 
         <!-- Filtres -->
@@ -436,19 +436,19 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           <div class="cat-dropdown-wrapper" id="cat-dropdown-wrapper">
             <div class="cat-dropdown-trigger" id="cat-dropdown-trigger" onclick="toggleCatDropdown()">
               <i class="fa-solid fa-layer-group cat-trigger-icon"></i>
-              <span class="cat-trigger-label" id="cat-trigger-label">Toutes les catégories</span>
+              <span class="cat-trigger-label" id="cat-trigger-label">Toutes les cat�gories</span>
               <span class="cat-trigger-badge" id="cat-trigger-badge"></span>
               <i class="fa-solid fa-chevron-down cat-trigger-arrow"></i>
             </div>
             <div class="cat-dropdown-menu" id="cat-dropdown-menu">
               <div class="cat-dropdown-search">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="cat-search-input" placeholder="Rechercher une catégorie..." oninput="filterCatItems(this.value)">
+                <input type="text" id="cat-search-input" placeholder="Rechercher une cat�gorie..." oninput="filterCatItems(this.value)">
               </div>
               <div class="cat-dropdown-list" id="cat-dropdown-list">
-                <div class="cat-dropdown-item active" data-value="" onclick="selectCategory('', 'Toutes les catégories', this)">
+                <div class="cat-dropdown-item active" data-value="" onclick="selectCategory('', 'Toutes les cat�gories', this)">
                   <span class="cat-item-dot"></span>
-                  Toutes les catégories
+                  Toutes les cat�gories
                   <i class="fa-solid fa-check cat-item-check"></i>
                 </div>
                 <?php foreach ($categories as $c): ?>
@@ -458,30 +458,30 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                   <i class="fa-solid fa-check cat-item-check"></i>
                 </div>
                 <?php endforeach; ?>
-                <div class="cat-dropdown-no-result" id="cat-no-result">Aucune catégorie trouvée</div>
+                <div class="cat-dropdown-no-result" id="cat-no-result">Aucune cat�gorie trouv�e</div>
               </div>
             </div>
           </div>
           <!-- Hidden select for compatibility -->
           <select id="category-filter" style="display:none;" onchange="onCategoryFilterChange()">
-            <option value="">Toutes les catégories</option>
+            <option value="">Toutes les cat�gories</option>
             <?php foreach ($categories as $c): ?>
               <option value="<?= (int)$c['id_categorie'] ?>"><?= ea($c['nom_categorie']) ?></option>
             <?php endforeach; ?>
           </select>
           <div style="display:flex;gap:8px;flex-wrap:wrap;" id="filter-btns">
             <button class="btn btn-primary"   onclick="setFilter('tous',this)">Tous</button>
-            <button class="btn btn-secondary" onclick="setFilter('publiée',this)">Publiées</button>
+            <button class="btn btn-secondary" onclick="setFilter('publi�e',this)">Publi�es</button>
             <button class="btn btn-secondary" onclick="setFilter('brouillon',this)">Brouillons</button>
-            <button class="btn btn-secondary" onclick="setFilter('expirée',this)">Expirées</button>
-            <button class="btn btn-secondary" onclick="setFilter('archivée',this)">Archivées</button>
+            <button class="btn btn-secondary" onclick="setFilter('expir�e',this)">Expir�es</button>
+            <button class="btn btn-secondary" onclick="setFilter('archiv�e',this)">Archiv�es</button>
           </div>
         </div>
 
-        <!-- Bannière stock faible -->
+        <!-- Banni�re stock faible -->
         <div class="stock-alert-banner" id="stock-alert-banner">
           <i class="fa-solid fa-triangle-exclamation"></i>
-          <span>Stock faible détecté sur <span class="alert-count" id="stock-alert-count">0</span> offre(s) — quantité ≤ 3</span>
+          <span>Stock faible d�tect� sur <span class="alert-count" id="stock-alert-count">0</span> offre(s) � quantit� = 3</span>
           <button class="btn-filter-low" onclick="filterLowStock()">
             <i class="fa-solid fa-filter"></i> Voir uniquement
           </button>
@@ -498,7 +498,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                   <th>Prix</th>
                   <th>
                     <button id="btn-sort-stock" class="btn-sort-stock" onclick="sortByStock()" title="Trier par stock">
-                      Stock <i class="sort-icon" id="sort-stock-icon">⇅</i>
+                      Stock <i class="sort-icon" id="sort-stock-icon">?</i>
                     </button>
                   </th>
                   <th>Statut</th>
@@ -508,11 +508,11 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               <tbody id="offers-tbody">
                 <?php if (empty($offers)): ?>
                   <tr><td colspan="6">
-                    <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre trouvée.</p></div>
+                    <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Aucune offre trouv�e.</p></div>
                   </td></tr>
                 <?php else: $i = 0; foreach ($offers as $o): $i++;
                   $disc = $o['prix_original'] > 0 ? round((1 - $o['prix'] / $o['prix_original']) * 100) : 0;
-                  $sCls = ['publiée'=>'s-publiee','brouillon'=>'s-brouillon','expirée'=>'s-expiree','archivée'=>'s-archivee'][$o['statut']] ?? '';
+                  $sCls = ['publi�e'=>'s-publiee','brouillon'=>'s-brouillon','expir�e'=>'s-expiree','archiv�e'=>'s-archivee'][$o['statut']] ?? '';
                   $stock = ($o['quantite'] ?? '?');
                 ?>
                   <tr data-original-index="<?= $i ?>"
@@ -538,11 +538,11 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                         </div>
                       </div>
                     </td>
-                    <td style="font-size:.85rem;"><?= ea($o['id_partenaire'] ?? '—') ?></td>
+                    <td style="font-size:.85rem;"><?= ea($o['id_partenaire'] ?? '�') ?></td>
                     <td>
                       <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:.8rem;"><?= number_format($o['prix_original'] ?? 0, 2) ?> DT</span><br>
                       <span style="color:var(--color-primary);font-weight:700;"><?= number_format($o['prix'] ?? 0, 2) ?> DT</span>
-                      <span style="color:#4ade80;font-size:.72rem;margin-left:2px;">↘<?= $disc ?>%</span>
+                      <span style="color:#4ade80;font-size:.72rem;margin-left:2px;">?<?= $disc ?>%</span>
                     </td>
                     <td style="font-size:.85rem;">
                       <?php
@@ -571,12 +571,12 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
         </div>
       </div><!-- /view-list -->
 
-      <!-- ══════════════════════════════════════
-           VUE 2 : FORMULAIRE (Créer / Modifier / Supprimer)
-      ══════════════════════════════════════ -->
+      <!-- --------------------------------------
+           VUE 2 : FORMULAIRE (Cr�er / Modifier / Supprimer)
+      -------------------------------------- -->
       <div id="view-form">
 
-        <!-- En-tête de la vue formulaire -->
+        <!-- En-t�te de la vue formulaire -->
         <div class="form-page-header">
           <button class="btn-back" onclick="showList()">
             <i class="fa-solid fa-arrow-left"></i> Retour
@@ -587,7 +587,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           </div>
         </div>
 
-        <!-- ── Formulaire CRÉER ── -->
+        <!-- -- Formulaire CR�ER -- -->
         <div id="form-create-wrap">
           <div class="form-card">
             <form method="POST" action="offers.php" id="form-create" novalidate>
@@ -603,7 +603,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 
               <div class="form-group">
                 <label>Description</label>
-                <textarea name="description" class="form-textarea" rows="3" placeholder="Décrivez le contenu..."><?= ea($old['description'] ?? '') ?></textarea>
+                <textarea name="description" class="form-textarea" rows="3" placeholder="D�crivez le contenu..."><?= ea($old['description'] ?? '') ?></textarea>
               </div>
 
               <div class="form-row">
@@ -615,7 +615,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+                  <label>Prix r�duit (DT) <span style="color:var(--color-primary)">*</span></label>
                   <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
                     <input type="number" name="prix" class="form-input" step="0.01" min="0.01" placeholder="4.50"
                            value="<?= ea($old['prix'] ?? '') ?>">
@@ -625,7 +625,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+                  <label>Quantit� <span style="color:var(--color-primary)">*</span></label>
                   <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
                     <input type="number" name="quantite" class="form-input" min="1" placeholder="5"
                            value="<?= ea($old['quantite'] ?? '') ?>">
@@ -634,7 +634,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               </div>
 
               <div class="form-group">
-                <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+                <label>Cat�gorie <span style="color:var(--color-primary)">*</span></label>
                 <div class="cat-checkbox-list" id="create-cat-list">
                   <?php
                   $oldCatId = !empty($old['id_categorie']) ? (int)$old['id_categorie'] : 0;
@@ -650,12 +650,12 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                     </div>
                   <?php endforeach; ?>
                 </div>
-                <div id="create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner une catégorie.</div>
+                <div id="create-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez s�lectionner une cat�gorie.</div>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Heure début</label>
+                  <label>Heure d�but</label>
                   <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
                     <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM"
                            value="<?= ea($old['heure_debut'] ?? '') ?>">
@@ -679,9 +679,9 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                   <div class="photo-placeholder" id="create-photo-placeholder">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     Cliquez ou glissez une image ici<br>
-                    <small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+                    <small style="opacity:.6;">JPG, PNG, WEBP � max 2 Mo</small>
                   </div>
-                  <img id="create-photo-preview" class="photo-preview" alt="Aperçu">
+                  <img id="create-photo-preview" class="photo-preview" alt="Aper�u">
                 </div>
               </div>
 
@@ -689,8 +689,8 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
                 <label>Statut</label>
                 <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-toggle-on"></i></span>
                   <select name="statut" class="form-input">
-                    <?php foreach (['publiée','brouillon','expirée','archivée'] as $s): ?>
-                      <option value="<?= $s ?>" <?= (($old['statut'] ?? 'publiée') === $s) ? 'selected' : '' ?>>
+                    <?php foreach (['publi�e','brouillon','expir�e','archiv�e'] as $s): ?>
+                      <option value="<?= $s ?>" <?= (($old['statut'] ?? 'publi�e') === $s) ? 'selected' : '' ?>>
                         <?= ucfirst($s) ?>
                       </option>
                     <?php endforeach; ?>
@@ -701,14 +701,14 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
               <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="showList()">Annuler</button>
                 <button type="submit" class="btn btn-primary">
-                  <i class="fa-solid fa-plus"></i> Créer l'offre
+                  <i class="fa-solid fa-plus"></i> Cr�er l'offre
                 </button>
               </div>
             </form>
           </div>
         </div>
 
-        <!-- ── Formulaire MODIFIER ── -->
+        <!-- -- Formulaire MODIFIER -- -->
         <div id="form-edit-wrap" style="display:none;">
           <div class="form-card">
             <form method="POST" action="offers.php" id="form-edit" novalidate>
@@ -725,7 +725,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
           </div>
         </div>
 
-        <!-- ── Confirmer SUPPRESSION ── -->
+        <!-- -- Confirmer SUPPRESSION -- -->
         <div id="form-delete-wrap" style="display:none;">
           <div class="delete-inline-card">
             <i class="fa-solid fa-trash big-icon"></i>
@@ -750,7 +750,7 @@ function ea($v) { return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
   </main>
 </div>
 
-<!-- Données PHP pour le JS -->
+<!-- Donn�es PHP pour le JS -->
 <script>
 const allOffersData     = <?= json_encode(array_values($offers ?? []), JSON_UNESCAPED_UNICODE) ?>;
 const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNICODE) ?>;
@@ -759,9 +759,9 @@ const allCategoriesData = <?= json_encode($categories ?? [], JSON_UNESCAPED_UNIC
 <script src="/caremeal/js/app.js"></script>
 <script src="/caremeal/js/components.js"></script>
 <script>
-/* ══════════════════════════════════════════
+/* ------------------------------------------
    NAVIGATION ENTRE VUES (sans modal)
-══════════════════════════════════════════ */
+------------------------------------------ */
 function showList() {
   document.getElementById('view-list').style.display = 'block';
   document.getElementById('view-form').style.display = 'none';
@@ -796,7 +796,7 @@ function showEditForm(id) {
   document.getElementById('edit-id_offre').value = id;
   document.getElementById('edit-body').innerHTML  = buildEditForm(o);
   document.getElementById('form-edit-wrap').style.display = 'block';
-  // Attacher validation temps réel
+  // Attacher validation temps r�el
   document.getElementById('form-edit').querySelectorAll('input,textarea,select').forEach(el => {
     el.addEventListener('input', () => clearFieldError(el));
   });
@@ -806,14 +806,14 @@ function showEditForm(id) {
 function showDeleteForm(id, titre) {
   showFormView('Supprimer une offre', '');
   document.getElementById('delete-id_offre').value   = id;
-  document.getElementById('delete-label').textContent = '« ' + titre + ' » sera définitivement supprimée.';
+  document.getElementById('delete-label').textContent = '� ' + titre + ' � sera d�finitivement supprim�e.';
   document.getElementById('form-delete-wrap').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ══════════════════════════════════════════
-   GÉNÉRATION DU FORMULAIRE MODIFIER
-══════════════════════════════════════════ */
+/* ------------------------------------------
+   G�N�RATION DU FORMULAIRE MODIFIER
+------------------------------------------ */
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function buildEditForm(o) {
@@ -827,9 +827,9 @@ function buildEditForm(o) {
       </label>
     </div>`
   ).join('');
-  const statuts = ['publiée','brouillon','expirée','archivée'];
+  const statuts = ['publi�e','brouillon','expir�e','archiv�e'];
   const statutOpts = statuts.map(s =>
-    `<option value="${s}" ${(o.statut??'publiée')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+    `<option value="${s}" ${(o.statut??'publi�e')===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
   ).join('');
   const existingPhoto = o.photo_url || '';
 
@@ -852,7 +852,7 @@ function buildEditForm(o) {
         </div>
       </div>
       <div class="form-group">
-        <label>Prix réduit (DT) <span style="color:var(--color-primary)">*</span></label>
+        <label>Prix r�duit (DT) <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-percent"></i></span>
           <input type="number" name="prix" class="form-input" step="0.01" min="0.01" value="${esc(o.prix??'')}">
         </div>
@@ -860,20 +860,20 @@ function buildEditForm(o) {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Quantité <span style="color:var(--color-primary)">*</span></label>
+        <label>Quantit� <span style="color:var(--color-primary)">*</span></label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
           <input type="text" name="quantite" class="form-input" value="${esc(o.quantite??'')}">
         </div>
       </div>
     </div>
     <div class="form-group">
-      <label>Catégorie <span style="color:var(--color-primary)">*</span></label>
+      <label>Cat�gorie <span style="color:var(--color-primary)">*</span></label>
       <div class="cat-checkbox-list" id="edit-cat-list">${catCheckboxes}</div>
-      <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez sélectionner une catégorie.</div>
+      <div id="edit-cat-error" style="color:#f87171;font-size:.75rem;margin-top:4px;display:none;">Veuillez s�lectionner une cat�gorie.</div>
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Heure début</label>
+        <label>Heure d�but</label>
         <div class="input-wrapper"><span class="input-icon"><i class="fa-solid fa-clock"></i></span>
           <input type="text" name="heure_debut" class="form-input" placeholder="HH:MM" value="${(o.heure_debut??'').substring(0,5)}">
         </div>
@@ -892,9 +892,9 @@ function buildEditForm(o) {
         <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'edit-photo-url','edit-photo-preview','edit-photo-placeholder')">
         <div class="photo-placeholder" id="edit-photo-placeholder" ${existingPhoto?'style="display:none"':''}>
           <i class="fa-solid fa-cloud-arrow-up"></i>
-          Cliquez ou glissez une image<br><small style="opacity:.6;">JPG, PNG, WEBP — max 2 Mo</small>
+          Cliquez ou glissez une image<br><small style="opacity:.6;">JPG, PNG, WEBP � max 2 Mo</small>
         </div>
-        <img id="edit-photo-preview" class="photo-preview" alt="Aperçu" ${existingPhoto?`src="${esc(existingPhoto)}" style="display:block;"`:''}>
+        <img id="edit-photo-preview" class="photo-preview" alt="Aper�u" ${existingPhoto?`src="${esc(existingPhoto)}" style="display:block;"`:''}>
       </div>
     </div>
     <div class="form-group">
@@ -905,9 +905,9 @@ function buildEditForm(o) {
     </div>`;
 }
 
-/* ══════════════════════════════════════════
+/* ------------------------------------------
    VALIDATION
-══════════════════════════════════════════ */
+------------------------------------------ */
 function showFieldError(input, msg) {
   input.style.borderColor = '#f87171';
   let err = input.parentElement.parentElement.querySelector('.field-error');
@@ -930,28 +930,28 @@ function validateOfferForm(form) {
   if (titre) {
     const v = titre.value.trim();
     if (!v) { showFieldError(titre, 'Le titre est obligatoire.'); valid = false; }
-    else if (v.length < 3) { showFieldError(titre, 'Minimum 3 caractères.'); valid = false; }
+    else if (v.length < 3) { showFieldError(titre, 'Minimum 3 caract�res.'); valid = false; }
     else clearFieldError(titre);
   }
   const prixOrig = form.querySelector('[name="prix_original"]');
   if (prixOrig) {
     const v = parseFloat(prixOrig.value);
-    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit être un nombre positif.'); valid = false; }
+    if (!prixOrig.value || isNaN(v) || v <= 0) { showFieldError(prixOrig, 'Le prix original doit �tre un nombre positif.'); valid = false; }
     else clearFieldError(prixOrig);
   }
   const prix = form.querySelector('[name="prix"]');
   if (prix) {
     const v = parseFloat(prix.value);
-    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix réduit doit être un nombre positif.'); valid = false; }
+    if (!prix.value || isNaN(v) || v <= 0) { showFieldError(prix, 'Le prix r�duit doit �tre un nombre positif.'); valid = false; }
     else if (prixOrig && parseFloat(prixOrig.value) > 0 && v >= parseFloat(prixOrig.value)) {
-      showFieldError(prix, 'Le prix réduit doit être inférieur au prix original.'); valid = false;
+      showFieldError(prix, 'Le prix r�duit doit �tre inf�rieur au prix original.'); valid = false;
     }
     else clearFieldError(prix);
   }
   const qte = form.querySelector('[name="quantite"]');
   if (qte) {
     const v = parseInt(qte.value);
-    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantité doit être au moins 1.'); valid = false; }
+    if (!qte.value || isNaN(v) || v < 1) { showFieldError(qte, 'La quantit� doit �tre au moins 1.'); valid = false; }
     else clearFieldError(qte);
   }
   const catRadios = form.querySelectorAll('[name="id_categorie"]');
@@ -968,15 +968,15 @@ function validateOfferForm(form) {
   else if (hd && hd.value) clearFieldError(hd);
   if (hf && hf.value && !timeRe.test(hf.value.trim())) { showFieldError(hf, 'Format invalide. Ex: 18:00'); valid = false; }
   else if (hd && hf && hd.value && hf.value && timeRe.test(hd.value) && timeRe.test(hf.value) && hf.value <= hd.value) {
-    showFieldError(hf, 'Heure de fin doit être après l\'heure de début.'); valid = false;
+    showFieldError(hf, 'Heure de fin doit �tre apr�s l\'heure de d�but.'); valid = false;
   }
   else if (hf && hf.value) clearFieldError(hf);
   return valid;
 }
 
-/* ══════════════════════════════════════════
+/* ------------------------------------------
    UPLOAD PHOTO
-══════════════════════════════════════════ */
+------------------------------------------ */
 function handlePhotoUpload(input, urlId, previewId, placeholderId) {
   const file = input.files[0];
   if (!file) return;
@@ -993,9 +993,9 @@ function handlePhotoUpload(input, urlId, previewId, placeholderId) {
   reader.readAsDataURL(file);
 }
 
-/* ══════════════════════════════════════════
+/* ------------------------------------------
    FILTRES
-══════════════════════════════════════════ */
+------------------------------------------ */
 let currentFilter = 'tous';
 let currentCategoryFilter = '';
 
@@ -1075,9 +1075,9 @@ function applyFilters() {
   checkLowStock();
 }
 
-/* ══════════════════════════════════════════
+/* ------------------------------------------
    ALERTE STOCK FAIBLE
-══════════════════════════════════════════ */
+------------------------------------------ */
 const STOCK_LOW_THRESHOLD = 3;
 let showingLowStockOnly = false;
 
@@ -1121,31 +1121,31 @@ function filterLowStock() {
   }
 }
 
-/* ══════════════════════════════════════════
-   TRI PAR STOCK (croissant / décroissant / original)
-══════════════════════════════════════════ */
+/* ------------------------------------------
+   TRI PAR STOCK (croissant / d�croissant / original)
+------------------------------------------ */
 let stockSortDir = null; // null | 'asc' | 'desc'
 
 function sortByStock() {
-  // Cycle : null → asc → desc → null
+  // Cycle : null ? asc ? desc ? null
   if (stockSortDir === null)        stockSortDir = 'asc';
   else if (stockSortDir === 'asc')  stockSortDir = 'desc';
   else                              stockSortDir = null;
 
-  // Mettre à jour l'icône et la couleur du bouton
+  // Mettre � jour l'ic�ne et la couleur du bouton
   const icon = document.getElementById('sort-stock-icon');
   const btn  = document.getElementById('btn-sort-stock');
 
   if (stockSortDir === 'asc') {
-    icon.textContent = '↑';
+    icon.textContent = '?';
     btn.classList.add('active');
-    btn.title = 'Stock croissant — cliquer pour décroissant';
+    btn.title = 'Stock croissant � cliquer pour d�croissant';
   } else if (stockSortDir === 'desc') {
-    icon.textContent = '↓';
+    icon.textContent = '?';
     btn.classList.add('active');
-    btn.title = 'Stock décroissant — cliquer pour annuler';
+    btn.title = 'Stock d�croissant � cliquer pour annuler';
   } else {
-    icon.textContent = '⇅';
+    icon.textContent = '?';
     btn.classList.remove('active');
     btn.title = 'Trier par stock';
   }
@@ -1165,7 +1165,7 @@ function sortByStock() {
         const td = row.querySelectorAll('td')[3];
         if (!td) return -1;
         const val = parseInt(td.textContent.trim());
-        // Les stocks indéterminés '?' sont placés en dernier
+        // Les stocks ind�termin�s '?' sont plac�s en dernier
         return isNaN(val) ? (stockSortDir === 'asc' ? Infinity : -Infinity) : val;
       };
       const diff = getStock(a) - getStock(b);
@@ -1173,13 +1173,13 @@ function sortByStock() {
     });
   }
 
-  // Ré-insérer les lignes dans le nouvel ordre
+  // R�-ins�rer les lignes dans le nouvel ordre
   rows.forEach(row => tbody.appendChild(row));
 }
 
-/* ══════════════════════════════════════════
-   FORMULAIRES — Attacher validation
-══════════════════════════════════════════ */
+/* ------------------------------------------
+   FORMULAIRES � Attacher validation
+------------------------------------------ */
 document.addEventListener('DOMContentLoaded', () => {
   const createForm = document.getElementById('form-create');
   if (createForm) {
@@ -1193,10 +1193,10 @@ document.addEventListener('DOMContentLoaded', () => {
     editForm.addEventListener('submit', e => { if (!validateOfferForm(editForm)) e.preventDefault(); });
   }
 
-  // Vérifier les stocks faibles au chargement
+  // V�rifier les stocks faibles au chargement
   checkLowStock();
 
-  // Ré-ouvrir la vue formulaire si erreurs serveur
+  // R�-ouvrir la vue formulaire si erreurs serveur
   <?php if (!empty($errors) && !empty($old) && isset($old['id_offre'])): ?>
     showEditForm(<?= (int)$old['id_offre'] ?>);
   <?php elseif (!empty($errors) && !empty($old)): ?>
@@ -1204,9 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
   <?php endif; ?>
 });
 
-/* ══════════════════════════════════════════
+/* ------------------------------------------
    SIDEBAR / LOGOUT
-══════════════════════════════════════════ */
+------------------------------------------ */
 const mt = document.getElementById('menu-toggle');
 const sb = document.getElementById('sidebar');
 const ov = document.getElementById('sidebar-overlay');
@@ -1215,5 +1215,7 @@ if (ov) ov.addEventListener('click', () => sb.classList.remove('open'));
 const logoutBtn = document.querySelector('[data-action="logout"]');
 if (logoutBtn) logoutBtn.addEventListener('click', () => { if (typeof App !== 'undefined') App.logout(); });
 </script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
 </html>
+

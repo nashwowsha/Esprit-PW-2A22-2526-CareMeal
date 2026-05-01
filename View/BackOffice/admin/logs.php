@@ -77,5 +77,8 @@
       document.getElementById('logs-count').textContent = logs.length + ' entrée' + (logs.length > 1 ? 's' : '');
     });
   </script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
 </html>
+
+

@@ -1,10 +1,10 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="DÃ©tail d'un utilisateur ï¿½ CareMeal Admin.">
-  <title>Fiche Utilisateur ï¿½ CareMeal Admin</title>
+  <meta name="description" content="Détail d'un utilisateur ? CareMeal Admin.">
+  <title>Fiche Utilisateur ? CareMeal Admin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
@@ -23,10 +23,10 @@
           <a href="dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
           <a href="users.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
           <a href="partners.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-          <a href="/caremeal/admin/categorie.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> CatÃ©gorie offres</a>
+          <a href="/caremeal/admin/categorie.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Catégorie offres</a>
           <a href="/caremeal/admin/offers.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
-                      <a href="events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ã‰vÃ©nements</a>
-            <a href="logs.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activitÃ©</a>
+                      <a href="events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+            <a href="logs.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -36,7 +36,7 @@
             <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
             <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
           </div>
-          <button class="sidebar-logout" data-action="logout" title="DÃ©connexion"><i class="fa-solid fa-door-open"></i></button>
+          <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
         </div>
       </div>
     </aside>
@@ -48,7 +48,7 @@
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
           <div class="page-title">
             <h2>Fiche Utilisateur</h2>
-            <p><a href="users.html" style="color:var(--color-primary);">ï¿½ ï¿½ Retour Ã  la liste</a></p>
+            <p><a href="users.html" style="color:var(--color-primary);">? ? Retour à la liste</a></p>
           </div>
         </div>
         <div class="header-right">
@@ -62,13 +62,13 @@
           <div class="user-detail-card">
             <div class="avatar avatar-xl" id="detail-avatar">?</div>
             <div>
-              <h2 style="margin-bottom:4px;" id="detail-name">ï¿½</h2>
-              <p style="color:var(--color-text-muted);margin-bottom:8px;" id="detail-email">ï¿½</p>
+              <h2 style="margin-bottom:4px;" id="detail-name">?</h2>
+              <p style="color:var(--color-text-muted);margin-bottom:8px;" id="detail-email">?</p>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <span id="detail-role"></span>
                 <span id="detail-status"></span>
               </div>
-              <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:8px;"><i class="fa-solid fa-calendar"></i> Inscrit le <span id="detail-joined">ï¿½</span></p>
+              <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:8px;"><i class="fa-solid fa-calendar"></i> Inscrit le <span id="detail-joined">?</span></p>
             </div>
           </div>
           <div class="user-detail-actions" id="detail-actions">
@@ -98,5 +98,7 @@
   <script src="../js/components.js"></script>
   <script src="../js/admin.js"></script>
   <script>document.addEventListener('DOMContentLoaded', () => Admin.initUserDetail());</script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
 </html>
+

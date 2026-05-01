@@ -102,5 +102,8 @@
       }
     });
   </script>
+  <script src="/caremeal/js/admin-voice-assistant.js"></script>
 </body>
 </html>
+
+
