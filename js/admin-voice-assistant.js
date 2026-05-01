@@ -234,7 +234,12 @@
         this.setStatus("Aucun texte reconnu.");
         return;
       }
-      await this.handlePrompt(text);
+      try {
+        await this.handlePrompt(text);
+      } catch (_e) {
+        this.setStatus("Erreur traitement.");
+        this.respond("Je n ai pas pu traiter cette demande. Reessaie avec une phrase plus precise.", true);
+      }
     };
 
     this.recognition.onerror = (event) => {
@@ -461,6 +466,33 @@
       });
       this.clearPendingIntent();
       this.respond(`Offre modifiee: ${pending.sourceTitle} -> ${answer}.`, true);
+      return true;
+    }
+
+    if (pending.type === "update_offer_fields") {
+      const payload = this.extractOfferPayload(text);
+      const explicitStatus = this.extractOfferStatus(text);
+      if (explicitStatus) {
+        payload.statut = explicitStatus;
+      }
+
+      const hasAnyField =
+        payload.titre || payload.description || payload.prix || payload.prix_original ||
+        payload.quantite || payload.nom_categorie || payload.heure_debut || payload.heure_fin ||
+        payload.photo_url || payload.statut;
+
+      if (!hasAnyField) {
+        this.respond("Dis exactement le champ a modifier, par exemple: prix 5.5, categorie glucides, statut brouillon, description sandwich chaud.", true);
+        return true;
+      }
+
+      await this.callAdminApi({
+        action: "update_offer",
+        titre_source: pending.sourceTitle,
+        ...payload,
+      });
+      this.clearPendingIntent();
+      this.respond(`Offre modifiee: ${pending.sourceTitle}.`, true);
       return true;
     }
 
@@ -718,16 +750,30 @@
       }
 
       const payload = this.extractOfferPayload(text);
-      if (!payload.titre && renamePair.target) {
-        payload.titre = renamePair.target;
+      const explicitTitleTarget =
+        renamePair.target ||
+        this.extractLabeledValue(text, ["titre", "nom", "nouveau", "new"]);
+      if (explicitTitleTarget) {
+        payload.titre = this.sanitizeOfferTitle(explicitTitleTarget);
+      } else if (payload.titre && this.normalize(payload.titre) === this.normalize(source)) {
+        delete payload.titre;
       }
+
+      const explicitStatus = this.extractOfferStatus(text);
+      if (explicitStatus) {
+        payload.statut = explicitStatus;
+      }
+
       const hasAnyField =
         payload.titre || payload.description || payload.prix || payload.prix_original ||
         payload.quantite || payload.nom_categorie || payload.heure_debut || payload.heure_fin ||
         payload.photo_url || payload.statut;
 
       if (!hasAnyField) {
-        this.setPendingIntent({ type: "update_offer_target_title", sourceTitle: source }, `D accord. Quel nouveau titre pour l offre ${source} ?`);
+        this.setPendingIntent(
+          { type: "update_offer_fields", sourceTitle: source },
+          `D accord. Que veux-tu modifier pour l offre ${source} (prix, categorie, statut, description) ?`
+        );
         return true;
       }
 
@@ -1032,13 +1078,19 @@
         prix_original: String(cmd.prix_original || "").trim(),
         quantite: String(cmd.quantite || "").trim(),
         nom_categorie: this.cleanEntityName(cmd.categorie || ""),
-        statut: String(cmd.statut || "").trim(),
+        statut: this.extractOfferStatus(String(cmd.statut || "").trim()),
       };
       Object.keys(payload).forEach((k) => {
         if (payload[k] === "") delete payload[k];
       });
+      if (payload.titre && this.normalize(payload.titre) === this.normalize(source)) {
+        delete payload.titre;
+      }
       if (Object.keys(payload).length <= 2) {
-        this.setPendingIntent({ type: "update_offer_target_title", sourceTitle: source }, `Quel nouveau titre pour l offre ${source} ?`);
+        this.setPendingIntent(
+          { type: "update_offer_fields", sourceTitle: source },
+          `Que veux-tu modifier pour l offre ${source} (prix, categorie, statut, description) ?`
+        );
         return true;
       }
       await this.callAdminApi(payload);
@@ -1268,6 +1320,24 @@
     const m = (text || "").match(/\bdescription\b\s+(?:de|du|pour)?\s*(?:l['’]?\s*)?(?:offre\s+)?(.+)$/i);
     if (!m || !m[1]) return "";
     return this.cleanFieldText(m[1]);
+  },
+
+  extractOfferStatus(text) {
+    const n = this.normalize(text || "");
+    if (!n) return "";
+    if (/\b(publie|publiee|publiees|active)\b/.test(n)) return "publiee";
+    if (/\b(brouillon|draft)\b/.test(n)) return "brouillon";
+    if (/\b(expire|expiree|expirees)\b/.test(n)) return "expiree";
+    if (/\b(archive|archivee|archivees)\b/.test(n)) return "archivee";
+
+    const labeled = this.extractLabeledValue(text, ["statut", "status"]);
+    if (!labeled) return "";
+    const ln = this.normalize(labeled);
+    if (/\b(publie|publiee|active)\b/.test(ln)) return "publiee";
+    if (/\b(brouillon|draft)\b/.test(ln)) return "brouillon";
+    if (/\b(expire|expiree)\b/.test(ln)) return "expiree";
+    if (/\b(archive|archivee)\b/.test(ln)) return "archivee";
+    return "";
   },
 
   cleanFieldText(value) {
