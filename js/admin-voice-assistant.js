@@ -317,8 +317,21 @@ const AdminVoiceAssistant = {
       { words: ["dashboard", "vue globale", "accueil"], url: "dashboard.html", message: "Retour au dashboard." },
     ];
 
-    const wantsOpen = /(ouvre|va|aller|affiche|montre|navigue)/.test(normalized);
+    const wantsOpen = /(ouvre|ouvrir|va|aller|affiche|afficher|montre|montrer|navigue|naviguer)/.test(normalized);
     if (wantsOpen) {
+      for (const cmd of navCommands) {
+        if (cmd.words.some((word) => normalized.includes(word))) {
+          this.respond(cmd.message, false);
+          setTimeout(() => {
+            window.location.href = cmd.url;
+          }, 450);
+          return true;
+        }
+      }
+    }
+
+    // Fallback: if user says only the page target (e.g. "page offres"), navigate directly.
+    if (/(page|onglet|section)/.test(normalized) || normalized.split(/\s+/).length <= 2) {
       for (const cmd of navCommands) {
         if (cmd.words.some((word) => normalized.includes(word))) {
           this.respond(cmd.message, false);
@@ -480,6 +493,7 @@ const AdminVoiceAssistant = {
         const error = new Error(data.error || "Erreur serveur");
         error.code = data.code || null;
         error.retryAfter = data.retry_after_seconds || null;
+        error.meta = data.meta || null;
         throw error;
       }
 
@@ -488,13 +502,14 @@ const AdminVoiceAssistant = {
     } catch (error) {
       if (error.code === "quota_exceeded") {
         const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
+        const attemptsPart = error.meta?.attempts ? ` Tentatives: ${error.meta.attempts}.` : "";
         if (error.retryAfter) {
           this.quotaBlockedUntilMs = Date.now() + (error.retryAfter * 1000);
         } else {
           this.quotaBlockedUntilMs = Date.now() + 30000;
         }
         this.setStatus("Quota Gemini temporairement depasse.");
-        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart;
+        this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart + attemptsPart;
       } else {
         this.setStatus("Erreur assistant: " + error.message);
         this.elements.reply.textContent = "Je n ai pas pu contacter le serveur.";

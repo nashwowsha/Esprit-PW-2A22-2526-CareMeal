@@ -44,4 +44,37 @@ class AIConfig
 
         return $keys;
     }
+
+    /**
+     * Priority:
+     * 1) GEMINI_MODELS (comma-separated list)
+     * 2) GEMINI_MODEL (single model fallback)
+     */
+    public static function geminiModels(): array
+    {
+        $modelsRaw = Env::get('GEMINI_MODELS', '');
+        $models = [];
+
+        if ($modelsRaw !== '') {
+            $parts = explode(',', $modelsRaw);
+            foreach ($parts as $part) {
+                $m = trim($part);
+                if ($m !== '') {
+                    $models[] = $m;
+                }
+            }
+        }
+
+        $single = trim(Env::get('GEMINI_MODEL', 'gemini-2.5-flash-lite') ?? '');
+        if ($single !== '') {
+            $models[] = $single;
+        }
+
+        $models = array_values(array_unique($models));
+        if (empty($models)) {
+            $models[] = 'gemini-2.5-flash-lite';
+        }
+
+        return $models;
+    }
 }
