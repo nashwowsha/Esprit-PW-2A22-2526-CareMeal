@@ -1,4 +1,4 @@
-const AdminVoiceAssistant = {
+﻿const AdminVoiceAssistant = {
   recognition: null,
   listening: false,
   isRequestInFlight: false,
@@ -444,7 +444,7 @@ const AdminVoiceAssistant = {
       this.respond("Bonjour. Je suis pret a t aider sur l espace admin.", true);
       return true;
     }
-    if (/(comment tu t[ '’]?appelles|ton nom|qui es tu|tu es qui)/.test(normalized)) {
+    if (/(comment tu t[ 'â€™]?appelles|ton nom|qui es tu|tu es qui)/.test(normalized)) {
       this.respond("Je suis l assistant vocal admin de CareMeal.", true);
       return true;
     }
@@ -610,8 +610,8 @@ const AdminVoiceAssistant = {
 
     if (actionCreate && isOffer) {
       const payload = this.extractOfferPayload(text);
-      if (!payload.titre || !payload.prix || !payload.prix_original || !payload.quantite || !payload.nom_categorie) {
-        this.respond("Pour creer une offre: titre=...; prix=...; prix_original=...; quantite=...; categorie=...", true);
+      if (!payload.titre) {
+        this.respond("Donne au moins un titre, exemple: ajoute une offre salade cesar.", true);
         return true;
       }
       const created = await this.callAdminApi({ action: "create_offer", ...payload, statut: "publiee" });
@@ -713,7 +713,7 @@ const AdminVoiceAssistant = {
   },
 
   extractQuoted(text) {
-    const m = text.match(/["“](.+?)["”]/);
+    const m = text.match(/["'“”«»](.+?)["'“”«»]/);
     return m ? m[1].trim() : "";
   },
 
@@ -749,18 +749,42 @@ const AdminVoiceAssistant = {
   },
 
   extractOfferPayload(text) {
+    const inferredTitle = this.inferOfferTitle(text);
     return {
-      titre: this.extractLabeledValue(text, ["titre"]),
+      titre: this.extractLabeledValue(text, ["titre"]) || inferredTitle,
       description: this.extractLabeledValue(text, ["description", "desc"]),
       prix: this.extractLabeledValue(text, ["prix"]),
       prix_original: this.extractLabeledValue(text, ["prix_original", "prix original", "original"]),
       quantite: this.extractLabeledValue(text, ["quantite", "qte"]),
-      nom_categorie: this.extractLabeledValue(text, ["categorie", "category"]),
+      nom_categorie:
+        this.extractLabeledValue(text, ["categorie", "category"]) ||
+        this.extractCategoryFromNaturalText(text),
       heure_debut: this.extractLabeledValue(text, ["heure_debut", "debut"]),
       heure_fin: this.extractLabeledValue(text, ["heure_fin", "fin"]),
       photo_url: this.extractLabeledValue(text, ["photo", "image", "photo_url"]),
       statut: this.extractLabeledValue(text, ["statut"]),
     };
+  },
+
+  inferOfferTitle(text) {
+    const quoted = this.extractQuoted(text);
+    if (quoted) return this.cleanEntityName(quoted);
+
+    const cleaned = (text || "")
+      .replace(/\b(ajoute|ajouter|cree|creer|nouvelle|nouveau)\b/gi, " ")
+      .replace(/\b(une|un|la|le|les|des|du|de)\b/gi, " ")
+      .replace(/\boffre(s)?\b/gi, " ")
+      .replace(/\b(avec|prix|prix_original|prix original|quantite|categorie|category|description|desc)\b[\s:=].*$/i, " ")
+      .replace(/[;,]/g, " ")
+      .trim();
+
+    return this.cleanEntityName(cleaned);
+  },
+
+  extractCategoryFromNaturalText(text) {
+    const match = (text || "").match(/\b(?:dans|de|categorie|category)\s+([a-zA-Z0-9À-ÿ_\-\s]{2,})$/i);
+    if (!match || !match[1]) return "";
+    return this.cleanEntityName(match[1]);
   },
 
   extractLabeledValue(text, labels) {
@@ -837,13 +861,25 @@ const AdminVoiceAssistant = {
     this.saveState();
     this.setStatus("Reponse prete.");
     if (speak) {
-      const utterance = new SpeechSynthesisUtterance(message);
+      const spokenMessage = this.toSpeechText(message);
+      const utterance = new SpeechSynthesisUtterance(spokenMessage);
       utterance.lang = "fr-FR";
       utterance.rate = 1;
       utterance.pitch = 1;
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     }
+  },
+
+  toSpeechText(message) {
+    return (message || "")
+      .replace(/[`*_#~]/g, " ")
+      .replace(/[\/\\]+/g, " ")
+      .replace(/\s*[:=]+\s*/g, " ")
+      .replace(/[|<>\[\]{}]/g, " ")
+      .replace(/[^\p{L}\p{N}\s.,!?;:'"()%+-]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   },
 
   setStatus(message) {
@@ -859,3 +895,4 @@ const AdminVoiceAssistant = {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();
+

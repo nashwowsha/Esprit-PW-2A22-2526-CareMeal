@@ -132,9 +132,12 @@ try {
         case 'create_offer': {
             $titre = trim((string)($data['titre'] ?? ''));
             $description = trim((string)($data['description'] ?? ''));
-            $prix = (float)str_replace(',', '.', (string)($data['prix'] ?? '0'));
-            $prixOriginal = (float)str_replace(',', '.', (string)($data['prix_original'] ?? '0'));
-            $quantite = (int)($data['quantite'] ?? 0);
+            $hasPrix = isset($data['prix']) && trim((string)$data['prix']) !== '';
+            $hasPrixOriginal = isset($data['prix_original']) && trim((string)$data['prix_original']) !== '';
+            $hasQuantite = isset($data['quantite']) && trim((string)$data['quantite']) !== '';
+            $prix = $hasPrix ? (float)str_replace(',', '.', (string)$data['prix']) : 1.0;
+            $prixOriginal = $hasPrixOriginal ? (float)str_replace(',', '.', (string)$data['prix_original']) : 0.0;
+            $quantite = $hasQuantite ? (int)$data['quantite'] : 1;
             $statut = trim((string)($data['statut'] ?? 'publiee'));
             $heureDebut = trim((string)($data['heure_debut'] ?? ''));
             $heureFin = trim((string)($data['heure_fin'] ?? ''));
@@ -152,13 +155,33 @@ try {
                 }
             }
 
+            if ($categoryId <= 0) {
+                $firstCategoryId = $pdo->query('SELECT id_categorie FROM categorie_offre ORDER BY id_categorie ASC LIMIT 1')->fetchColumn();
+                if ($firstCategoryId !== false) {
+                    $categoryId = (int)$firstCategoryId;
+                }
+            }
+
+            if ($categoryId <= 0) {
+                $defaultCategoryName = 'General';
+                $pdo->prepare('INSERT INTO categorie_offre (nom_categorie, description, icone) VALUES (?, NULL, NULL)')
+                    ->execute([$defaultCategoryName]);
+                $categoryId = (int)$pdo->lastInsertId();
+            }
+
+            if (!$hasPrixOriginal || $prixOriginal <= 0) {
+                $prixOriginal = round(max($prix + 1, $prix * 1.2), 2);
+            }
+            if ($prixOriginal <= $prix) {
+                $prixOriginal = round($prix + 1, 2);
+            }
+
             $errors = [];
             if ($titre === '') $errors[] = 'Titre obligatoire.';
             if ($prix <= 0) $errors[] = 'Prix invalide.';
             if ($prixOriginal <= 0) $errors[] = 'Prix original invalide.';
             if ($prix >= $prixOriginal) $errors[] = 'Le prix reduit doit etre inferieur au prix original.';
             if ($quantite < 1) $errors[] = 'Quantite invalide.';
-            if ($categoryId <= 0) $errors[] = 'Categorie introuvable.';
             if (!empty($errors)) send_json(422, ['error' => implode(' ', $errors)]);
 
             $stmt = $pdo->prepare(
