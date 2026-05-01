@@ -35,6 +35,10 @@ $payload = [
             ],
         ],
     ],
+    'generationConfig' => [
+        'temperature' => 0.4,
+        'maxOutputTokens' => 220,
+    ],
 ];
 
 $ch = curl_init($url);

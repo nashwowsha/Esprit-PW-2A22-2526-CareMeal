@@ -2,6 +2,7 @@ const AdminVoiceAssistant = {
   recognition: null,
   listening: false,
   isRequestInFlight: false,
+  quotaBlockedUntilMs: 0,
   elements: {},
 
   init() {
@@ -313,7 +314,7 @@ const AdminVoiceAssistant = {
       { words: ["dashboard", "vue globale", "accueil"], url: "dashboard.html", message: "Retour au dashboard." },
     ];
 
-    const wantsOpen = /(ouvre|va|aller|affiche|montre|navigue)/.test(normalized);
+    const wantsOpen = /(ouvre|va|aller|affiche|montre|navigue|ajoute|ajouter|cree|creer|nouvelle)/.test(normalized);
     if (wantsOpen) {
       for (const cmd of navCommands) {
         if (cmd.words.some((word) => normalized.includes(word))) {
@@ -324,6 +325,14 @@ const AdminVoiceAssistant = {
           return true;
         }
       }
+    }
+
+    if (/(ajoute|ajouter|cree|creer|nouvelle)/.test(normalized) && /(offre|offres)/.test(normalized)) {
+      this.respond("Je t envoie vers la gestion des offres pour ajouter une offre.", false);
+      setTimeout(() => {
+        window.location.href = "offers.php";
+      }, 450);
+      return true;
     }
 
     if (/(rafraichis|rafraichir|actualise|actualiser|recharge|recharger)/.test(normalized)) {
@@ -345,6 +354,14 @@ const AdminVoiceAssistant = {
   },
 
   async askGemini(text) {
+    const now = Date.now();
+    if (now < this.quotaBlockedUntilMs) {
+      const seconds = Math.max(1, Math.ceil((this.quotaBlockedUntilMs - now) / 1000));
+      this.setStatus("Quota Gemini temporairement depasse.");
+      this.elements.reply.textContent = `Attends encore ${seconds} secondes avant de reessayer Gemini.`;
+      return;
+    }
+
     if (this.isRequestInFlight) {
       this.setStatus("Une requete est deja en cours...");
       return;
@@ -378,6 +395,11 @@ const AdminVoiceAssistant = {
     } catch (error) {
       if (error.code === "quota_exceeded") {
         const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
+        if (error.retryAfter) {
+          this.quotaBlockedUntilMs = Date.now() + (error.retryAfter * 1000);
+        } else {
+          this.quotaBlockedUntilMs = Date.now() + 30000;
+        }
         this.setStatus("Quota Gemini temporairement depasse.");
         this.elements.reply.textContent = "Le quota Gemini est depasse pour le moment." + waitPart;
       } else {
