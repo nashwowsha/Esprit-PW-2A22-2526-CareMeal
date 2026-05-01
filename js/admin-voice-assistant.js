@@ -307,6 +307,19 @@ const AdminVoiceAssistant = {
       return true;
     }
 
+    if (/(comment tu t appelles|ton nom|qui es tu|tu es qui)/.test(normalized)) {
+      this.respond("Je suis l assistant vocal admin de CareMeal.", true);
+      return true;
+    }
+
+    if (/(que peux tu faire|tu peux faire quoi|aide|help)/.test(normalized)) {
+      this.respond(
+        "Je peux ouvrir les pages admin, donner le nombre d offres/categories, ajouter une categorie et ajouter une offre avec le format guide.",
+        true
+      );
+      return true;
+    }
+
     const navCommands = [
       { words: ["utilisateur", "utilisateurs", "user", "users"], url: "users.html", message: "J ouvre la page Utilisateurs." },
       { words: ["partenaire", "partenaires"], url: "partners.html", message: "J ouvre la page Partenaires." },

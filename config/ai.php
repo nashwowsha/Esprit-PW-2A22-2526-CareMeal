@@ -77,4 +77,14 @@ class AIConfig
 
         return $models;
     }
+
+    public static function xaiApiKey(): string
+    {
+        return trim(Env::get('XAI_API_KEY', '') ?? '');
+    }
+
+    public static function xaiModel(): string
+    {
+        return trim(Env::get('XAI_MODEL', 'grok-2-latest') ?? 'grok-2-latest');
+    }
 }

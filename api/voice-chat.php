@@ -24,6 +24,8 @@ if ($text === '') {
 
 $apiKeys = AIConfig::geminiApiKeys();
 $models = AIConfig::geminiModels();
+$xaiKey = AIConfig::xaiApiKey();
+$xaiModel = AIConfig::xaiModel();
 
 $payload = [
     'contents' => [
@@ -128,6 +130,55 @@ foreach ($models as $model) {
 }
 
 if ($quotaFailures > 0) {
+    // Fallback to xAI (Grok) when Gemini quota is exhausted.
+    if ($xaiKey !== '') {
+        $xaiUrl = 'https://api.x.ai/v1/chat/completions';
+        $xaiPayload = [
+            'model' => $xaiModel,
+            'messages' => [
+                ['role' => 'user', 'content' => $text],
+            ],
+            'temperature' => 0.4,
+            'max_tokens' => 220,
+            'stream' => false,
+        ];
+
+        $xch = curl_init($xaiUrl);
+        curl_setopt_array($xch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $xaiKey,
+            ],
+            CURLOPT_POSTFIELDS => json_encode($xaiPayload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $xResponse = curl_exec($xch);
+        $xCurlErr = curl_error($xch);
+        $xHttpCode = (int)curl_getinfo($xch, CURLINFO_HTTP_CODE);
+        curl_close($xch);
+
+        if ($xResponse !== false) {
+            $xJson = json_decode($xResponse, true);
+            if ($xHttpCode < 400) {
+                $xReply = $xJson['choices'][0]['message']['content'] ?? '';
+                if (trim((string)$xReply) !== '') {
+                    echo json_encode([
+                        'reply' => $xReply,
+                        'meta' => [
+                            'provider' => 'xai',
+                            'model' => $xaiModel,
+                            'attempts' => $attempts,
+                        ],
+                    ], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+            }
+        }
+    }
+
     http_response_code(429);
     echo json_encode([
         'error' => 'Quota Gemini dépassé pour toutes les clés/modèles disponibles.',
