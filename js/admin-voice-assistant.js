@@ -297,8 +297,14 @@
     }
 
     // If user starts a clearly new request, do not stay trapped in previous pending flow.
-    if (this.state.pendingIntent && this.isNewIntentCommand(text)) {
+    if (this.state.pendingIntent && (this.isNewIntentCommand(text) || this.isNavigationCommand(text))) {
       this.clearPendingIntent();
+    }
+
+    // Navigation commands must stay fluid and should immediately interrupt pending CRUD dialogs.
+    if (this.isNavigationCommand(text)) {
+      const navHandled = this.executeLocalCommand(text);
+      if (navHandled) return;
     }
 
     // 1) If assistant is waiting for details, continue conversation first.
@@ -348,6 +354,13 @@
   async handlePendingIntent(text) {
     const pending = this.state.pendingIntent;
     if (!pending) return false;
+
+    // Allow immediate pivot to navigation without being blocked in a multi-turn form.
+    if (this.isNavigationCommand(text)) {
+      this.clearPendingIntent();
+      const navHandled = this.executeLocalCommand(text);
+      if (navHandled) return true;
+    }
 
     // Expire old pending intent to avoid sticky lock.
     if (pending.createdAt && Date.now() - pending.createdAt > 5 * 60 * 1000) {
@@ -582,7 +595,14 @@
 
   isNewIntentCommand(text) {
     const n = this.normalize(text);
-    return /(comment tu t|qui es tu|aide|help|ouvre|ouvrir|va |affiche|montre|combien|supprime|modifier|modifie|ajoute|cree|bloque|debloque|annule|reset|logout|deconnexion|rafraich)/.test(n);
+    return /(comment tu t|qui es tu|aide|help|ouvre|ouvrir|va |aller|affiche|montre|page|consulter|profil|combien|supprime|modifier|modifie|ajoute|cree|bloque|debloque|annule|reset|logout|deconnexion|rafraich)/.test(n);
+  },
+
+  isNavigationCommand(text) {
+    const n = this.normalize(text);
+    const hasNavVerb = /(ouvre|ouvrir|va|aller|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(n);
+    const hasPageTarget = /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(n);
+    return hasNavVerb && hasPageTarget;
   },
 
   executeLocalCommand(text) {
