@@ -296,6 +296,12 @@
       return;
     }
 
+    // Navigation has absolute priority for fluid UX.
+    if (this.executeNavigationOnly(text)) {
+      this.clearPendingIntent();
+      return;
+    }
+
     // If user starts a clearly new request, do not stay trapped in previous pending flow.
     if (this.state.pendingIntent && (this.isNewIntentCommand(text) || this.isNavigationCommand(text))) {
       this.clearPendingIntent();
@@ -303,7 +309,7 @@
 
     // Navigation commands must stay fluid and should immediately interrupt pending CRUD dialogs.
     if (this.isNavigationCommand(text)) {
-      const navHandled = this.executeLocalCommand(text);
+      const navHandled = this.executeNavigationOnly(text);
       if (navHandled) return;
     }
 
@@ -358,7 +364,7 @@
     // Allow immediate pivot to navigation without being blocked in a multi-turn form.
     if (this.isNavigationCommand(text)) {
       this.clearPendingIntent();
-      const navHandled = this.executeLocalCommand(text);
+      const navHandled = this.executeNavigationOnly(text);
       if (navHandled) return true;
     }
 
@@ -580,6 +586,21 @@
       return true;
     }
 
+    if (pending.type === "open_user_profile_target") {
+      const target = this.parseIdentityFromText(text) || { type: "name", value: answer.toLowerCase() };
+      const user = this.findUserLocal(target);
+      if (!user || !user.id) {
+        this.respond("Utilisateur introuvable. Redonne nom ou email exact.", true);
+        return true;
+      }
+      this.clearPendingIntent();
+      this.respond(`J ouvre la fiche de ${user.name}.`, false);
+      setTimeout(() => {
+        window.location.href = `user-detail.html?id=${encodeURIComponent(user.id)}`;
+      }, 250);
+      return true;
+    }
+
     return false;
   },
 
@@ -600,9 +621,40 @@
 
   isNavigationCommand(text) {
     const n = this.normalize(text);
-    const hasNavVerb = /(ouvre|ouvrir|va|aller|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(n);
+    const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(n);
     const hasPageTarget = /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(n);
     return hasNavVerb && hasPageTarget;
+  },
+
+  executeNavigationOnly(text) {
+    const normalized = this.normalize(text);
+    const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(normalized);
+    const hasPageHint = /(page|section|onglet|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(normalized);
+    if (!hasNavVerb && !hasPageHint) return false;
+
+    const navCommands = [
+      { words: ["utilisateur", "utilisateurs", "user", "users"], url: "users.html", message: "J ouvre la page Utilisateurs." },
+      { words: ["partenaire", "partenaires"], url: "partners.html", message: "J ouvre la page Partenaires." },
+      { words: ["categorie", "categories"], url: "categorie.php", message: "J ouvre la page Categories." },
+      { words: ["offre", "offres"], url: "offers.php", message: "J ouvre la page Offres." },
+      { words: ["evenement", "evenements", "event", "events"], url: "events.html", message: "J ouvre la page Evenements." },
+      { words: ["log", "logs", "activite"], url: "logs.html", message: "J ouvre la page Logs." },
+      { words: ["dashboard", "vue globale", "accueil"], url: "dashboard.html", message: "Retour au dashboard." },
+    ];
+
+    for (const cmd of navCommands) {
+      if (cmd.words.some((word) => normalized.includes(word))) {
+        this.state.open = true;
+        this.saveState();
+        this.respond(cmd.message, false);
+        setTimeout(() => {
+          window.location.href = cmd.url;
+        }, 250);
+        return true;
+      }
+    }
+
+    return false;
   },
 
   executeLocalCommand(text) {
@@ -1052,7 +1104,7 @@
           (targetName ? { type: "name", value: targetName.toLowerCase() } : null);
 
       if (!target) {
-        this.respond("Quel utilisateur veux-tu consulter ?", true);
+        this.setPendingIntent({ type: "open_user_profile_target" }, "Quel utilisateur veux-tu consulter ?");
         return true;
       }
 
