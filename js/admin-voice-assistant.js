@@ -430,6 +430,23 @@
       return true;
     }
 
+    if (pending.type === "create_category_name") {
+      const name = this.cleanEntityName(answer);
+      if (!name || name.length < 2) {
+        this.respond("Je n ai pas compris le nom. Redonne le nom de la categorie.", true);
+        return true;
+      }
+      const basePayload = pending.payload && typeof pending.payload === "object" ? pending.payload : {};
+      const created = await this.callAdminApi({
+        action: "create_category",
+        ...basePayload,
+        nom_categorie: name,
+      });
+      this.clearPendingIntent();
+      this.respond(`Categorie creee: ${created.nom_categorie}.`, true);
+      return true;
+    }
+
     if (pending.type === "delete_category") {
       await this.callAdminApi({ action: "delete_category", nom_categorie: answer });
       this.clearPendingIntent();
@@ -1378,15 +1395,33 @@
     }
 
     if (action === "create_category") {
-      const name = this.cleanEntityName(cmd.new_name || cmd.source_name || cmd.title || "");
+      const name = this.cleanEntityName(
+        cmd.new_name ||
+        cmd.source_name ||
+        cmd.title ||
+        cmd.target_name ||
+        cmd.categorie ||
+        this.extractCategoryName(originalText) ||
+        ""
+      );
       if (!name) {
-        this.respond("Quel nom pour la categorie ?", true);
+        this.setPendingIntent(
+          {
+            type: "create_category_name",
+            payload: {
+              description: String(cmd.description || "").trim(),
+              icone: this.cleanFieldText(cmd.icone || ""),
+            },
+          },
+          "Quel nom pour la categorie ?"
+        );
         return true;
       }
       const created = await this.callAdminApi({
         action: "create_category",
         nom_categorie: name,
-        description: String(cmd.description || "").trim(),
+        description: this.cleanFieldText(cmd.description || ""),
+        icone: this.cleanFieldText(cmd.icone || ""),
       });
       this.respond(`Categorie creee: ${created.nom_categorie}.`, true);
       return true;
@@ -1444,7 +1479,15 @@
     }
 
     if (action === "create_offer") {
-      const title = this.sanitizeOfferTitle(cmd.title || cmd.new_name || "");
+      const title = this.sanitizeOfferTitle(
+        cmd.title ||
+        cmd.new_name ||
+        cmd.source_title ||
+        cmd.source_name ||
+        this.inferOfferTitle(originalText) ||
+        this.extractOfferTitle(originalText) ||
+        ""
+      );
       const payload = {
         action: "create_offer",
         titre: title,
@@ -1610,7 +1653,8 @@
   },
 
   cleanEntityName(value) {
-    return (value || "")
+    const normalized = this.normalizeSpokenSymbols(value || "");
+    return normalized
       .trim()
       .replace(/^[\s,:;=-]+/, "")
       .replace(/[\s,:;=-]+$/, "")
@@ -1661,7 +1705,8 @@
   },
 
   sanitizeOfferTitle(value) {
-    return (value || "")
+    const normalized = this.normalizeSpokenSymbols(value || "");
+    return normalized
       .trim()
       .replace(/^[\s,;:.!?=+\-_/\\]+/, "")
       .replace(/[\s,;:.!?=+\-_/\\]+$/, "")
@@ -1795,10 +1840,17 @@
   },
 
   cleanFieldText(value) {
-    return (value || "")
+    const normalized = this.normalizeSpokenSymbols(value || "");
+    return normalized
       .replace(/^[\s:=,;.-]+/, "")
       .replace(/[\s,;.-]+$/, "")
       .trim();
+  },
+
+  normalizeSpokenSymbols(value) {
+    return String(value || "")
+      // Voice STT often outputs "tiret" when user says "-"
+      .replace(/\s*\b(tiret|dash|hyphen)\b\s*/gi, "-");
   },
 
   cleanOfferPayload(payload) {
