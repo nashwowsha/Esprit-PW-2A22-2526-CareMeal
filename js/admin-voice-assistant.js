@@ -545,8 +545,52 @@
       }
 
       if (!hasField) {
-        this.respond("Dis par exemple: titre desserts, ou description plats sucres, ou icone fa-solid fa-cake-candles.", true);
+        this.respond("Je n ai pas compris la nouvelle valeur. Redonne la modification a faire.", true);
         return true;
+      }
+
+      await this.callAdminApi(payload);
+      this.clearPendingIntent();
+      this.respond(`Categorie modifiee: ${sourceName}.`, true);
+      return true;
+    }
+
+    if (pending.type === "update_category_single_field") {
+      const sourceName = this.cleanEntityName(pending.sourceName || "");
+      const field = String(pending.field || "").trim();
+      if (!sourceName || !field) {
+        this.clearPendingIntent();
+        this.respond("La demande a expire. Redonne la modification de categorie.", true);
+        return true;
+      }
+
+      const value = String(text || "").trim();
+      const payload = {
+        action: "update_category",
+        nom_categorie_source: sourceName,
+      };
+
+      if (field === "description") {
+        const v = this.cleanFieldText(value);
+        if (!v) {
+          this.respond("Quelle est la nouvelle description ?", true);
+          return true;
+        }
+        payload.description = v;
+      } else if (field === "icone") {
+        const v = this.cleanFieldText(value);
+        if (!v) {
+          this.respond("Quelle est la nouvelle icone ?", true);
+          return true;
+        }
+        payload.icone = v;
+      } else {
+        const v = this.cleanEntityName(value);
+        if (!v) {
+          this.respond("Quel est le nouveau titre de la categorie ?", true);
+          return true;
+        }
+        payload.nom_categorie = v;
       }
 
       await this.callAdminApi(payload);
@@ -586,7 +630,7 @@
       const hasAnyField = Object.keys(cleanedPayload).length > 0;
 
       if (!hasAnyField) {
-        this.respond("Dis exactement le champ a modifier, par exemple: prix 5.5, categorie glucides, statut brouillon, description sandwich chaud.", true);
+        this.respond("Je n ai pas compris la nouvelle valeur. Redonne la modification a faire.", true);
         return true;
       }
 
@@ -597,6 +641,72 @@
       });
       this.clearPendingIntent();
       this.respond(`Offre modifiee: ${pending.sourceTitle}.`, true);
+      return true;
+    }
+
+    if (pending.type === "update_offer_single_field") {
+      const sourceTitle = this.cleanEntityName(pending.sourceTitle || "");
+      const field = String(pending.field || "").trim();
+      if (!sourceTitle || !field) {
+        this.clearPendingIntent();
+        this.respond("La demande a expire. Redonne la modification de l offre.", true);
+        return true;
+      }
+
+      const raw = String(text || "").trim();
+      const payload = {
+        action: "update_offer",
+        titre_source: sourceTitle,
+      };
+
+      if (field === "prix" || field === "prix_original") {
+        const n = this.extractNumberByKeyword(raw, ["prix", "valeur", "montant"]) || raw;
+        const v = String(n).replace(",", ".").match(/[0-9]+(?:\.[0-9]+)?/)?.[0] || "";
+        if (!v) {
+          this.respond(field === "prix" ? "Quel est le nouveau prix ?" : "Quel est le nouveau prix original ?", true);
+          return true;
+        }
+        payload[field] = v;
+      } else if (field === "quantite") {
+        const v = this.extractIntegerByKeyword(raw, ["quantite", "qte", "stock"]) || raw.match(/[0-9]+/)?.[0] || "";
+        if (!v) {
+          this.respond("Quelle est la nouvelle quantite ?", true);
+          return true;
+        }
+        payload.quantite = v;
+      } else if (field === "nom_categorie") {
+        const v = this.cleanEntityName(raw);
+        if (!v) {
+          this.respond("Quelle est la nouvelle categorie ?", true);
+          return true;
+        }
+        payload.nom_categorie = v;
+      } else if (field === "statut") {
+        const v = this.extractOfferStatus(raw);
+        if (!v) {
+          this.respond("Quel est le nouveau statut ?", true);
+          return true;
+        }
+        payload.statut = v;
+      } else if (field === "description") {
+        const v = this.cleanFieldText(raw);
+        if (!v) {
+          this.respond("Quelle est la nouvelle description ?", true);
+          return true;
+        }
+        payload.description = v;
+      } else {
+        const v = this.sanitizeOfferTitle(raw);
+        if (!this.isMeaningfulOfferTitle(v)) {
+          this.respond("Quel est le nouveau titre de l offre ?", true);
+          return true;
+        }
+        payload.titre = v;
+      }
+
+      await this.callAdminApi(payload);
+      this.clearPendingIntent();
+      this.respond(`Offre modifiee: ${sourceTitle}.`, true);
       return true;
     }
 
@@ -1300,10 +1410,15 @@
         return true;
       }
       if (!target && !description && !icone) {
-        this.setPendingIntent(
-          { type: "update_category_fields", sourceName: source },
-          `Pour la categorie ${source}, tu veux modifier quoi: titre, description ou icone ?`
-        );
+        const intendedField = this.detectCategoryFieldIntent(originalText);
+        if (intendedField) {
+          this.setPendingIntent(
+            { type: "update_category_single_field", sourceName: source, field: intendedField },
+            this.buildCategoryFieldQuestion(source, intendedField)
+          );
+          return true;
+        }
+        this.setPendingIntent({ type: "update_category_fields", sourceName: source }, `Que veux-tu modifier pour la categorie ${source} ?`);
         return true;
       }
       await this.callAdminApi({
@@ -1383,10 +1498,15 @@
         delete payload.titre;
       }
       if (Object.keys(payload).length <= 2) {
-        this.setPendingIntent(
-          { type: "update_offer_fields", sourceTitle: source },
-          `Que veux-tu modifier pour l offre ${source} (prix, categorie, statut, description) ?`
-        );
+        const intendedField = this.detectOfferFieldIntent(originalText);
+        if (intendedField) {
+          this.setPendingIntent(
+            { type: "update_offer_single_field", sourceTitle: source, field: intendedField },
+            this.buildOfferFieldQuestion(source, intendedField)
+          );
+          return true;
+        }
+        this.setPendingIntent({ type: "update_offer_fields", sourceTitle: source }, `Que veux-tu modifier pour l offre ${source} ?`);
         return true;
       }
       await this.callAdminApi(payload);
@@ -1634,6 +1754,44 @@
     if (/\b(expire|expiree)\b/.test(ln)) return "expiree";
     if (/\b(archive|archivee)\b/.test(ln)) return "archivee";
     return "";
+  },
+
+  detectOfferFieldIntent(text) {
+    const n = this.normalize(text || "");
+    if (!n) return "";
+    if (/\bprix original\b|\bprix_original\b|\boriginal\b/.test(n)) return "prix_original";
+    if (/\bprix\b/.test(n)) return "prix";
+    if (/\bquantite\b|\bqte\b|\bstock\b/.test(n)) return "quantite";
+    if (/\bcategorie\b|\bcategory\b/.test(n)) return "nom_categorie";
+    if (/\bstatut\b|\bstatus\b/.test(n)) return "statut";
+    if (/\bdescription\b|\bdesc\b/.test(n)) return "description";
+    if (/\btitre\b|\bnom\b|\brenomme\b|\brenommer\b/.test(n)) return "titre";
+    return "";
+  },
+
+  detectCategoryFieldIntent(text) {
+    const n = this.normalize(text || "");
+    if (!n) return "";
+    if (/\bdescription\b|\bdesc\b/.test(n)) return "description";
+    if (/\bicone\b|\bicon\b/.test(n)) return "icone";
+    if (/\btitre\b|\bnom\b|\brenomme\b|\brenommer\b/.test(n)) return "nom_categorie";
+    return "";
+  },
+
+  buildOfferFieldQuestion(sourceTitle, field) {
+    if (field === "prix") return `Quel est le nouveau prix de l offre ${sourceTitle} ?`;
+    if (field === "prix_original") return `Quel est le nouveau prix original de l offre ${sourceTitle} ?`;
+    if (field === "quantite") return `Quelle est la nouvelle quantite de l offre ${sourceTitle} ?`;
+    if (field === "nom_categorie") return `Quelle est la nouvelle categorie de l offre ${sourceTitle} ?`;
+    if (field === "statut") return `Quel est le nouveau statut de l offre ${sourceTitle} ?`;
+    if (field === "description") return `Quelle est la nouvelle description de l offre ${sourceTitle} ?`;
+    return `Quel est le nouveau titre de l offre ${sourceTitle} ?`;
+  },
+
+  buildCategoryFieldQuestion(sourceName, field) {
+    if (field === "description") return `Quelle est la nouvelle description de la categorie ${sourceName} ?`;
+    if (field === "icone") return `Quelle est la nouvelle icone de la categorie ${sourceName} ?`;
+    return `Quel est le nouveau titre de la categorie ${sourceName} ?`;
   },
 
   cleanFieldText(value) {
