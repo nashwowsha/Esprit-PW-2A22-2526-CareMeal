@@ -1,0 +1,379 @@
+/* ============================================
+   CAREMEAL — FACE AUTH CSS
+   face-auth.css — Modal, Circle Mode, Ring
+   ============================================ */
+
+/* === Face Login Button === */
+.btn-social.btn-face {
+  background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15));
+  border-color: rgba(139,92,246,0.35);
+  color: #c4b5fd;
+}
+.btn-social.btn-face:hover {
+  background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(59,130,246,0.3));
+  border-color: rgba(139,92,246,0.6);
+  color: #e0d5ff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139,92,246,0.25);
+}
+
+/* === Modal Overlay === */
+.face-modal-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.35s, visibility 0.35s;
+}
+.face-modal-overlay.active { opacity: 1; visibility: visible; }
+
+/* === Modal Card === */
+.face-modal {
+  background: rgba(15,23,42,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px; padding: 36px;
+  width: 480px; max-width: 92vw;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+  position: relative;
+  animation: faceModalIn 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes faceModalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(30px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Close */
+.face-modal-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8; font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.face-modal-close:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: #ef4444; }
+
+/* === Modal Header === */
+.face-modal-header { text-align: center; margin-bottom: 24px; }
+.face-modal-icon {
+  width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 20px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));
+  border: 1px solid rgba(139,92,246,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #a78bfa;
+}
+.face-modal-header h2 { font-size: 1.25rem; font-weight: 700; color: #f1f5f9; margin: 0 0 6px; }
+.face-modal-header p { font-size: 0.85rem; color: #64748b; margin: 0; line-height: 1.5; }
+
+/* === Video Container (Rectangle — Login) === */
+.face-video-container {
+  position: relative; width: 100%; aspect-ratio: 4/3;
+  border-radius: 16px; overflow: hidden; background: #0a0f1a;
+  border: 2px solid rgba(255,255,255,0.08);
+  margin-bottom: 20px;
+  transition: border-color 0.4s, box-shadow 0.4s, border-radius 0.5s;
+}
+.face-video-container.face-detected {
+  border-color: rgba(34,197,94,0.6);
+  box-shadow: 0 0 30px rgba(34,197,94,0.15);
+}
+.face-video-container video {
+  width: 100%; height: 100%; object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* === Circle Mode (Registration) === */
+.face-video-container.face-circle-mode {
+  width: 210px; height: 210px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  margin: 0;
+  border: 3px solid rgba(139,92,246,0.3);
+}
+.face-video-container.face-circle-mode video {
+  object-position: center center;
+}
+.face-video-container.face-circle-mode.face-detected {
+  border-color: rgba(34,197,94,0.7);
+  box-shadow: 0 0 25px rgba(34,197,94,0.25);
+}
+
+/* === Scan Frame & Line (Login only) === */
+.face-scan-frame {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 55%; aspect-ratio: 1; pointer-events: none;
+}
+.face-scan-corner {
+  position: absolute; width: 28px; height: 28px;
+  border-color: rgba(139,92,246,0.8); border-style: solid; border-width: 0;
+}
+.face-scan-corner.tl { top:0;left:0;border-top-width:3px;border-left-width:3px;border-radius:6px 0 0 0; }
+.face-scan-corner.tr { top:0;right:0;border-top-width:3px;border-right-width:3px;border-radius:0 6px 0 0; }
+.face-scan-corner.bl { bottom:0;left:0;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 6px; }
+.face-scan-corner.br { bottom:0;right:0;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 6px 0; }
+
+.face-scan-line {
+  display: none; position: absolute; left: 15%; width: 70%; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.8), transparent);
+  box-shadow: 0 0 12px rgba(139,92,246,0.5);
+  animation: faceScanMove 2s ease-in-out infinite; z-index: 5;
+}
+@keyframes faceScanMove { 0%,100%{top:20%} 50%{top:75%} }
+
+/* === Progress Ring (Registration) === */
+.face-progress-wrapper {
+  position: relative;
+  width: 240px; height: 240px;
+  margin: 0 auto 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.face-ring-svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+}
+.face-ring-bg {
+  fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 6;
+}
+.face-ring-fill {
+  fill: none; stroke: #8b5cf6; stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 678.58;
+  stroke-dashoffset: 678.58;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+/* Circle video centered INSIDE the ring wrapper */
+.face-progress-wrapper .face-video-container.face-circle-mode,
+.face-progress-wrapper + .face-video-container.face-circle-mode,
+.face-progress-wrapper ~ .face-video-container.face-circle-mode {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  margin: 0;
+}
+
+/* === Phase Indicators (Registration) === */
+.face-reg-phases {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; margin-bottom: 16px;
+}
+.face-phase {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; font-weight: 500; color: #475569;
+  padding: 6px 12px; border-radius: 20px;
+  transition: all 0.3s;
+}
+.face-phase.active {
+  color: #c4b5fd;
+  background: rgba(139,92,246,0.1);
+  border: 1px solid rgba(139,92,246,0.2);
+}
+.face-phase.done {
+  color: #86efac;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.2);
+}
+.phase-dot {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: all 0.3s;
+}
+.face-phase.active .phase-dot {
+  background: rgba(139,92,246,0.25);
+  border-color: rgba(139,92,246,0.5);
+  color: #c4b5fd;
+}
+.face-phase.done .phase-dot {
+  background: rgba(34,197,94,0.25);
+  border-color: rgba(34,197,94,0.5);
+  color: #86efac;
+}
+.face-phase-line {
+  width: 24px; height: 2px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.3s;
+}
+.face-phase-line.done { background: rgba(34,197,94,0.5); }
+
+/* === Status Text === */
+.face-status {
+  text-align: center; padding: 12px 16px; border-radius: 12px;
+  font-size: 0.9rem; font-weight: 500;
+  transition: all 0.3s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.face-status.loading {
+  background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #93c5fd;
+}
+.face-status.loading::before {
+  content:''; width:16px; height:16px;
+  border: 2px solid rgba(59,130,246,0.3); border-top-color: #3b82f6;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+.face-status.scanning {
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); color: #c4b5fd;
+}
+.face-status.scanning::before {
+  content:''; width:16px; height:16px;
+  border: 2px solid rgba(139,92,246,0.3); border-top-color: #8b5cf6;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+.face-status.success {
+  background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #86efac;
+}
+.face-status.error {
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* === Settings Page Section === */
+.face-settings-info { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.face-settings-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));
+  border: 1px solid rgba(139,92,246,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; color: #a78bfa; flex-shrink: 0;
+}
+.face-settings-text h4 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; margin: 0 0 4px; }
+.face-settings-text p { font-size: 0.82rem; color: #64748b; margin: 0; line-height: 1.5; }
+.face-settings-status { margin-bottom: 16px; }
+.face-reg-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+}
+.face-reg-badge.inactive { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; }
+.face-reg-badge.active { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #86efac; }
+.face-settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* === Studio Light Mode (Softbox ambré, vignettage inverse) === */
+
+/* Backdrop : radial-gradient ambré — centre transparent, bords lumineux */
+.face-modal-overlay.flash-active {
+  background: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    rgba(255, 249, 229, 0.0)  0%,
+    rgba(255, 249, 229, 0.35) 40%,
+    rgba(255, 249, 229, 0.75) 70%,
+    rgba(255, 245, 210, 0.92) 100%
+  ) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: background 1.5s ease !important;
+}
+/* Dim auto après 3s — opacité réduite via filtre sur le pseudo-élément */
+.face-modal-overlay.flash-dimmed {
+  background: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    rgba(255, 249, 229, 0.0)  0%,
+    rgba(255, 249, 229, 0.20) 40%,
+    rgba(255, 249, 229, 0.50) 70%,
+    rgba(255, 245, 210, 0.65) 100%
+  ) !important;
+  transition: background 0.8s ease !important;
+}
+/* Exposition réduite dynamiquement via JS (classe flash-expo-low) */
+.face-modal-overlay.flash-expo-low {
+  background: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    rgba(255, 249, 229, 0.0)  0%,
+    rgba(255, 249, 229, 0.12) 40%,
+    rgba(255, 249, 229, 0.30) 70%,
+    rgba(255, 245, 210, 0.45) 100%
+  ) !important;
+  transition: background 0.6s ease !important;
+}
+
+/* La modale reste sombre — pas de changement */
+.face-modal-overlay.flash-active .face-modal {
+  background: rgba(10, 15, 30, 0.97) !important;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,245,210,0.12) !important;
+}
+
+/* Bordure interne sombre autour du cadre vidéo — absorbe les reflets */
+.face-modal-overlay.flash-active .face-video-container {
+  border: 2px solid rgba(20, 20, 30, 0.8) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(10,10,20,0.6),
+    0 0 0 3px rgba(255,245,210,0.5),
+    0 0 20px 6px rgba(255,245,210,0.25) !important;
+}
+
+/* Texte inchangé — modale reste sombre */
+.face-modal-overlay.flash-active .face-modal-header h2 { color: #f1f5f9 !important; }
+.face-modal-overlay.flash-active .face-modal-header p  { color: #94a3b8 !important; }
+
+/* === Bouton Flash manuel === */
+.flash-toggle-btn {
+  position: absolute;
+  top: 16px;
+  right: 60px; /* à gauche du bouton fermer (qui est à right:16px) */
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #64748b;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  z-index: 20;
+}
+.flash-toggle-btn:hover {
+  background: rgba(251,191,36,0.15);
+  border-color: rgba(251,191,36,0.4);
+  color: #fbbf24;
+}
+.flash-toggle-btn.flash-btn-on {
+  background: rgba(251,191,36,0.18);
+  border-color: rgba(251,191,36,0.5);
+  color: #fbbf24;
+  box-shadow: 0 0 12px rgba(251,191,36,0.3);
+}
+.flash-intensity-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10,15,30,0.75);
+  border: 1px solid rgba(255,245,210,0.15);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+}
+.flash-intensity-bar .fib-track {
+  width: 80px; height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.flash-intensity-bar .fib-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #fbbf24, #fef3c7);
+  transition: width 0.4s ease;
+  width: 90%;
+}
+
+/* === Responsive === */
+@media (max-width: 520px) {
+  .face-modal { padding: 24px; border-radius: 16px; }
+  .face-modal-header h2 { font-size: 1.1rem; }
+  .face-video-container.face-circle-mode { width: 180px; height: 180px; }
+  .face-progress-wrapper { width: 200px; height: 200px; }
+}
