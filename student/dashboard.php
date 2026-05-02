@@ -261,6 +261,7 @@ $categoriesWithOffers     = $studentController->getPublishedOffersByCategory();
   <script src="../js/app.js"></script>
   <script src="../js/components.js"></script>
   <script src="../js/student.js"></script>
+  <script src="../js/student-voice-assistant.js"></script>
   <script>
     let activeCat = 'all';
 
