@@ -6,6 +6,8 @@
   <meta name="description" content="Les événements CareMeal — Découvrez et participez.">
   <title>Événements — CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- FullCalendar v6 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <link rel="stylesheet" href="/projet2a22/css/main.css">
   <link rel="stylesheet" href="/projet2a22/css/components.css">
   <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
@@ -114,6 +116,25 @@
             </div>
         </div>
 
+        <!-- Boutons bascule Liste / Calendrier -->
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button id="btn-view-list" class="view-toggle-btn active-view">
+                <i class="fa-solid fa-list"></i> Vue Liste
+            </button>
+            <button id="btn-view-calendar" class="view-toggle-btn inactive-view">
+                <i class="fa-solid fa-calendar-days"></i> Vue Calendrier
+            </button>
+        </div>
+
+        <!-- Vue Calendrier -->
+        <div id="calendar-view" style="display:none;">
+            <div id="calendar-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Chargement du calendrier...</div>
+            <div id="fullcalendar"></div>
+        </div>
+
+        <!-- Vue Liste -->
+        <div id="calendar-list-view">
+
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:16px;">
             <div class="filters" style="margin-bottom:0;">
                 <button id="filter-all" class="btn btn-primary"><i class="fa-solid fa-list"></i> Tous les événements</button>
@@ -140,6 +161,8 @@
         </div>
 
         <!-- === MODAL D'INSCRIPTION ÉTUDIANT === -->
+        </div><!-- fin #calendar-list-view -->
+
         <div id="subscribeModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
             <div style="background:var(--color-surface); padding:24px; border-radius:12px; width:450px; max-width:90%; position:relative; border: 1px solid var(--color-border); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
                 <button type="button" onclick="document.getElementById('subscribeModal').style.display='none'" style="position:absolute; top:15px; right:15px; background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:1.2rem;"><i class="fa-solid fa-xmark"></i></button>
@@ -292,11 +315,17 @@
   <script src="/projet2a22/js/components.js"></script>
   <script src="/projet2a22/js/student.js"></script>
   <script src="/projet2a22/js/events-student.js?v=14"></script>
+  <script src="/projet2a22/assets/js/chatbot.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="/projet2a22/assets/js/calendar.js"></script>
+  <script src="/projet2a22/assets/js/notifications.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       Student.init();
+      CareMealChatbot.init('student');
+      CareMealCalendar.init('student');
+      CareMealNotifications.init('student');
     });
-  </script>
   </script>
 </body>
 </html>

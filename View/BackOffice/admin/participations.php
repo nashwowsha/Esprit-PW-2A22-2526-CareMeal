@@ -86,6 +86,9 @@
         <div class="header-left">
           <div class="page-title"><h2>Gestion des Participations</h2><p>CRUD de la 2ème entité avec Jointure M/M</p></div>
         </div>
+        <div class="header-right">
+          <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
+        </div>
       </header>
 
       <div class="page-content">
@@ -140,5 +143,13 @@
 
   <script src="/projet2a22/js/app.js"></script>
   <script src="/projet2a22/js/participations-admin.js"></script>
+  <script src="/projet2a22/assets/js/chatbot.js"></script>
+  <script src="/projet2a22/assets/js/notifications.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      CareMealChatbot.init('admin');
+      CareMealNotifications.init('admin');
+    });
+  </script>
 </body>
 </html>

@@ -91,6 +91,8 @@ foreach($events as $e) {
   <meta charset="UTF-8">
   <title>Mes Événements — CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- FullCalendar v6 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <link rel="stylesheet" href="/projet2a22/css/main.css">
   <link rel="stylesheet" href="/projet2a22/css/components.css">
   <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
@@ -183,7 +185,8 @@ foreach($events as $e) {
             <p style="margin: 0; color: #aaa;">Gérez vos ateliers et distributions</p>
           </div>
         </div>
-        <div class="header-right">
+        <div class="header-right" style="display:flex; align-items:center; gap:12px;">
+            <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
             <button type="button" class="btn-submit" onclick="document.getElementById('form-section').style.display='block'; window.scrollTo(0,0);">
                 <i class="fa-solid fa-plus"></i> Créer un événement
             </button>
@@ -296,6 +299,26 @@ foreach($events as $e) {
             </select>
         </div>
 
+        <!-- Boutons bascule Liste / Calendrier -->
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button id="btn-view-list" class="view-toggle-btn active-view">
+                <i class="fa-solid fa-list"></i> Vue Liste
+            </button>
+            <button id="btn-view-calendar" class="view-toggle-btn inactive-view">
+                <i class="fa-solid fa-calendar-days"></i> Vue Calendrier
+            </button>
+        </div>
+
+        <!-- Vue Calendrier -->
+        <div id="calendar-view" style="display:none;">
+            <div id="calendar-loader" style="display:none; justify-content:center; align-items:center; padding:60px; color:#64748b; gap:12px;">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Chargement du calendrier...
+            </div>
+            <div id="fullcalendar"></div>
+        </div>
+
+        <!-- Vue Liste (existante) -->
+        <div id="calendar-list-view">
         <!-- Events Grid -->
         <div class="events-grid" id="partner-events-grid">
             <?php if(empty($events)): ?>
@@ -375,6 +398,7 @@ foreach($events as $e) {
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+        </div><!-- fin #calendar-list-view -->
 
       </div>
     </main>
@@ -512,6 +536,17 @@ foreach($events as $e) {
 
     // Appliquer au chargement de la page
     toggleLocationFields();
+  </script>
+  <script src="/projet2a22/assets/js/chatbot.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="/projet2a22/assets/js/calendar.js"></script>
+  <script src="/projet2a22/assets/js/notifications.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      CareMealChatbot.init('partner');
+      CareMealCalendar.init('partner');
+      CareMealNotifications.init('partner');
+    });
   </script>
 </body>
 </html>

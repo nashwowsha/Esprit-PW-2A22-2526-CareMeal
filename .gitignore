@@ -1,0 +1,9 @@
+# Clés API privées — ne jamais committer
+config/api_keys.php
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

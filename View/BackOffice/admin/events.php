@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Dashboard — CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- FullCalendar v6 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <link rel="stylesheet" href="/projet2a22/css/main.css">
   <link rel="stylesheet" href="/projet2a22/css/components.css">
   <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
@@ -75,10 +77,30 @@
               <i class="fa-solid fa-bars"></i></button>
           <div class="page-title"><h2>Gestion des Evenements</h2><p>Validation et participants</p></div>
         </div>
-        <div class="header-right"></div>
+        <div class="header-right">
+          <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
+        </div>
       </header>
 
       <div class="page-content" id="events-main-view">
+        <!-- Boutons bascule Liste / Calendrier -->
+        <div style="display:flex; gap:10px; margin-bottom:24px;">
+            <button id="btn-view-list" class="view-toggle-btn active-view">
+                <i class="fa-solid fa-list"></i> Vue Liste
+            </button>
+            <button id="btn-view-calendar" class="view-toggle-btn inactive-view">
+                <i class="fa-solid fa-calendar-days"></i> Vue Calendrier
+            </button>
+        </div>
+
+        <!-- Vue Calendrier (cachée par défaut) -->
+        <div id="calendar-view" style="display:none;">
+            <div id="calendar-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Chargement du calendrier...</div>
+            <div id="fullcalendar"></div>
+        </div>
+
+        <!-- Vue Liste (existante) -->
+        <div id="calendar-list-view">
         <div class="stats-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;">
             <div class="card" style="padding:24px; text-align:center; border-radius:16px;">
                 <h3 id="stat-total" style="font-size:2.5rem; margin-bottom:8px; color:var(--color-primary);">0</h3>
@@ -131,6 +153,7 @@
         <div id="all-events-table" class="events-grid" style="margin-bottom:40px;">
             <!-- All events populated here -->
         </div>
+        </div><!-- fin #calendar-list-view -->
       </div>
 
       <div class="page-content" id="event-examine-view" style="display:none;">
@@ -201,10 +224,17 @@
   <script src="/projet2a22/js/app.js"></script>
   <script src="/projet2a22/js/components.js"></script>
   <script src="/projet2a22/js/events-admin.js"></script>
+  <script src="/projet2a22/assets/js/chatbot.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="/projet2a22/assets/js/calendar.js"></script>
+  <script src="/projet2a22/assets/js/notifications.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => { 
         if(typeof App !== 'undefined') App.init();
-        if(typeof EventsAdmin !== 'undefined') EventsAdmin.init(); 
+        if(typeof EventsAdmin !== 'undefined') EventsAdmin.init();
+        CareMealChatbot.init('admin');
+        CareMealCalendar.init('admin');
+        CareMealNotifications.init('admin');
     });
   </script>
 </body>
