@@ -510,7 +510,7 @@
     }
 
     if (pending.type === "update_category_source") {
-      const sourceName = this.cleanEntityName(answer);
+      const sourceName = this.cleanEntityName(this.extractCategoryName(text) || answer);
       if (!sourceName) {
         this.respond("Je n ai pas compris le nom de categorie. Redonne le nom exact.", true);
         return true;
@@ -739,7 +739,7 @@
     }
 
     if (pending.type === "update_offer_source") {
-      const sourceTitle = this.cleanEntityName(answer);
+      const sourceTitle = this.cleanEntityName(this.extractOfferTitle(text) || answer);
       if (!sourceTitle) {
         this.respond("Je n ai pas compris le nom de l offre. Redonne le titre exact.", true);
         return true;
@@ -1674,7 +1674,7 @@
       .trim()
       .replace(/^[\s,:;=-]+/, "")
       .replace(/[\s,:;=-]+$/, "")
-      .replace(/^(categorie|category|offre|offer)\s+/i, "")
+      .replace(/^(cat[eé]gorie|categorie|category|offre|offer)\s+/i, "")
       .replace(/^(la|le|les|une|un|du|de|des)\s+/i, "")
       .trim();
   },
