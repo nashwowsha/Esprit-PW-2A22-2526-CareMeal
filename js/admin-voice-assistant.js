@@ -522,7 +522,7 @@
       }
       this.setPendingIntent(
         { type: "update_category_fields", sourceName },
-        `D accord. Pour la categorie ${sourceName}, tu veux modifier quoi: titre, description ou icone ?`
+        `D accord. Pour la categorie ${sourceName}, tu veux modifier quoi ?`
       );
       return true;
     }
@@ -562,6 +562,14 @@
       }
 
       if (!hasField) {
+        const intendedField = this.detectCategoryFieldIntent(textRaw);
+        if (intendedField) {
+          this.setPendingIntent(
+            { type: "update_category_single_field", sourceName, field: intendedField },
+            this.buildCategoryFieldQuestion(sourceName, intendedField)
+          );
+          return true;
+        }
         this.respond("Je n ai pas compris la nouvelle valeur. Redonne la modification a faire.", true);
         return true;
       }
@@ -647,6 +655,14 @@
       const hasAnyField = Object.keys(cleanedPayload).length > 0;
 
       if (!hasAnyField) {
+        const intendedField = this.detectOfferFieldIntent(text);
+        if (intendedField) {
+          this.setPendingIntent(
+            { type: "update_offer_single_field", sourceTitle: pending.sourceTitle, field: intendedField },
+            this.buildOfferFieldQuestion(pending.sourceTitle, intendedField)
+          );
+          return true;
+        }
         this.respond("Je n ai pas compris la nouvelle valeur. Redonne la modification a faire.", true);
         return true;
       }
@@ -735,7 +751,7 @@
       }
       this.setPendingIntent(
         { type: "update_offer_fields", sourceTitle },
-        `D accord. Pour l offre ${sourceTitle}, tu veux modifier quoi: prix, categorie, statut, description ou titre ?`
+        `D accord. Pour l offre ${sourceTitle}, tu veux modifier quoi ?`
       );
       return true;
     }
