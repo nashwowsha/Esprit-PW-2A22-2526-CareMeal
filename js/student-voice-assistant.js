@@ -311,7 +311,7 @@ const StudentVoiceAssistant = {
 
   isOfferSearchIntent(normalizedText) {
     const hasVerb = /(trouve|trouver|cherche|chercher|recherche|filtre|filtrer|affiche|afficher|montre|montrer|voir)/.test(normalizedText);
-    const hasOfferTarget = /(offre|offres|pizza|sandwich|dessert|dt|dinar|moins de|plus de)/.test(normalizedText);
+    const hasOfferTarget = /(offre|offres|categorie|categories|pizza|sandwich|dessert|dt|dinar|moins de|plus de)/.test(normalizedText);
     const hasPriceClause = /(moins de|plus de)\s*[0-9]+(?:[.,][0-9]+)?/.test(normalizedText) && /(offre|offres|dt|dinar)/.test(normalizedText);
     return (hasVerb && hasOfferTarget) || hasPriceClause;
   },
@@ -372,9 +372,15 @@ const StudentVoiceAssistant = {
     const normalized = this.normalize(rawText);
     const keyword = this.extractKeyword(normalized);
     const maxPrice = this.extractMaxPrice(normalized);
+    const categoryName = this.extractCategoryName(normalized);
     const wantsAllOffers = /\b(toutes?|tous)\b/.test(normalized) && /\boffres?\b/.test(normalized);
 
-    this.resetCategoryFilterToAll();
+    if (categoryName) {
+      const categoryApplied = this.applyCategoryFilterByName(categoryName);
+      if (!categoryApplied) this.resetCategoryFilterToAll();
+    } else {
+      this.resetCategoryFilterToAll();
+    }
 
     const searchInput = document.getElementById("offer-search");
     if (searchInput) searchInput.value = wantsAllOffers ? "" : keyword;
@@ -410,6 +416,7 @@ const StudentVoiceAssistant = {
       .replace(/affiche[- ]?moi|affiche moi|afficher|affiche|montre[- ]?moi|montre moi|montrer|montre|voir/g, " ")
       .replace(/moins de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
       .replace(/plus de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
+      .replace(/categories?\s+(?:de|du|des|d)?\s*[a-z0-9\s-]+/g, " ")
       .replace(/\b(offres|offre|disponibles|disponible|s il te plait|svp|stp)\b/g, " ")
       .replace(/\b(toutes|tous|toute|tout|moi|me|mon|ma|mes)\b/g, " ")
       .replace(/\b(le|la|les|du|des|de|d|l)\b/g, " ")
@@ -424,6 +431,48 @@ const StudentVoiceAssistant = {
       .split(" ")
       .filter((token) => token.length > 1)
       .join(" ");
+  },
+
+  extractCategoryName(normalizedText) {
+    const m = normalizedText.match(/categories?\s+(?:de|du|des|d)?\s*([a-z0-9\s-]+)/);
+    if (!m) return "";
+    return (m[1] || "")
+      .trim()
+      .replace(/\b(moins|plus)\b.*$/, "")
+      .replace(/\b(dt|dinar|dinars)\b.*$/, "")
+      .replace(/\s+/g, " ");
+  },
+
+  applyCategoryFilterByName(categoryName) {
+    const target = this.normalize(categoryName).trim();
+    if (!target) return false;
+
+    const buttons = Array.from(document.querySelectorAll(".cat-pill[data-cat]"));
+    for (const button of buttons) {
+      const catId = (button.getAttribute("data-cat") || "").trim();
+      if (catId === "all") continue;
+      const label = this.getCategoryLabel(button);
+      const labelNorm = this.normalize(label);
+      if (!labelNorm) continue;
+
+      if (labelNorm.includes(target) || target.includes(labelNorm)) {
+        if (typeof window.filterByCategory === "function") {
+          window.filterByCategory(catId, button);
+        } else {
+          button.click();
+        }
+        return true;
+      }
+    }
+    return false;
+  },
+
+  getCategoryLabel(button) {
+    const spans = button.querySelectorAll("span");
+    if (spans.length >= 2) {
+      return (spans[spans.length - 2].textContent || "").trim();
+    }
+    return (button.textContent || "").replace(/\d+/g, "").trim();
   },
 
   resetCategoryFilterToAll() {
