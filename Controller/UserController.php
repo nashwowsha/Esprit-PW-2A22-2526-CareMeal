@@ -325,8 +325,21 @@ class UserController {
         }
     }
 
+    private function getBrevoApiKey($type) {
+        $secretsFile = dirname(__DIR__) . '/config/secrets.php';
+        if (file_exists($secretsFile)) {
+            require_once $secretsFile;
+        }
+        if ($type === 'email' && defined('BREVO_EMAIL_API_KEY')) {
+            return BREVO_EMAIL_API_KEY;
+        } elseif ($type === 'sms' && defined('BREVO_SMS_API_KEY')) {
+            return BREVO_SMS_API_KEY;
+        }
+        return 'votre_cle_api_brevo_ici';
+    }
+
     private function sendBrevoEmail($toEmail, $code) {
-        $apiKey = 'votre_cle_api_brevo_ici'; // REMPLACER PAR VOTRE CLÉ RÉELLE LORS DU DÉPLOIEMENT
+        $apiKey = $this->getBrevoApiKey('email');
 
         $data = [
             "sender" => ["name" => "CareMeal", "email" => "sloficloud@gmail.com"],
@@ -353,7 +366,7 @@ class UserController {
     }
 
     private function sendBrevoSMS($phone, $code) {
-        $apiKey = 'votre_cle_api_brevo_ici'; // REMPLACER PAR VOTRE CLÉ RÉELLE LORS DU DÉPLOIEMENT
+        $apiKey = $this->getBrevoApiKey('sms');
 
         $data = [
             "type" => "transactional",
