@@ -243,7 +243,24 @@
     };
 
     this.recognition.onerror = (event) => {
-      this.setStatus("Erreur micro: " + (event.error || "inconnue"));
+      const errorCode = event?.error || "inconnue";
+      if (errorCode === "no-speech") {
+        this.setStatus("Aucun son detecte. Re-clique le micro et parle juste apres.");
+        return;
+      }
+      if (errorCode === "aborted") {
+        this.setStatus("Ecoute arretee.");
+        return;
+      }
+      if (errorCode === "audio-capture") {
+        this.setStatus("Micro non detecte. Verifie le peripherique micro.");
+        return;
+      }
+      if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
+        this.setStatus("Micro bloque. Autorise le micro dans le navigateur.");
+        return;
+      }
+      this.setStatus("Erreur micro: " + errorCode);
     };
 
     this.recognition.onend = () => {

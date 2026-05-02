@@ -71,6 +71,9 @@ try {
             $newName = trim((string)($data['nom_categorie'] ?? ''));
             $description = trim((string)($data['description'] ?? ''));
             $icon = trim((string)($data['icone'] ?? ''));
+            $hasName = array_key_exists('nom_categorie', $data);
+            $hasDescription = array_key_exists('description', $data);
+            $hasIcon = array_key_exists('icone', $data);
 
             if ($id <= 0 && $sourceName !== '') {
                 $s = $pdo->prepare('SELECT id_categorie FROM categorie_offre WHERE LOWER(nom_categorie)=LOWER(:nom) LIMIT 1');
@@ -84,22 +87,38 @@ try {
             if ($id <= 0) {
                 send_json(422, ['error' => 'Categorie introuvable.']);
             }
-            if ($newName === '' || mb_strlen($newName) < 2 || mb_strlen($newName) > 50) {
+
+            $currentStmt = $pdo->prepare('SELECT nom_categorie, description, icone FROM categorie_offre WHERE id_categorie=:id LIMIT 1');
+            $currentStmt->execute([':id' => $id]);
+            $current = $currentStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$current) {
+                send_json(422, ['error' => 'Categorie introuvable.']);
+            }
+
+            $finalName = $hasName ? $newName : (string)($current['nom_categorie'] ?? '');
+            $finalDescription = $hasDescription
+                ? ($description !== '' ? $description : null)
+                : ($current['description'] ?? null);
+            $finalIcon = $hasIcon
+                ? ($icon !== '' ? $icon : null)
+                : ($current['icone'] ?? null);
+
+            if ($finalName === '' || mb_strlen($finalName) < 2 || mb_strlen($finalName) > 50) {
                 send_json(422, ['error' => 'Nouveau nom de categorie invalide.']);
             }
 
             $stmt = $pdo->prepare('UPDATE categorie_offre SET nom_categorie=:nom, description=:description, icone=:icone WHERE id_categorie=:id');
             $stmt->execute([
-                ':nom' => $newName,
-                ':description' => $description !== '' ? $description : null,
-                ':icone' => $icon !== '' ? $icon : null,
+                ':nom' => $finalName,
+                ':description' => $finalDescription,
+                ':icone' => $finalIcon,
                 ':id' => $id,
             ]);
 
             send_json(200, [
                 'ok' => true,
                 'id_categorie' => $id,
-                'nom_categorie' => $newName,
+                'nom_categorie' => $finalName,
             ]);
         }
 
