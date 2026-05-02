@@ -310,9 +310,10 @@ const StudentVoiceAssistant = {
   },
 
   isOfferSearchIntent(normalizedText) {
-    const hasVerb = /(trouve|trouver|cherche|chercher|recherche|filtre|filtrer)/.test(normalizedText);
+    const hasVerb = /(trouve|trouver|cherche|chercher|recherche|filtre|filtrer|affiche|afficher|montre|montrer|voir)/.test(normalizedText);
     const hasOfferTarget = /(offre|offres|pizza|sandwich|dessert|dt|dinar|moins de|plus de)/.test(normalizedText);
-    return hasVerb && hasOfferTarget;
+    const hasPriceClause = /(moins de|plus de)\s*[0-9]+(?:[.,][0-9]+)?/.test(normalizedText) && /(offre|offres|dt|dinar)/.test(normalizedText);
+    return (hasVerb && hasOfferTarget) || hasPriceClause;
   },
 
   isOfferCountIntent(normalizedText) {
@@ -371,13 +372,16 @@ const StudentVoiceAssistant = {
     const normalized = this.normalize(rawText);
     const keyword = this.extractKeyword(normalized);
     const maxPrice = this.extractMaxPrice(normalized);
+    const wantsAllOffers = /\b(toutes?|tous)\b/.test(normalized) && /\boffres?\b/.test(normalized);
+
+    this.resetCategoryFilterToAll();
 
     const searchInput = document.getElementById("offer-search");
-    if (searchInput) searchInput.value = keyword;
+    if (searchInput) searchInput.value = wantsAllOffers ? "" : keyword;
     if (typeof window.applyFilters === "function") {
       window.applyFilters();
     } else {
-      this.filterCardsByKeyword(keyword);
+      this.filterCardsByKeyword(wantsAllOffers ? "" : keyword);
     }
 
     if (maxPrice !== null) {
@@ -403,10 +407,28 @@ const StudentVoiceAssistant = {
   extractKeyword(normalizedText) {
     return normalizedText
       .replace(/trouve[- ]?moi|trouve moi|trouver|trouve|cherche[- ]?moi|cherche moi|cherche|chercher|recherche|filtre|filtrer/g, " ")
+      .replace(/affiche[- ]?moi|affiche moi|afficher|affiche|montre[- ]?moi|montre moi|montrer|montre|voir/g, " ")
       .replace(/moins de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
+      .replace(/plus de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
       .replace(/\b(offre|offres|disponible|disponibles|s il te plait|svp|stp)\b/g, " ")
+      .replace(/\b(toutes|tous|toute|tout|moi|me|mon|ma|mes)\b/g, " ")
+      .replace(/\b(le|la|les|du|des|de|d|l)\b/g, " ")
+      .replace(/['’`"]/g, " ")
+      .replace(/[.,;:!?()[\]{}]/g, " ")
+      .replace(/-/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  },
+
+  resetCategoryFilterToAll() {
+    const allButton = document.querySelector(".cat-pill[data-cat='all']");
+    if (typeof window.filterByCategory === "function" && allButton) {
+      window.filterByCategory("all", allButton);
+      return;
+    }
+    if (allButton) {
+      allButton.click();
+    }
   },
 
   extractMaxPrice(normalizedText) {
