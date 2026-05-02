@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Logs d'activité — CareMeal Admin.">
-  <title>Logs d'activité — CareMeal Admin</title>
+  <meta name="description" content="Logs d'activitï¿½ ï¿½ CareMeal Admin.">
+  <title>Logs d'activitï¿½ ï¿½ CareMeal Admin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/components.css">
@@ -23,10 +23,10 @@
           <a href="dashboard.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
           <a href="users.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
           <a href="partners.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-          <a href="/caremeal/admin/categorie.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Catégorie offres</a>
+          <a href="/caremeal/admin/categorie.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-tags"></i></span> Categorie offres</a>
           <a href="/caremeal/admin/offers.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Offres</a>
-                      <a href="events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
-            <a href="logs.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
+                      <a href="events.html" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Ã‰vÃ©nements</a>
+            <a href="logs.html" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activitÃ©</a>
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -36,7 +36,7 @@
             <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
             <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
           </div>
-          <button class="sidebar-logout" data-action="logout" title="Déconnexion"><i class="fa-solid fa-door-open"></i></button>
+          <button class="sidebar-logout" data-action="logout" title="Dï¿½connexion"><i class="fa-solid fa-door-open"></i></button>
         </div>
       </div>
     </aside>
@@ -46,7 +46,7 @@
       <header class="top-header">
         <div class="header-left">
           <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
-          <div class="page-title"><h2>Logs d'activité</h2><p>Qui a fait quoi, quand</p></div>
+          <div class="page-title"><h2>Logs d'activitï¿½</h2><p>Qui a fait quoi, quand</p></div>
         </div>
         <div class="header-right">
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
@@ -56,8 +56,8 @@
       <div class="page-content">
         <div class="card animate-fade-in-up">
           <div class="card-header">
-            <h3 class="card-title"><i class="fa-solid fa-clipboard-list"></i> Toute l'activité</h3>
-            <span class="badge badge-info" id="logs-count">0 entrées</span>
+            <h3 class="card-title"><i class="fa-solid fa-clipboard-list"></i> Toute l'activitï¿½</h3>
+            <span class="badge badge-info" id="logs-count">0 entrï¿½es</span>
           </div>
           <div class="timeline" id="logs-timeline" style="padding:16px 16px 16px 40px;">
             <!-- Loaded dynamically -->
@@ -74,7 +74,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       Admin.initLogs();
       const logs = App.getLogs();
-      document.getElementById('logs-count').textContent = logs.length + ' entrée' + (logs.length > 1 ? 's' : '');
+      document.getElementById('logs-count').textContent = logs.length + ' entrï¿½e' + (logs.length > 1 ? 's' : '');
     });
   </script>
   <script src="/caremeal/js/admin-voice-assistant.js"></script>

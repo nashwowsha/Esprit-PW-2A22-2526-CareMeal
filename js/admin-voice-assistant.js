@@ -296,6 +296,11 @@
       return;
     }
 
+    // Direct profile navigation should never fall back to generic Gemini chat.
+    if (this.tryHandleDirectProfileNavigation(text)) {
+      return;
+    }
+
     // Navigation has absolute priority for fluid UX.
     if (this.executeNavigationOnly(text)) {
       this.clearPendingIntent();
@@ -360,6 +365,11 @@
   async handlePendingIntent(text) {
     const pending = this.state.pendingIntent;
     if (!pending) return false;
+
+    if (this.tryHandleDirectProfileNavigation(text)) {
+      this.clearPendingIntent();
+      return true;
+    }
 
     // Allow immediate pivot to navigation without being blocked in a multi-turn form.
     if (this.isNavigationCommand(text)) {
@@ -616,21 +626,74 @@
 
   isNewIntentCommand(text) {
     const n = this.normalize(text);
-    return /(comment tu t|qui es tu|aide|help|ouvre|ouvrir|va |aller|affiche|montre|page|consulter|profil|combien|supprime|modifier|modifie|ajoute|cree|bloque|debloque|annule|reset|logout|deconnexion|rafraich)/.test(n);
+    return /(comment tu t|qui es tu|aide|help|ouvre|ouvrir|va |aller|affiche|montre|voir|page|consulter|profil|profile|fiche|combien|supprime|modifier|modifie|ajoute|cree|bloque|debloque|annule|reset|logout|deconnexion|rafraich)/.test(n);
   },
 
   isNavigationCommand(text) {
     const n = this.normalize(text);
-    const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(n);
-    const hasPageTarget = /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(n);
+    // Do not treat CRUD intents as navigation.
+    if (/(modifie|modifier|update|ajoute|ajouter|cree|creer|supprime|supprimer|efface|retire|delete|bloque|debloque|reactive|reactiver|prix|description|statut|quantite)/.test(n)) {
+      return false;
+    }
+    const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|voir|retourne|retour)/.test(n);
+    const hasPageTarget = /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil|profile|fiche)/.test(n);
     return hasNavVerb && hasPageTarget;
+  },
+
+  isProfileNavigationCommand(text) {
+    const n = this.normalize(text);
+    const hasProfileWord = /(profil|profile|fiche)/.test(n);
+    const hasVerb = /(voir|consulter|consulte|ouvre|ouvrir|affiche|afficher|montre|montrer|va|aller)/.test(n);
+    return hasProfileWord && hasVerb;
+  },
+
+  extractProfileTarget(text) {
+    const direct = this.parseIdentityFromText(text);
+    if (direct) return direct;
+
+    const raw = String(text || "");
+    const m = raw.match(/(?:profil|profile|fiche)\s+(?:de|du|d['’])?\s*(.+)$/i);
+    if (!m || !m[1]) return null;
+    const value = this.cleanEntityName(m[1]);
+    if (!value) return null;
+    if (value.includes("@")) return { type: "email", value: value.toLowerCase() };
+    return { type: "name", value: value.toLowerCase() };
+  },
+
+  tryHandleDirectProfileNavigation(text) {
+    if (!this.isProfileNavigationCommand(text)) return false;
+
+    const target = this.extractProfileTarget(text);
+    if (!target || (target.type === "name" && this.isWeakIdentityTarget(target.value))) {
+      this.setPendingIntent({ type: "open_user_profile_target" }, "Quel utilisateur veux-tu consulter ?");
+      return true;
+    }
+
+    const user = this.findUserLocal(target);
+    if (!user || !user.id) {
+      this.respond("Utilisateur introuvable. Redonne nom ou email exact.", true);
+      return true;
+    }
+
+    this.state.open = true;
+    this.saveState();
+    this.respond(`J ouvre la fiche de ${user.name}.`, false);
+    setTimeout(() => {
+      window.location.href = `user-detail.html?id=${encodeURIComponent(user.id)}`;
+    }, 250);
+    return true;
   },
 
   executeNavigationOnly(text) {
     const normalized = this.normalize(text);
+    // Never hijack CRUD sentences.
+    if (/(modifie|modifier|update|ajoute|ajouter|cree|creer|supprime|supprimer|efface|retire|delete|bloque|debloque|reactive|reactiver|prix|description|statut|quantite)/.test(normalized)) {
+      return false;
+    }
     const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(normalized);
+    const explicitPageWord = /(page|section|onglet)/.test(normalized);
     const hasPageHint = /(page|section|onglet|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(normalized);
-    if (!hasNavVerb && !hasPageHint) return false;
+    if (!(hasNavVerb || explicitPageWord) || !hasPageHint) return false;
 
     const navCommands = [
       { words: ["utilisateur", "utilisateurs", "user", "users"], url: "users.html", message: "J ouvre la page Utilisateurs." },
@@ -1636,7 +1699,7 @@
 
   looksLikeAdminIntent(text) {
     const n = this.normalize(text);
-    return /(utilisateur|partenaire|etablissement|commerce|offre|categorie|evenement|supprime|modifier|modifie|ajoute|cree|bloque|debloque|reactive|reactiver|ban|unban|statut|quantite|prix|description)/.test(n);
+    return /(utilisateur|partenaire|etablissement|commerce|offre|categorie|evenement|profil|profile|fiche|consulter|voir|supprime|modifier|modifie|ajoute|cree|bloque|debloque|reactive|reactiver|ban|unban|statut|quantite|prix|description)/.test(n);
   },
 
   isLikelyAdminEntityOnly(text) {
