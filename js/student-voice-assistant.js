@@ -405,12 +405,12 @@ const StudentVoiceAssistant = {
   },
 
   extractKeyword(normalizedText) {
-    return normalizedText
+    const cleaned = normalizedText
       .replace(/trouve[- ]?moi|trouve moi|trouver|trouve|cherche[- ]?moi|cherche moi|cherche|chercher|recherche|filtre|filtrer/g, " ")
       .replace(/affiche[- ]?moi|affiche moi|afficher|affiche|montre[- ]?moi|montre moi|montrer|montre|voir/g, " ")
       .replace(/moins de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
       .replace(/plus de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
-      .replace(/\b(offre|offres|disponible|disponibles|s il te plait|svp|stp)\b/g, " ")
+      .replace(/\b(offres|offre|disponibles|disponible|s il te plait|svp|stp)\b/g, " ")
       .replace(/\b(toutes|tous|toute|tout|moi|me|mon|ma|mes)\b/g, " ")
       .replace(/\b(le|la|les|du|des|de|d|l)\b/g, " ")
       .replace(/['’`"]/g, " ")
@@ -418,6 +418,12 @@ const StudentVoiceAssistant = {
       .replace(/-/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+
+    // Evite les residus de 1 caractere (ex: "s" apres nettoyage de "offres")
+    return cleaned
+      .split(" ")
+      .filter((token) => token.length > 1)
+      .join(" ");
   },
 
   resetCategoryFilterToAll() {
