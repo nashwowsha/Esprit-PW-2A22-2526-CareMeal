@@ -1112,7 +1112,7 @@
         return false;
       }
 
-      return await this.executeGeminiAction(parsed);
+      return await this.executeGeminiAction(parsed, text);
     } catch (error) {
       if (error.code === "quota_exceeded") {
         const waitPart = error.retryAfter ? ` Reessaie dans ${error.retryAfter} secondes.` : "";
@@ -1171,7 +1171,7 @@
     return null;
   },
 
-  async executeGeminiAction(cmd) {
+  async executeGeminiAction(cmd, originalText = "") {
     const action = String(cmd.action || "").trim().toLowerCase();
     if (!action || action === "unknown") return false;
 
@@ -1283,7 +1283,15 @@
     }
 
     if (action === "update_category") {
-      const source = this.cleanEntityName(cmd.source_name || cmd.target_name || "");
+      const source = this.cleanEntityName(
+        cmd.source_name ||
+        cmd.target_name ||
+        cmd.title ||
+        cmd.categorie ||
+        this.extractCategorySourceFromUpdate(originalText) ||
+        this.extractCategoryName(originalText) ||
+        ""
+      );
       const target = this.cleanEntityName(cmd.new_name || cmd.title || "");
       const description = this.cleanFieldText(cmd.description || "");
       const icone = this.cleanFieldText(cmd.icone || "");
@@ -1344,7 +1352,15 @@
     }
 
     if (action === "update_offer") {
-      const source = this.cleanEntityName(cmd.source_title || cmd.source_name || cmd.target_name || "");
+      const source = this.cleanEntityName(
+        cmd.source_title ||
+        cmd.source_name ||
+        cmd.target_name ||
+        cmd.title ||
+        this.extractOfferSourceFromUpdate(originalText) ||
+        this.extractOfferTitle(originalText) ||
+        ""
+      );
       if (!source) {
         this.setPendingIntent({ type: "update_offer_source" }, "Quelle offre veux-tu modifier ?");
         return true;
