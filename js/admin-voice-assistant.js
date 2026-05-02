@@ -313,30 +313,15 @@
       return;
     }
 
-    // Direct profile navigation should never fall back to generic Gemini chat.
-    if (this.tryHandleDirectProfileNavigation(text)) {
-      return;
-    }
-
-    // Navigation has absolute priority for fluid UX.
-    if (this.executeNavigationOnly(text)) {
-      this.clearPendingIntent();
-      return;
-    }
-
-    // If user starts a clearly new request, do not stay trapped in previous pending flow.
-    if (this.state.pendingIntent && (this.isNewIntentCommand(text) || this.isNavigationCommand(text))) {
-      this.clearPendingIntent();
-    }
-
-    // Navigation commands must stay fluid and should immediately interrupt pending CRUD dialogs.
-    if (this.isNavigationCommand(text)) {
-      const navHandled = this.executeNavigationOnly(text);
-      if (navHandled) return;
-    }
-
     // 1) If assistant is waiting for details, continue conversation first.
     if (this.state.pendingIntent) {
+      // During a multi-turn CRUD flow, only explicit page navigation can interrupt.
+      if (this.isExplicitPageNavigation(text)) {
+        this.clearPendingIntent();
+        const navHandled = this.executeNavigationOnly(text);
+        if (navHandled) return;
+      }
+
       try {
         const handledPending = await this.handlePendingIntent(text);
         if (handledPending) return;
@@ -345,6 +330,16 @@
         this.respond("Je n ai pas pu terminer l action: " + (error.message || "erreur inconnue") + ". Tu peux reessayer ou dire annule.", true);
         return;
       }
+    }
+
+    // Direct profile navigation should never fall back to generic Gemini chat.
+    if (this.tryHandleDirectProfileNavigation(text)) {
+      return;
+    }
+
+    // Outside pending flow, navigation can be handled directly.
+    if (this.executeNavigationOnly(text)) {
+      return;
     }
 
     const isAdminRequest = this.looksLikeAdminIntent(text);
@@ -800,6 +795,12 @@
     return hasNavVerb && hasPageTarget;
   },
 
+  isExplicitPageNavigation(text) {
+    const n = this.normalize(text);
+    return /(aller|va|ouvre|ouvrir|affiche|afficher|montre|montrer|navigue|naviguer)/.test(n) &&
+      /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite)/.test(n);
+  },
+
   isProfileNavigationCommand(text) {
     const n = this.normalize(text);
     const hasProfileWord = /(profil|profile|fiche)/.test(n);
@@ -851,9 +852,8 @@
       return false;
     }
     const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(normalized);
-    const explicitPageWord = /(page|section|onglet)/.test(normalized);
     const hasPageHint = /(page|section|onglet|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(normalized);
-    if (!(hasNavVerb || explicitPageWord) || !hasPageHint) return false;
+    if (!hasNavVerb || !hasPageHint) return false;
 
     const navCommands = [
       { words: ["utilisateur", "utilisateurs", "user", "users"], url: "users.html", message: "J ouvre la page Utilisateurs." },
@@ -1674,6 +1674,7 @@
       .trim()
       .replace(/^[\s,:;=-]+/, "")
       .replace(/[\s,:;=-]+$/, "")
+      .replace(/^(categorie|category|offre|offer)\s+/i, "")
       .replace(/^(la|le|les|une|un|du|de|des)\s+/i, "")
       .trim();
   },
