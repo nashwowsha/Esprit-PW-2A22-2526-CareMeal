@@ -18,6 +18,24 @@ function send_json(int $status, array $payload): void
     exit;
 }
 
+function extract_gemini_text(array $json): string
+{
+    $parts = $json['candidates'][0]['content']['parts'] ?? [];
+    if (!is_array($parts)) {
+        return '';
+    }
+
+    $texts = [];
+    foreach ($parts as $part) {
+        $piece = trim((string)($part['text'] ?? ''));
+        if ($piece !== '') {
+            $texts[] = $piece;
+        }
+    }
+
+    return trim(implode("\n", $texts));
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     send_json(405, ['error' => 'Method not allowed']);
 }
@@ -45,7 +63,7 @@ $payload = [
     ],
     'generationConfig' => [
         'temperature' => 0.4,
-        'maxOutputTokens' => 220,
+        'maxOutputTokens' => 420,
     ],
 ];
 
@@ -90,7 +108,7 @@ foreach ($models as $model) {
         $json = json_decode($response, true);
 
         if ($httpCode < 400) {
-            $reply = $json['candidates'][0]['content']['parts'][0]['text'] ?? '';
+            $reply = extract_gemini_text($json);
             if (trim((string)$reply) !== '') {
                 send_json(200, [
                     'reply' => $reply,

@@ -80,6 +80,77 @@ function extract_gemini_text(array $json): string
     return trim(implode("\n", $texts));
 }
 
+function reply_looks_incomplete(string $reply, string $finishReason = ''): bool
+{
+    $text = trim($reply);
+    if ($text === '') {
+        return true;
+    }
+
+    if (in_array(strtoupper($finishReason), ['MAX_TOKENS', 'RECITATION', 'OTHER'], true)) {
+        return true;
+    }
+
+    $lastChar = mb_substr($text, -1);
+    if (preg_match('/[.!?…]/u', $lastChar) === 1) {
+        return false;
+    }
+
+    if (preg_match('/[\'"\\-:]$/u', $text) === 1) {
+        return true;
+    }
+
+    if (preg_match('/\b(comment|puis|pour|avec|dans|de|du|des|au|aux|et|ou|mais|si|que|qui|sur|par|a|aide|aider)\s*$/iu', $text) === 1) {
+        return true;
+    }
+
+    return true;
+}
+
+function complete_truncated_reply(string $reply, string $model, string $apiKey): string
+{
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey);
+    $completionPrompt = "Complete ce texte en francais naturel, sans changer son sens. "
+        . "Donne uniquement la version finale complete en 1-2 phrases.\n"
+        . "Texte actuel: " . $reply;
+
+    $payload = [
+        'contents' => [
+            [
+                'role' => 'user',
+                'parts' => [
+                    ['text' => $completionPrompt],
+                ],
+            ],
+        ],
+        'generationConfig' => [
+            'temperature' => 0.2,
+            'maxOutputTokens' => 140,
+        ],
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
+        CURLOPT_TIMEOUT => 20,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($response === false || $httpCode >= 400) {
+        return '';
+    }
+
+    $json = json_decode($response, true);
+    $completed = extract_gemini_text(is_array($json) ? $json : []);
+    return trim($completed);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     send_json_response(405, ['error' => 'Method not allowed']);
 }
@@ -169,6 +240,13 @@ foreach ($models as $model) {
         $json = json_decode($response, true);
         if ($httpCode < 400) {
             $reply = extract_gemini_text($json);
+            $finishReason = (string)($json['candidates'][0]['finishReason'] ?? '');
+            if ($reply !== '' && reply_looks_incomplete($reply, $finishReason)) {
+                $completed = complete_truncated_reply($reply, (string)$model, (string)$apiKey);
+                if ($completed !== '') {
+                    $reply = $completed;
+                }
+            }
             if ($reply !== '') {
                 send_json_response(200, [
                     'reply' => $reply,
