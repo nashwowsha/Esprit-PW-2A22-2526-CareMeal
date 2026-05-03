@@ -611,6 +611,15 @@
           return true;
         }
 
+        const missingFields = this.getMissingCreateOfferFields(merged);
+        if (missingFields.length > 0) {
+          this.setPendingIntent(
+            { type: "create_offer_collect", payload: merged, step: "required_fields" },
+            this.buildCreateOfferFieldsQuestion(merged.titre, missingFields)
+          );
+          return true;
+        }
+
         const created = await this.callAdminApi(this.buildCreateOfferPayload(merged));
         this.clearPendingIntent();
         this.respond(`Offre creee: ${created.titre}.`, true);
@@ -636,10 +645,21 @@
 
       if (!this.hasValidPositiveNumber(merged.prix || "")) {
         this.setPendingIntent(
-          { type: "create_offer_collect", payload: merged, step: "price" },
-          `Quel prix pour l offre ${merged.titre} ?`
+          { type: "create_offer_collect", payload: merged, step: "required_fields" },
+          this.buildCreateOfferFieldsQuestion(merged.titre, this.getMissingCreateOfferFields(merged))
         );
         return true;
+      }
+
+      if (step === "required_fields") {
+        const missingFields = this.getMissingCreateOfferFields(merged);
+        if (missingFields.length > 0) {
+          this.setPendingIntent(
+            { type: "create_offer_collect", payload: merged, step: "required_fields" },
+            this.buildCreateOfferFieldsQuestion(merged.titre, missingFields)
+          );
+          return true;
+        }
       }
 
       const created = await this.callAdminApi(this.buildCreateOfferPayload(merged));
@@ -1325,13 +1345,13 @@
     if (actionCreate && isOffer) {
       const payload = this.extractOfferPayload(text);
       const hasTitle = this.isMeaningfulOfferTitle(payload.titre || "");
-      const hasPrice = this.hasValidPositiveNumber(payload.prix || "");
-      if (!hasTitle || !hasPrice) {
+      const missingFields = this.getMissingCreateOfferFields(payload);
+      if (!hasTitle || missingFields.length > 0) {
         this.setPendingIntent(
           { type: "create_offer_collect", payload },
           !hasTitle
             ? "D accord. Quel titre pour la nouvelle offre ?"
-            : `Quel prix pour l offre ${this.sanitizeOfferTitle(payload.titre)} ?`
+            : this.buildCreateOfferFieldsQuestion(this.sanitizeOfferTitle(payload.titre), missingFields)
         );
         return true;
       }
@@ -1745,10 +1765,11 @@
         this.setPendingIntent({ type: "create_offer_collect", payload: pendingPayload, step: "title" }, "Quel titre pour la nouvelle offre ?");
         return true;
       }
-      if (!this.hasValidPositiveNumber(payload.prix || "")) {
+      const missingFields = this.getMissingCreateOfferFields(payload);
+      if (missingFields.length > 0) {
         this.setPendingIntent(
-          { type: "create_offer_collect", payload, step: "price" },
-          `Quel prix pour l offre ${this.sanitizeOfferTitle(payload.titre)} ?`
+          { type: "create_offer_collect", payload, step: "required_fields" },
+          this.buildCreateOfferFieldsQuestion(this.sanitizeOfferTitle(payload.titre), missingFields)
         );
         return true;
       }
@@ -1980,6 +2001,29 @@
     if (!payload.photo_url) delete payload.photo_url;
 
     return payload;
+  },
+
+  getMissingCreateOfferFields(payload = {}) {
+    const missing = [];
+    if (!this.hasValidPositiveNumber(payload.prix || "")) missing.push("prix");
+    if (!this.cleanEntityName(String(payload.nom_categorie || ""))) missing.push("categorie");
+    const qty = parseInt(String(payload.quantite || "").trim(), 10);
+    if (!Number.isFinite(qty) || qty < 1) missing.push("quantite");
+    return missing;
+  },
+
+  buildCreateOfferFieldsQuestion(title, missingFields = []) {
+    const safeTitle = this.sanitizeOfferTitle(title || "cette offre");
+    if (!Array.isArray(missingFields) || missingFields.length === 0) {
+      return `Donne les champs necessaires pour creer l offre ${safeTitle}: prix, categorie et quantite.`;
+    }
+    const labels = {
+      prix: "prix",
+      categorie: "categorie",
+      quantite: "quantite",
+    };
+    const readable = missingFields.map((f) => labels[f] || f).join(", ");
+    return `Pour creer l offre ${safeTitle}, donne: ${readable}. Exemple: prix 5, categorie dessert, quantite 10.`;
   },
 
   mergeOfferPayload(basePayload = {}, text = "") {
