@@ -113,6 +113,43 @@ try {
             ]);
         }
 
+        case 'search_categories': {
+            $keyword = trim((string)($data['keyword'] ?? ''));
+            $limit = isset($data['limit']) ? (int)$data['limit'] : 100;
+            if ($limit < 1) {
+                $limit = 100;
+            }
+            if ($limit > 300) {
+                $limit = 300;
+            }
+
+            $sql = 'SELECT id_categorie, nom_categorie
+                    FROM categorie_offre
+                    WHERE 1=1';
+            $params = [];
+
+            if ($keyword !== '') {
+                $sql .= ' AND LOWER(nom_categorie) LIKE :kw';
+                $params[':kw'] = '%' . mb_strtolower($keyword) . '%';
+            }
+
+            $sql .= ' ORDER BY nom_categorie ASC LIMIT :limit_count';
+
+            $stmt = $pdo->prepare($sql);
+            foreach ($params as $k => $v) {
+                $stmt->bindValue($k, $v);
+            }
+            $stmt->bindValue(':limit_count', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            send_json(200, [
+                'ok' => true,
+                'count' => count($rows),
+                'categories' => $rows,
+            ]);
+        }
+
         case 'create_category': {
             $name = trim((string)($data['nom_categorie'] ?? ''));
             $description = trim((string)($data['description'] ?? ''));

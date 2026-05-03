@@ -800,6 +800,13 @@
         this.respond("Je n ai pas compris le nom de categorie. Redonne le nom exact.", true);
         return true;
       }
+      const exists = await this.categoryExistsByName(sourceName);
+      if (!exists) {
+        this.state.pendingIntent = { type: "update_category_source", createdAt: Date.now() };
+        this.saveState();
+        this.respond("Categorie introuvable.", true);
+        return true;
+      }
       this.setPendingIntent(
         { type: "update_category_fields", sourceName },
         `D accord. Pour la categorie ${sourceName}, tu veux modifier quoi ?`
@@ -1122,11 +1129,15 @@
     }
     if (type.startsWith("update_offer")) {
       this.clearPendingIntent();
+      this.state.pendingIntent = { type: "update_offer_source", createdAt: Date.now() };
+      this.saveState();
       this.respond("Offre introuvable.", true);
       return true;
     }
     if (type.startsWith("update_category")) {
       this.clearPendingIntent();
+      this.state.pendingIntent = { type: "update_category_source", createdAt: Date.now() };
+      this.saveState();
       this.respond("Categorie introuvable.", true);
       return true;
     }
@@ -1145,6 +1156,25 @@
       const offers = Array.isArray(result?.offers) ? result.offers : [];
       return offers.some((offer) => {
         const current = this.normalize(this.sanitizeOfferTitle(String(offer?.titre || "")));
+        return current === wanted;
+      });
+    } catch (_e) {
+      return false;
+    }
+  },
+
+  async categoryExistsByName(name) {
+    const wanted = this.normalize(this.cleanEntityName(name || ""));
+    if (!wanted) return false;
+    try {
+      const result = await this.callAdminApi({
+        action: "search_categories",
+        keyword: wanted,
+        limit: 100,
+      });
+      const categories = Array.isArray(result?.categories) ? result.categories : [];
+      return categories.some((category) => {
+        const current = this.normalize(this.cleanEntityName(String(category?.nom_categorie || "")));
         return current === wanted;
       });
     } catch (_e) {
@@ -1466,6 +1496,13 @@
 
       if (!source) {
         this.respond("Quelle categorie veux-tu modifier ?", true);
+        return true;
+      }
+      const exists = await this.categoryExistsByName(source);
+      if (!exists) {
+        this.state.pendingIntent = { type: "update_category_source", createdAt: Date.now() };
+        this.saveState();
+        this.respond("Categorie introuvable.", true);
         return true;
       }
       if (!target && !description && !icone) {
@@ -1912,6 +1949,13 @@
       const icone = this.cleanFieldText(cmd.icone || "");
       if (!source) {
         this.setPendingIntent({ type: "update_category_source" }, "Quelle categorie veux-tu modifier ?");
+        return true;
+      }
+      const exists = await this.categoryExistsByName(source);
+      if (!exists) {
+        this.state.pendingIntent = { type: "update_category_source", createdAt: Date.now() };
+        this.saveState();
+        this.respond("Categorie introuvable.", true);
         return true;
       }
       if (!target && !description && !icone) {
