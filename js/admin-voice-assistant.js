@@ -445,7 +445,8 @@
   },
 
   async onSpeechText(text) {
-    const wakeParsed = this.extractWakeCommand(text || "");
+    const cleanedRaw = this.cleanRecognizedText(text || "");
+    const wakeParsed = this.extractWakeCommand(cleanedRaw);
     const heardText = wakeParsed.command || text || "";
     this.elements.heard.textContent = heardText || "(aucun texte)";
     this.state.lastHeard = heardText;
@@ -467,7 +468,7 @@
   },
 
   async handleTypedPrompt() {
-    const text = (this.elements.textInput.value || "").trim();
+    const text = this.cleanRecognizedText((this.elements.textInput.value || "").trim());
     if (!text) return;
     const wakeParsed = this.extractWakeCommand(text);
     const prompt = wakeParsed.command || text;
@@ -625,14 +626,6 @@
           return true;
         }
 
-        if (!this.hasValidPositiveNumber(merged.prix || "")) {
-          this.setPendingIntent(
-            { type: "create_offer_collect", payload: merged, step: "price" },
-            `Quel prix pour l offre ${merged.titre} ?`
-          );
-          return true;
-        }
-
         const missingFields = this.getMissingCreateOfferFields(merged);
         if (missingFields.length > 0) {
           this.setPendingIntent(
@@ -669,14 +662,6 @@
         this.setPendingIntent(
           { type: "create_offer_collect", payload: merged, step: "title" },
           "Donne le titre de l offre."
-        );
-        return true;
-      }
-
-      if (!this.hasValidPositiveNumber(merged.prix || "")) {
-        this.setPendingIntent(
-          { type: "create_offer_collect", payload: merged, step: "required_fields" },
-          this.buildCreateOfferFieldsQuestion(merged.titre, this.getMissingCreateOfferFields(merged))
         );
         return true;
       }
@@ -1461,8 +1446,8 @@
 
     if (!hasTitle) {
       this.setPendingIntent(
-        { type: "create_offer_collect", payload: {}, step: "title" },
-        "D accord. Donne le titre de l offre, puis je te demanderai prix, categorie et quantite."
+        { type: "create_offer_collect", payload: {}, step: "required_fields" },
+        "D accord. Donne les informations necessaires pour creer l offre."
       );
       return true;
     }
@@ -1940,12 +1925,22 @@
     const hasVerb = /(cherche|chercher|recherche|filtre|filtrer|affiche|afficher|montre|montrer|liste|lister|voir)/.test(n);
     const hasTarget = /\boffre(s)?\b/.test(n);
     const hasCriteria = /(categorie|category|prix|moins de|plus de|inferieur|superieur|statut|brouillon|publie|expire|archive|stock)/.test(n);
-    return (hasVerb && hasTarget) || (hasTarget && hasCriteria);
+    if ((hasVerb && hasTarget) || (hasTarget && hasCriteria)) return true;
+
+    if (this.isAdminOffersPage()) {
+      const words = n.trim().split(/\s+/).filter(Boolean);
+      const hasCrudVerb = /(supprime|supprimer|modifie|modifier|ajoute|ajouter|cree|creer|delete|update)/.test(n);
+      if (!hasCrudVerb && words.length >= 1 && words.length <= 3) {
+        return true;
+      }
+    }
+    return false;
   },
 
   parseAdminOfferSearchRequest(text) {
     const raw = String(text || "").trim();
     const normalized = this.normalize(raw);
+    const extractedTitle = this.sanitizeOfferTitle(this.extractOfferTitle(raw));
 
     const categoryMatch = normalized.match(/(?:categorie|category)\s+([a-z0-9À-ÿ_\-\s]+)/i);
     const category = categoryMatch ? this.cleanEntityName(categoryMatch[1]) : "";
@@ -1957,16 +1952,21 @@
 
     const status = this.extractOfferStatus(raw);
 
-    const keyword = raw
+    let keyword = raw
       .replace(/trouve[- ]?moi|trouve moi|trouver|trouve|cherche[- ]?moi|cherche moi|cherche|chercher|recherche|filtre|filtrer/gi, " ")
       .replace(/affiche[- ]?moi|affiche moi|afficher|affiche|montre[- ]?moi|montre moi|montrer|montre|liste|lister|voir/gi, " ")
       .replace(/\boffres?\b/gi, " ")
+      .replace(/\b(nomme|nomme[eé]?|nomm[eé]e?)\b/gi, " ")
       .replace(/(?:moins de|plus de|inferieur a|superieur a|max(?:imum)?|min(?:imum)?|<=?|>=?)\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars|tnd)?/gi, " ")
       .replace(/(?:categorie|category)\s+[a-z0-9À-ÿ_\-\s]+/gi, " ")
       .replace(/\b(publiee?|brouillon|expiree?|archivee?|stock)\b/gi, " ")
       .replace(/[,:;!?()[\]{}]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+
+    if (this.isMeaningfulOfferTitle(extractedTitle)) {
+      keyword = extractedTitle;
+    }
 
     return {
       keyword: this.cleanFieldText(keyword),
@@ -2148,7 +2148,7 @@
     if (labeled) return this.cleanEntityName(labeled);
 
     const m = text.match(/offre\s+(.+)$/i);
-    if (m && m[1]) return this.cleanEntityName(m[1]);
+    if (m && m[1]) return this.sanitizeOfferTitle(this.cleanEntityName(m[1]));
     return "";
   },
 
@@ -2196,7 +2196,7 @@
       prix_original:
         this.extractLabeledValue(text, ["prix_original", "prix original", "original"]) ||
         this.extractNumberByKeyword(text, ["prix original", "prix_original", "original"]),
-      quantite: this.extractLabeledValue(text, ["quantite", "qte"]) || this.extractIntegerByKeyword(text, ["quantite", "qte", "stock"]),
+      quantite: this.extractLabeledValue(text, ["quantite", "quantité", "qte", "stock"]) || this.extractIntegerByKeyword(text, ["quantite", "quantité", "qte", "stock"]),
       nom_categorie:
         this.extractLabeledValue(text, ["categorie", "category"]) ||
         this.extractCategoryFromNaturalText(text),
@@ -2248,26 +2248,15 @@
   },
 
   getMissingCreateOfferFields(payload = {}) {
-    const missing = [];
-    if (!this.hasValidPositiveNumber(payload.prix || "")) missing.push("prix");
-    if (!this.cleanEntityName(String(payload.nom_categorie || ""))) missing.push("categorie");
-    const qty = parseInt(String(payload.quantite || "").trim(), 10);
-    if (!Number.isFinite(qty) || qty < 1) missing.push("quantite");
-    return missing;
+    // Back-end can safely fill defaults (prix/quantite/categorie).
+    // Keep collection flexible: user can provide any subset of fields.
+    return [];
   },
 
   buildCreateOfferFieldsQuestion(title, missingFields = []) {
-    const safeTitle = this.sanitizeOfferTitle(title || "cette offre");
-    if (!Array.isArray(missingFields) || missingFields.length === 0) {
-      return `Donne-moi les informations necessaires pour creer l offre ${safeTitle}: prix, categorie et quantite. Format conseille: prix: 5, categorie: dessert, quantite: 10.`;
-    }
-    const labels = {
-      prix: "prix",
-      categorie: "categorie",
-      quantite: "quantite",
-    };
-    const readable = missingFields.map((f) => labels[f] || f).join(", ");
-    return `Pour creer l offre ${safeTitle}, donne les informations suivantes: ${readable}. Tu peux repondre en une phrase: prix: 5, categorie: dessert, quantite: 10.`;
+    const safeTitle = this.sanitizeOfferTitle(title || "");
+    if (!safeTitle) return "Donne les informations necessaires pour creer l offre.";
+    return `Donne les informations necessaires pour creer l offre ${safeTitle}.`;
   },
 
   mergeOfferPayload(basePayload = {}, text = "") {
@@ -2324,6 +2313,8 @@
     const normalized = this.normalizeSpokenSymbols(value || "");
     return normalized
       .trim()
+      .replace(/^(nomme|nomme[eé]?|nomm[eé]e?)\s+/i, "")
+      .replace(/^(offre)\s+/i, "")
       .replace(/^[\s,;:.!?=+\-_/\\]+/, "")
       .replace(/[\s,;:.!?=+\-_/\\]+$/, "")
       .replace(/\s+/g, " ")
@@ -2471,6 +2462,13 @@
     return String(value || "")
       // Voice STT often outputs "tiret" when user says "-"
       .replace(/\s*\b(tiret|dash|hyphen)\b\s*/gi, "-");
+  },
+
+  cleanRecognizedText(value) {
+    return String(value || "")
+      .replace(/[!¡]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   },
 
   cleanOfferPayload(payload) {

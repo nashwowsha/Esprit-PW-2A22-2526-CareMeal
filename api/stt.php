@@ -95,6 +95,9 @@ if ($httpCode >= 400) {
 }
 
 $text = trim((string)($json['text'] ?? ''));
+$text = str_replace(['!', '¡'], '', $text);
+$text = preg_replace('/\s+/u', ' ', (string)$text) ?? (string)$text;
+$text = trim((string)$text);
 if ($text === '') {
     stt_send_json(200, [
         'text' => '',

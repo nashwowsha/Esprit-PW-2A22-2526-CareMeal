@@ -375,7 +375,8 @@ const StudentVoiceAssistant = {
   },
 
   async onSpeechText(text) {
-    const wakeParsed = this.extractWakeCommand(text || "");
+    const cleanedRaw = this.cleanRecognizedText(text || "");
+    const wakeParsed = this.extractWakeCommand(cleanedRaw);
     const heardText = wakeParsed.command || text || "";
     this.elements.heard.textContent = heardText || "(aucun texte)";
     this.state.lastHeard = heardText;
@@ -392,7 +393,7 @@ const StudentVoiceAssistant = {
   },
 
   async handleTyped() {
-    const text = (this.elements.input.value || "").trim();
+    const text = this.cleanRecognizedText((this.elements.input.value || "").trim());
     if (!text) return;
     const wakeParsed = this.extractWakeCommand(text);
     const prompt = wakeParsed.command || text;
@@ -769,6 +770,13 @@ const StudentVoiceAssistant = {
   cleanForSpeech(text) {
     return (text || "")
       .replace(/[*_`#>/\\]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  },
+
+  cleanRecognizedText(value) {
+    return String(value || "")
+      .replace(/[!¡]/g, "")
       .replace(/\s+/g, " ")
       .trim();
   },
