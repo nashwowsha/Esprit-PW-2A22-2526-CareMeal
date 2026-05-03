@@ -513,6 +513,9 @@
         const handledPending = await this.handlePendingIntent(text);
         if (handledPending) return;
       } catch (error) {
+        if (this.handleNotFoundDuringPending(error)) {
+          return;
+        }
         this.setStatus("Erreur action en attente.");
         this.respond("Je n ai pas pu terminer l action: " + (error.message || "erreur inconnue") + ". Tu peux reessayer ou dire annule.", true);
         return;
@@ -1057,6 +1060,36 @@
     return /^(salut|bonjour|bonsoir|hello|hi|ok|d accord|merci|ca va|oui|non)$/.test(n.trim());
   },
 
+  isEntityNotFoundError(error) {
+    const msg = this.normalize(error?.message || "");
+    return /(introuvable|not found|inexistant|does not exist)/.test(msg);
+  },
+
+  handleNotFoundDuringPending(error) {
+    if (!this.isEntityNotFoundError(error)) return false;
+    const pending = this.state.pendingIntent;
+    if (!pending) return false;
+
+    const type = String(pending.type || "").trim();
+    if (type === "delete_offer") {
+      this.setPendingIntent({ type: "delete_offer" }, "Offre introuvable. Donne un autre titre d offre a supprimer.");
+      return true;
+    }
+    if (type === "delete_category") {
+      this.setPendingIntent({ type: "delete_category" }, "Categorie introuvable. Donne un autre nom de categorie a supprimer.");
+      return true;
+    }
+    if (type.startsWith("update_offer")) {
+      this.setPendingIntent({ type: "update_offer_source" }, "Offre introuvable. Donne un autre titre d offre a modifier.");
+      return true;
+    }
+    if (type.startsWith("update_category")) {
+      this.setPendingIntent({ type: "update_category_source" }, "Categorie introuvable. Donne un autre nom de categorie a modifier.");
+      return true;
+    }
+    return false;
+  },
+
   isNewIntentCommand(text) {
     const n = this.normalize(text);
     return /(comment tu t|qui es tu|aide|help|ouvre|ouvrir|va |aller|affiche|montre|voir|page|consulter|profil|profile|fiche|combien|supprime|modifier|modifie|ajoute|cree|bloque|debloque|annule|reset|logout|deconnexion|rafraich)/.test(n);
@@ -1585,6 +1618,32 @@
         this.respond("Le quota Gemini est depasse." + waitPart, false);
         return true;
       }
+
+      if (this.isEntityNotFoundError(error)) {
+        const n = this.normalize(text);
+        const isOffer = /(offre|offres)/.test(n);
+        const isCategory = /(categorie|categories)/.test(n);
+        const isDelete = /(supprime|supprimer|delete|efface|retire)/.test(n);
+        const isUpdate = /(modifie|modifier|update|renomme|renommer)/.test(n);
+
+        if (isOffer && isDelete) {
+          this.setPendingIntent({ type: "delete_offer" }, "Offre introuvable. Donne un autre titre d offre a supprimer.");
+          return true;
+        }
+        if (isOffer && isUpdate) {
+          this.setPendingIntent({ type: "update_offer_source" }, "Offre introuvable. Donne un autre titre d offre a modifier.");
+          return true;
+        }
+        if (isCategory && isDelete) {
+          this.setPendingIntent({ type: "delete_category" }, "Categorie introuvable. Donne un autre nom de categorie a supprimer.");
+          return true;
+        }
+        if (isCategory && isUpdate) {
+          this.setPendingIntent({ type: "update_category_source" }, "Categorie introuvable. Donne un autre nom de categorie a modifier.");
+          return true;
+        }
+      }
+
       this.setStatus("Erreur interpretation action.");
       return false;
     } finally {
