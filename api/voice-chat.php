@@ -4,7 +4,6 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/ai.php';
-require_once __DIR__ . '/../config/env.php';
 
 function send_json(int $status, array $payload): void
 {
@@ -55,60 +54,110 @@ function extract_groq_text(array $json): string
     return '';
 }
 
-function call_groq_fallback(string $text, bool $jsonMode): array
+function call_groq_with_rotation(string $text, bool $jsonMode): array
 {
-    $apiKey = trim((string)(Env::get('GROQ_API_KEY', '') ?? ''));
-    if ($apiKey === '') {
-        return ['ok' => false, 'error' => 'GROQ_API_KEY missing'];
+    try {
+        $apiKeys = AIConfig::groqApiKeys();
+        $models = AIConfig::groqModels();
+    } catch (Throwable $e) {
+        return ['ok' => false, 'error' => $e->getMessage()];
     }
 
-    $model = trim((string)(Env::get('GROQ_MODEL', 'llama-3.1-8b-instant') ?? 'llama-3.1-8b-instant'));
-    if ($model === '') {
-        $model = 'llama-3.1-8b-instant';
+    $attempts = 0;
+    $quotaFailures = 0;
+    $authFailures = 0;
+    $otherFailures = 0;
+    $lastError = 'Groq error';
+    $lastHttpCode = 0;
+    $lastModel = '';
+
+    foreach ($models as $model) {
+        foreach ($apiKeys as $apiKey) {
+            $attempts++;
+            $payload = [
+                'model' => (string)$model,
+                'messages' => [
+                    ['role' => 'user', 'content' => $text],
+                ],
+                'temperature' => $jsonMode ? 0.2 : 0.4,
+                'max_tokens' => $jsonMode ? 320 : 420,
+            ];
+
+            $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $apiKey,
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
+                CURLOPT_TIMEOUT => 30,
+            ]);
+
+            $response = curl_exec($ch);
+            $curlErr = curl_error($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($response === false) {
+                $lastError = 'Groq request failed: ' . $curlErr;
+                $lastHttpCode = 0;
+                $lastModel = (string)$model;
+                $otherFailures++;
+                continue;
+            }
+
+            $json = json_decode($response, true);
+            if ($httpCode >= 400) {
+                $msg = (string)($json['error']['message'] ?? 'Groq error');
+                $errLower = strtolower($msg);
+                $lastError = $msg;
+                $lastHttpCode = $httpCode;
+                $lastModel = (string)$model;
+
+                if ($httpCode === 429 || str_contains($errLower, 'quota') || str_contains($errLower, 'rate limit')) {
+                    $quotaFailures++;
+                    continue;
+                }
+                if ($httpCode === 401 || $httpCode === 403 || str_contains($errLower, 'invalid') || str_contains($errLower, 'unauthorized')) {
+                    $authFailures++;
+                    continue;
+                }
+                $otherFailures++;
+                continue;
+            }
+
+            $reply = extract_groq_text(is_array($json) ? $json : []);
+            if ($reply === '') {
+                $lastError = 'Groq empty response';
+                $lastHttpCode = $httpCode;
+                $lastModel = (string)$model;
+                $otherFailures++;
+                continue;
+            }
+
+            return [
+                'ok' => true,
+                'reply' => $reply,
+                'model' => (string)$model,
+                'attempts' => $attempts,
+            ];
+        }
     }
 
-    $payload = [
-        'model' => $model,
-        'messages' => [
-            ['role' => 'user', 'content' => $text],
+    return [
+        'ok' => false,
+        'error' => $lastError,
+        'http_code' => $lastHttpCode,
+        'meta' => [
+            'attempts' => $attempts,
+            'quota_failures' => $quotaFailures,
+            'auth_failures' => $authFailures,
+            'other_failures' => $otherFailures,
+            'last_model' => $lastModel,
         ],
-        'temperature' => $jsonMode ? 0.2 : 0.4,
-        'max_tokens' => $jsonMode ? 320 : 420,
     ];
-
-    $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $apiKey,
-        ],
-        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),
-        CURLOPT_TIMEOUT => 30,
-    ]);
-
-    $response = curl_exec($ch);
-    $curlErr = curl_error($ch);
-    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($response === false) {
-        return ['ok' => false, 'error' => 'Groq request failed: ' . $curlErr];
-    }
-
-    $json = json_decode($response, true);
-    if ($httpCode >= 400) {
-        $msg = (string)($json['error']['message'] ?? 'Groq error');
-        return ['ok' => false, 'error' => $msg, 'http_code' => $httpCode];
-    }
-
-    $reply = extract_groq_text(is_array($json) ? $json : []);
-    if ($reply === '') {
-        return ['ok' => false, 'error' => 'Groq empty response'];
-    }
-
-    return ['ok' => true, 'reply' => $reply, 'model' => $model];
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -119,9 +168,30 @@ $raw = file_get_contents('php://input');
 $data = json_decode($raw ?: '', true);
 $text = trim((string)($data['text'] ?? ''));
 $jsonMode = (bool)($data['json_mode'] ?? false);
+try {
+    $primaryProvider = AIConfig::adminPrimaryProvider();
+} catch (Throwable $_e) {
+    $primaryProvider = 'gemini';
+}
 
 if ($text === '') {
     send_json(422, ['error' => 'Text is required']);
+}
+
+$groqPrimaryAttempt = null;
+if ($primaryProvider === 'groq') {
+    $groqPrimaryAttempt = call_groq_with_rotation($text, $jsonMode);
+    if (!empty($groqPrimaryAttempt['ok'])) {
+        send_json(200, [
+            'reply' => (string)$groqPrimaryAttempt['reply'],
+            'meta' => [
+                'provider' => 'groq',
+                'model' => (string)($groqPrimaryAttempt['model'] ?? ''),
+                'attempts' => (int)($groqPrimaryAttempt['attempts'] ?? 0),
+                'primary_provider' => 'groq',
+            ],
+        ]);
+    }
 }
 
 $apiKeys = AIConfig::geminiApiKeys();
@@ -234,14 +304,16 @@ foreach ($models as $model) {
 }
 
 if ($quotaFailures > 0) {
-    $groq = call_groq_fallback($text, $jsonMode);
+    $groq = ($primaryProvider === 'groq' && is_array($groqPrimaryAttempt))
+        ? $groqPrimaryAttempt
+        : call_groq_with_rotation($text, $jsonMode);
     if (!empty($groq['ok'])) {
         send_json(200, [
             'reply' => (string)$groq['reply'],
             'meta' => [
                 'provider' => 'groq',
                 'model' => (string)($groq['model'] ?? ''),
-                'attempts' => $attempts,
+                'attempts' => (int)($groq['attempts'] ?? $attempts),
                 'gemini_quota_failures' => $quotaFailures,
             ],
         ]);

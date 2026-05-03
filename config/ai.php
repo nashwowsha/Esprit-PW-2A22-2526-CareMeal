@@ -3,6 +3,23 @@ require_once __DIR__ . '/env.php';
 
 class AIConfig
 {
+    private static function parseCsvEnv(string $raw): array
+    {
+        if ($raw === '') {
+            return [];
+        }
+
+        $parts = explode(',', $raw);
+        $out = [];
+        foreach ($parts as $part) {
+            $value = trim($part);
+            if ($value !== '') {
+                $out[] = $value;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     private static function normalizeModel(string $model): string
     {
         $m = trim(strtolower($model));
@@ -29,18 +46,7 @@ class AIConfig
      */
     public static function geminiApiKeys(): array
     {
-        $keysRaw = Env::get('GEMINI_API_KEYS', '');
-        $keys = [];
-
-        if ($keysRaw !== '') {
-            $parts = explode(',', $keysRaw);
-            foreach ($parts as $part) {
-                $k = trim($part);
-                if ($k !== '') {
-                    $keys[] = $k;
-                }
-            }
-        }
+        $keys = self::parseCsvEnv((string)Env::get('GEMINI_API_KEYS', ''));
 
         $single = trim(Env::get('GEMINI_API_KEY', '') ?? '');
         if ($single !== '') {
@@ -62,16 +68,12 @@ class AIConfig
      */
     public static function geminiModels(): array
     {
-        $modelsRaw = Env::get('GEMINI_MODELS', '');
         $models = [];
-
-        if ($modelsRaw !== '') {
-            $parts = explode(',', $modelsRaw);
-            foreach ($parts as $part) {
-                $m = self::normalizeModel($part);
-                if ($m !== '') {
-                    $models[] = $m;
-                }
+        $parts = self::parseCsvEnv((string)Env::get('GEMINI_MODELS', ''));
+        foreach ($parts as $part) {
+            $m = self::normalizeModel($part);
+            if ($m !== '') {
+                $models[] = $m;
             }
         }
 
@@ -89,5 +91,52 @@ class AIConfig
         }
 
         return $models;
+    }
+
+    /**
+     * Priority:
+     * 1) GROQ_API_KEYS (comma-separated list)
+     * 2) GROQ_API_KEY (single key fallback)
+     */
+    public static function groqApiKeys(): array
+    {
+        $keys = self::parseCsvEnv((string)Env::get('GROQ_API_KEYS', ''));
+        $single = trim((string)(Env::get('GROQ_API_KEY', '') ?? ''));
+        if ($single !== '') {
+            $keys[] = $single;
+        }
+        $keys = array_values(array_unique($keys));
+        if (empty($keys)) {
+            throw new RuntimeException('No Groq API key found. Set GROQ_API_KEYS or GROQ_API_KEY in .env.');
+        }
+        return $keys;
+    }
+
+    /**
+     * Priority:
+     * 1) GROQ_MODELS (comma-separated list)
+     * 2) GROQ_MODEL (single model fallback)
+     */
+    public static function groqModels(): array
+    {
+        $models = self::parseCsvEnv((string)Env::get('GROQ_MODELS', ''));
+        $single = trim((string)(Env::get('GROQ_MODEL', 'llama-3.1-8b-instant') ?? 'llama-3.1-8b-instant'));
+        if ($single !== '') {
+            $models[] = $single;
+        }
+        $models = array_values(array_unique($models));
+        if (empty($models)) {
+            $models = ['llama-3.1-8b-instant'];
+        }
+        return $models;
+    }
+
+    /**
+     * ADMIN_AI_PRIMARY: 'gemini' (default) or 'groq'
+     */
+    public static function adminPrimaryProvider(): string
+    {
+        $primary = strtolower(trim((string)(Env::get('ADMIN_AI_PRIMARY', 'gemini') ?? 'gemini')));
+        return $primary === 'groq' ? 'groq' : 'gemini';
     }
 }
