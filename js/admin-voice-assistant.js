@@ -1013,14 +1013,14 @@
     if (/(modifie|modifier|update|ajoute|ajouter|cree|creer|supprime|supprimer|efface|retire|delete|bloque|debloque|reactive|reactiver|prix|description|statut|quantite)/.test(n)) {
       return false;
     }
-    const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|voir|retourne|retour)/.test(n);
+    const hasNavVerb = /(ouvre|ouvrir|va|vas|allez|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|voir|retourne|retour)/.test(n);
     const hasPageTarget = /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil|profile|fiche)/.test(n);
     return hasNavVerb && hasPageTarget;
   },
 
   isExplicitPageNavigation(text) {
     const n = this.normalize(text);
-    return /(aller|va|ouvre|ouvrir|affiche|afficher|montre|montrer|navigue|naviguer)/.test(n) &&
+    return /(aller|allez|va|vas|ouvre|ouvrir|affiche|afficher|montre|montrer|navigue|naviguer)/.test(n) &&
       /(page|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite)/.test(n);
   },
 
@@ -1074,7 +1074,7 @@
     if (/(modifie|modifier|update|ajoute|ajouter|cree|creer|supprime|supprimer|efface|retire|delete|bloque|debloque|reactive|reactiver|prix|description|statut|quantite)/.test(normalized)) {
       return false;
     }
-    const hasNavVerb = /(ouvre|ouvrir|va|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(normalized);
+    const hasNavVerb = /(ouvre|ouvrir|va|vas|allez|aller|go|navigue|naviguer|affiche|afficher|montre|montrer|consulte|consulter|retourne|retour)/.test(normalized);
     const hasPageHint = /(page|section|onglet|dashboard|accueil|utilisateur|utilisateurs|user|users|partenaire|partenaires|categorie|categories|offre|offres|evenement|evenements|log|logs|activite|profil)/.test(normalized);
     if (!hasNavVerb || !hasPageHint) return false;
 
@@ -1134,7 +1134,7 @@
       { words: ["dashboard", "vue globale", "accueil"], url: "dashboard.html", message: "Retour au dashboard." },
     ];
 
-    const wantsOpen = /(ouvre|ouvrir|va|aller|affiche|afficher|montre|montrer|navigue|naviguer)/.test(normalized);
+    const wantsOpen = /(ouvre|ouvrir|va|vas|allez|aller|affiche|afficher|montre|montrer|navigue|naviguer)/.test(normalized);
     if (wantsOpen || /(page|onglet|section)/.test(normalized) || normalized.split(/\s+/).length <= 2) {
       for (const cmd of navCommands) {
         if (cmd.words.some((word) => normalized.includes(word))) {
