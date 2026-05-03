@@ -1694,13 +1694,25 @@
       }
 
       if (this.isEntityNotFoundError(error)) {
-        const n = this.normalize(text);
-        if (/(offre|offres)/.test(n)) {
-          this.respond("Offre introuvable.", true);
-          return true;
+        this.clearPendingIntent();
+        // Fallback: Gemini can misclassify category/offer actions.
+        // Retry once with deterministic local parsing before returning "introuvable".
+        try {
+          const recovered = await this.handleDataCommand(text);
+          if (recovered) return true;
+        } catch (fallbackError) {
+          if (!this.isEntityNotFoundError(fallbackError)) {
+            this.setStatus("Erreur interpretation action.");
+            return false;
+          }
         }
+        const n = this.normalize(text);
         if (/(categorie|categories)/.test(n)) {
           this.respond("Categorie introuvable.", true);
+          return true;
+        }
+        if (/(offre|offres)/.test(n)) {
+          this.respond("Offre introuvable.", true);
           return true;
         }
       }
@@ -2407,6 +2419,7 @@
       .trim()
       .replace(/^[\s,:;=.!?'"`«»()\-]+/, "")
       .replace(/[\s,:;=.!?'"`«»()\-]+$/, "")
+      .replace(/^(ma|mon|mes|ta|ton|tes|sa|son|ses|notre|nos|votre|vos)\s+/i, "")
       .replace(/^(cat[eé]gorie|categorie|category|offre|offer)\s+/i, "")
       .replace(/^(la|le|les|une|un|du|de|des)\s+/i, "")
       .trim();
