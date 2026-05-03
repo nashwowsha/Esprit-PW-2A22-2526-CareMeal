@@ -406,20 +406,31 @@
     const answer = this.cleanEntityName(this.extractQuoted(text) || text);
     if (!answer) return false;
 
-    if (pending.type === "create_offer_title") {
-      const title = this.sanitizeOfferTitle(answer);
-      if (!this.isMeaningfulOfferTitle(title)) {
-        this.respond("Je n ai pas compris le titre. Dis juste le nom de l offre, par exemple: pizza margherita.", true);
+    if (pending.type === "create_offer_collect" || pending.type === "create_offer_title") {
+      const basePayload = pending.payload && typeof pending.payload === "object" ? pending.payload : {};
+      const merged = this.mergeOfferPayload(basePayload, text);
+      const titleCandidate = this.sanitizeOfferTitle(merged.titre || answer);
+      if (this.isMeaningfulOfferTitle(titleCandidate)) {
+        merged.titre = titleCandidate;
+      }
+
+      if (!this.isMeaningfulOfferTitle(merged.titre || "")) {
+        this.setPendingIntent(
+          { type: "create_offer_collect", payload: merged, step: "title" },
+          "Donne le titre de l offre."
+        );
         return true;
       }
 
-      const basePayload = pending.payload && typeof pending.payload === "object" ? pending.payload : {};
-      const created = await this.callAdminApi({
-        action: "create_offer",
-        ...basePayload,
-        titre: title,
-        statut: "publiee",
-      });
+      if (!this.hasValidPositiveNumber(merged.prix || "")) {
+        this.setPendingIntent(
+          { type: "create_offer_collect", payload: merged, step: "price" },
+          `Quel prix pour l offre ${merged.titre} ?`
+        );
+        return true;
+      }
+
+      const created = await this.callAdminApi(this.buildCreateOfferPayload(merged));
       this.clearPendingIntent();
       this.respond(`Offre creee: ${created.titre}.`, true);
       return true;
@@ -1044,7 +1055,7 @@
     if (actionCreate && isCategory) {
       const name = this.extractCategoryName(text);
       if (!name || name.length < 2) {
-        this.respond('Donne juste le nom, exemple: "ajoute categorie desserts".', true);
+        this.setPendingIntent({ type: "create_category_name", payload: {} }, 'Quel nom pour la nouvelle categorie ?');
         return true;
       }
       const created = await this.callAdminApi({
@@ -1101,16 +1112,18 @@
 
     if (actionCreate && isOffer) {
       const payload = this.extractOfferPayload(text);
-      if (!this.isMeaningfulOfferTitle(payload.titre)) {
-        const pendingPayload = { ...payload };
-        delete pendingPayload.titre;
+      const hasTitle = this.isMeaningfulOfferTitle(payload.titre || "");
+      const hasPrice = this.hasValidPositiveNumber(payload.prix || "");
+      if (!hasTitle || !hasPrice) {
         this.setPendingIntent(
-          { type: "create_offer_title", payload: pendingPayload },
-          "D accord. Quel titre pour la nouvelle offre ?"
+          { type: "create_offer_collect", payload },
+          !hasTitle
+            ? "D accord. Quel titre pour la nouvelle offre ?"
+            : `Quel prix pour l offre ${this.sanitizeOfferTitle(payload.titre)} ?`
         );
         return true;
       }
-      const created = await this.callAdminApi({ action: "create_offer", ...payload, statut: "publiee" });
+      const created = await this.callAdminApi(this.buildCreateOfferPayload(payload));
       this.respond(`Offre creee: ${created.titre}.`, true);
       return true;
     }
@@ -1505,22 +1518,28 @@
         ""
       );
       const payload = {
-        action: "create_offer",
         titre: title,
         description: String(cmd.description || "").trim(),
         prix: String(cmd.prix || "").trim(),
         prix_original: String(cmd.prix_original || "").trim(),
         quantite: String(cmd.quantite || "").trim(),
         nom_categorie: this.cleanEntityName(cmd.categorie || ""),
-        statut: String(cmd.statut || "publiee").trim() || "publiee",
+        statut: String(cmd.statut || "").trim(),
       };
       if (!this.isMeaningfulOfferTitle(payload.titre)) {
         const pendingPayload = { ...payload };
         delete pendingPayload.titre;
-        this.setPendingIntent({ type: "create_offer_title", payload: pendingPayload }, "Quel titre pour la nouvelle offre ?");
+        this.setPendingIntent({ type: "create_offer_collect", payload: pendingPayload, step: "title" }, "Quel titre pour la nouvelle offre ?");
         return true;
       }
-      const created = await this.callAdminApi(payload);
+      if (!this.hasValidPositiveNumber(payload.prix || "")) {
+        this.setPendingIntent(
+          { type: "create_offer_collect", payload, step: "price" },
+          `Quel prix pour l offre ${this.sanitizeOfferTitle(payload.titre)} ?`
+        );
+        return true;
+      }
+      const created = await this.callAdminApi(this.buildCreateOfferPayload(payload));
       this.respond(`Offre creee: ${created.titre}.`, true);
       return true;
     }
@@ -1698,6 +1717,72 @@
       photo_url: this.extractLabeledValue(text, ["photo", "image", "photo_url"]),
       statut: this.extractLabeledValue(text, ["statut"]),
     };
+  },
+
+  buildCreateOfferPayload(rawPayload = {}) {
+    const payload = {
+      action: "create_offer",
+      titre: this.sanitizeOfferTitle(String(rawPayload.titre || "")),
+      description: String(rawPayload.description || "").trim(),
+      prix: String(rawPayload.prix || "").trim(),
+      prix_original: String(rawPayload.prix_original || "").trim(),
+      quantite: String(rawPayload.quantite || "").trim(),
+      nom_categorie: this.cleanEntityName(String(rawPayload.nom_categorie || "")),
+      statut: String(rawPayload.statut || "").trim() || "publiee",
+      heure_debut: String(rawPayload.heure_debut || "").trim(),
+      heure_fin: String(rawPayload.heure_fin || "").trim(),
+      photo_url: String(rawPayload.photo_url || "").trim(),
+    };
+
+    // Defaults: title-only creation must always work.
+    const priceNum = parseFloat((payload.prix || "").replace(",", "."));
+    const safePrice = Number.isFinite(priceNum) && priceNum > 0 ? priceNum : 1;
+    if (!payload.prix) {
+      payload.prix = safePrice.toFixed(2);
+    }
+
+    const originalNum = parseFloat((payload.prix_original || "").replace(",", "."));
+    const computedOriginal = Math.max(safePrice + 1, safePrice * 1.2);
+    if (!payload.prix_original || !Number.isFinite(originalNum) || originalNum <= safePrice) {
+      payload.prix_original = computedOriginal.toFixed(2);
+    }
+
+    const qtyNum = parseInt(payload.quantite, 10);
+    if (!Number.isFinite(qtyNum) || qtyNum < 1) {
+      payload.quantite = "1";
+    }
+
+    if (!payload.heure_debut) delete payload.heure_debut;
+    if (!payload.heure_fin) delete payload.heure_fin;
+    if (!payload.photo_url) delete payload.photo_url;
+
+    return payload;
+  },
+
+  mergeOfferPayload(basePayload = {}, text = "") {
+    const merged = {
+      ...(basePayload && typeof basePayload === "object" ? basePayload : {}),
+    };
+    const extracted = this.extractOfferPayload(String(text || ""));
+    const rawPriceFallback = this.extractNumberByKeyword(String(text || ""), ["prix", "dt", "dinar"]) || String(text || "");
+    const fallbackNumber = String(rawPriceFallback).replace(",", ".").match(/[0-9]+(?:\.[0-9]+)?/)?.[0] || "";
+
+    for (const [k, v] of Object.entries(extracted)) {
+      if (typeof v === "string" && v.trim() !== "") {
+        merged[k] = v.trim();
+      }
+    }
+
+    if (!this.hasValidPositiveNumber(merged.prix || "") && fallbackNumber) {
+      merged.prix = fallbackNumber;
+    }
+
+    return merged;
+  },
+
+  hasValidPositiveNumber(value) {
+    const n = parseFloat(String(value || "").replace(",", "."));
+    return Number.isFinite(n) && n > 0;
   },
 
   inferOfferTitle(text) {
