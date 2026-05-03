@@ -214,11 +214,7 @@
 
   initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      this.setStatus("Web Speech API non supportee.");
-      this.elements.fab.disabled = true;
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     this.recognition = new SpeechRecognition();
     this.recognition.lang = "fr-FR";
@@ -227,19 +223,7 @@
 
     this.recognition.onresult = async (event) => {
       const text = event.results?.[0]?.[0]?.transcript?.trim() || "";
-      this.elements.heard.textContent = text || "(aucun texte)";
-      this.state.lastHeard = text;
-      this.saveState();
-      if (!text) {
-        this.setStatus("Aucun texte reconnu.");
-        return;
-      }
-      try {
-        await this.handlePrompt(text);
-      } catch (_e) {
-        this.setStatus("Erreur traitement.");
-        this.respond("Je n ai pas pu traiter cette demande. Reessaie avec une phrase plus precise.", true);
-      }
+      await this.onSpeechText(text);
     };
 
     this.recognition.onerror = (event) => {
@@ -264,14 +248,23 @@
     };
 
     this.recognition.onend = () => {
-      this.listening = false;
-      this.elements.fab.classList.remove("listening");
-      this.elements.fab.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+      this.resetListeningUi();
     };
   },
 
   async startListening() {
-    if (!this.recognition) return;
+    if (this.listening) return;
+
+    if (this.supportsServerStt()) {
+      await this.startServerSttRecording();
+      return;
+    }
+
+    if (!this.recognition) {
+      this.setStatus("Aucun moteur STT disponible.");
+      return;
+    }
+
     this.setStatus("Verification micro...");
     try {
       if (navigator.mediaDevices?.getUserMedia) {
@@ -282,15 +275,187 @@
       this.setStatus("Micro bloque. Autorise le micro.");
       return;
     }
-    this.listening = true;
-    this.elements.fab.classList.add("listening");
-    this.elements.fab.innerHTML = '<i class="fa-solid fa-stop"></i>';
+    this.setListeningUi();
     this.setStatus("J ecoute...");
-    this.recognition.start();
+    try {
+      this.recognition.start();
+    } catch (_e) {
+      this.resetListeningUi();
+      this.setStatus("Impossible de demarrer la reconnaissance.");
+    }
   },
 
   stopListening() {
+    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+      try {
+        this.mediaRecorder.stop();
+      } catch (_e) {}
+      return;
+    }
     if (this.recognition) this.recognition.stop();
+  },
+
+  supportsServerStt() {
+    return Boolean(window.MediaRecorder && navigator.mediaDevices?.getUserMedia && window.FormData && window.fetch);
+  },
+
+  getPreferredAudioMimeType() {
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4",
+    ];
+    for (const type of types) {
+      try {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      } catch (_e) {}
+    }
+    return "";
+  },
+
+  setListeningUi() {
+    this.listening = true;
+    this.elements.fab.classList.add("listening");
+    this.elements.fab.innerHTML = '<i class="fa-solid fa-stop"></i>';
+  },
+
+  resetListeningUi() {
+    this.listening = false;
+    this.elements.fab.classList.remove("listening");
+    this.elements.fab.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+    if (this.recordingTimeout) {
+      clearTimeout(this.recordingTimeout);
+      this.recordingTimeout = null;
+    }
+  },
+
+  releaseMediaStream() {
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach((t) => t.stop());
+    }
+    this.mediaStream = null;
+  },
+
+  async startServerSttRecording() {
+    this.setStatus("Verification micro...");
+    try {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (_e) {
+      this.setStatus("Micro bloque. Autorise le micro.");
+      return;
+    }
+
+    const mimeType = this.getPreferredAudioMimeType();
+    const options = mimeType ? { mimeType } : undefined;
+
+    try {
+      this.mediaRecorder = new MediaRecorder(this.mediaStream, options);
+    } catch (_e) {
+      this.releaseMediaStream();
+      if (this.recognition) {
+        this.setStatus("STT serveur indisponible. Fallback navigateur.");
+        await this.startListeningFallbackRecognition();
+        return;
+      }
+      this.setStatus("Impossible de demarrer l enregistrement.");
+      return;
+    }
+
+    this.audioChunks = [];
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) this.audioChunks.push(event.data);
+    };
+
+    this.mediaRecorder.onerror = () => {
+      this.resetListeningUi();
+      this.releaseMediaStream();
+      this.setStatus("Erreur enregistrement micro.");
+    };
+
+    this.mediaRecorder.onstop = async () => {
+      const blob = new Blob(this.audioChunks, { type: this.mediaRecorder?.mimeType || "audio/webm" });
+      this.mediaRecorder = null;
+      this.audioChunks = [];
+      this.resetListeningUi();
+      this.releaseMediaStream();
+
+      if (!blob || blob.size === 0) {
+        this.setStatus("Aucun son detecte.");
+        return;
+      }
+
+      await this.transcribeWithServerStt(blob);
+    };
+
+    this.setListeningUi();
+    this.setStatus("J ecoute... clique encore pour arreter.");
+    this.mediaRecorder.start();
+    this.recordingTimeout = setTimeout(() => {
+      if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+        try {
+          this.mediaRecorder.stop();
+        } catch (_e) {}
+      }
+    }, 12000);
+  },
+
+  async startListeningFallbackRecognition() {
+    if (!this.recognition) return;
+    this.setListeningUi();
+    this.setStatus("J ecoute...");
+    try {
+      this.recognition.start();
+    } catch (_e) {
+      this.resetListeningUi();
+      this.setStatus("Impossible de demarrer la reconnaissance.");
+    }
+  },
+
+  async transcribeWithServerStt(blob) {
+    this.setStatus("Transcription IA...");
+    const form = new FormData();
+    form.append("audio", blob, "speech.webm");
+    form.append("language", "fr");
+    form.append("prompt", "Transcription en francais claire.");
+
+    try {
+      const response = await fetch(this.buildSttApiUrl(), {
+        method: "POST",
+        body: form,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Erreur STT");
+      }
+      const text = String(data.text || "").trim();
+      await this.onSpeechText(text);
+    } catch (error) {
+      if (this.recognition) {
+        this.setStatus("STT serveur indisponible. Fallback navigateur.");
+        await this.startListeningFallbackRecognition();
+        return;
+      }
+      this.setStatus("Erreur STT: " + (error.message || "inconnue"));
+    }
+  },
+
+  async onSpeechText(text) {
+    this.elements.heard.textContent = text || "(aucun texte)";
+    this.state.lastHeard = text;
+    this.saveState();
+    if (!text) {
+      this.setStatus("Aucun texte reconnu.");
+      return;
+    }
+    try {
+      await this.handlePrompt(text);
+    } catch (_e) {
+      this.setStatus("Erreur traitement.");
+      this.respond("Je n ai pas pu traiter cette demande. Reessaie avec une phrase plus precise.", true);
+    }
   },
 
   async handleTypedPrompt() {
@@ -2071,6 +2236,12 @@
     const pathParts = window.location.pathname.split("/").filter(Boolean);
     const base = pathParts.length > 0 ? "/" + pathParts[0] : "";
     return base + "/api/voice-chat.php";
+  },
+
+  buildSttApiUrl() {
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const base = pathParts.length > 0 ? "/" + pathParts[0] : "";
+    return base + "/api/stt.php";
   },
 
   buildAdminApiUrl() {
