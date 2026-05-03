@@ -493,6 +493,13 @@
       return;
     }
 
+    // Logout must always interrupt any pending flow.
+    if (this.isLogoutCommand(text)) {
+      this.clearPendingIntent();
+      this.executeLogout();
+      return;
+    }
+
     // 1) If assistant is waiting for details, continue conversation first.
     if (this.state.pendingIntent) {
       // During a multi-turn CRUD flow, only explicit page navigation can interrupt.
@@ -565,6 +572,12 @@
   async handlePendingIntent(text) {
     const pending = this.state.pendingIntent;
     if (!pending) return false;
+
+    if (this.isLogoutCommand(text)) {
+      this.clearPendingIntent();
+      this.executeLogout();
+      return true;
+    }
 
     if (this.tryHandleDirectProfileNavigation(text)) {
       this.clearPendingIntent();
@@ -1034,6 +1047,11 @@
     return /(annule|annuler|stop|arrete|arret|reset|reinitialise|oublie|laisse tomber)/.test(n);
   },
 
+  isLogoutCommand(text) {
+    const n = this.normalize(text);
+    return /(deconnexion|deconnecte|deconnecter|se deconnecter|se deconnecte|logout|log out|quitter session|fermer session)/.test(n);
+  },
+
   isConversationFiller(text) {
     const n = this.normalize(text);
     return /^(salut|bonjour|bonsoir|hello|hi|ok|d accord|merci|ca va|oui|non)$/.test(n.trim());
@@ -1140,6 +1158,22 @@
     return false;
   },
 
+  executeLogout() {
+    this.respond("Je lance la deconnexion.", false);
+    setTimeout(() => {
+      const btn = document.querySelector("[data-action='logout']");
+      if (btn) {
+        btn.click();
+        return;
+      }
+      if (typeof App !== "undefined" && typeof App.logout === "function") {
+        App.logout();
+        return;
+      }
+      window.location.href = "../login.html";
+    }, 250);
+  },
+
   executeLocalCommand(text) {
     const normalized = this.normalize(text);
 
@@ -1192,12 +1226,8 @@
       return true;
     }
 
-    if (/(deconnexion|deconnecte|logout)/.test(normalized)) {
-      this.respond("Je lance la deconnexion.", false);
-      setTimeout(() => {
-        const btn = document.querySelector("[data-action='logout']");
-        if (btn) btn.click();
-      }, 300);
+    if (this.isLogoutCommand(normalized)) {
+      this.executeLogout();
       return true;
     }
 
