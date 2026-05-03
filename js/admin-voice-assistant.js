@@ -522,11 +522,11 @@
       return;
     }
 
-    if (await this.handleAdminOfferSearchIntent(text)) {
+    if (await this.handleCreateOfferBootstrap(text)) {
       return;
     }
 
-    if (await this.handleCreateOfferBootstrap(text)) {
+    if (await this.handleAdminOfferSearchIntent(text)) {
       return;
     }
 
@@ -1922,6 +1922,9 @@
 
   isOfferSearchFilterIntent(text) {
     const n = this.normalize(text);
+    const hasCrudVerb = /(ajoute|ajouter|cree|creer|cr[eé]e|supprime|supprimer|modifie|modifier|delete|update)/.test(n);
+    if (hasCrudVerb) return false;
+
     const hasVerb = /(cherche|chercher|recherche|filtre|filtrer|affiche|afficher|montre|montrer|liste|lister|voir)/.test(n);
     const hasTarget = /\boffre(s)?\b/.test(n);
     const hasCriteria = /(categorie|category|prix|moins de|plus de|inferieur|superieur|statut|brouillon|publie|expire|archive|stock)/.test(n);
