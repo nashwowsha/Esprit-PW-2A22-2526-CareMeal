@@ -1720,7 +1720,7 @@
     }
 
     if (action === "create_offer") {
-      const title = this.sanitizeOfferTitle(
+      const rawTitle = this.sanitizeOfferTitle(
         cmd.title ||
         cmd.new_name ||
         cmd.source_title ||
@@ -1729,6 +1729,7 @@
         this.extractOfferTitle(originalText) ||
         ""
       );
+      const title = this.isMeaningfulOfferTitle(rawTitle) ? rawTitle : "";
       const payload = {
         titre: title,
         description: String(cmd.description || "").trim(),
@@ -2016,10 +2017,10 @@
 
     const cleaned = (text || "")
       .replace(/\b(je veux|j veux|je voudrais|j voudrais|je souhaite|j souhaite)\b/gi, " ")
-      .replace(/\b(ajoute|ajouter|cree|creer|nouvelle|nouveau)\b/gi, " ")
+      .replace(/\b(ajoute|ajouter|cree|creer|cr[eé]e|cr[eé]er|nouvelle|nouveau)\b/gi, " ")
       .replace(/\b(une|un|la|le|les|des|du|de)\b/gi, " ")
       .replace(/\boffre(s)?\b/gi, " ")
-      .replace(/\b(nomme|nomme[e]?|appele|appel[eé]e|intitule|intitul[eé]e)\b/gi, " ")
+      .replace(/\b(nomme|nomme[e]?|nomm[eé]e?|appele|appel[eé]e|intitule|intitul[eé]e)\b/gi, " ")
       .replace(/\b(avec|prix|prix_original|prix original|quantite|categorie|category|description|desc)\b[\s:=].*$/i, " ")
       .replace(/[;,]/g, " ")
       .trim();
@@ -2041,17 +2042,21 @@
   isMeaningfulOfferTitle(value) {
     const title = this.sanitizeOfferTitle(value);
     if (!title || title.length < 3) return false;
+    if (this.looksLikePriceOnly(title)) return false;
 
     const normalized = this.normalize(title);
     if (/^(je|j)$/.test(normalized)) return false;
     if (/^(je|j)\s+(veux|voudrais|souhaite)$/.test(normalized)) return false;
+    if (/^(tu|vous|on)\s+(veux|veut|voulez|voudrais|voudriez|souhaite|souhaites|pouvez|peux)$/.test(normalized)) return false;
     if (/^(ajoute|ajouter|cree|creer|offre|nouveau|nouvelle)$/.test(normalized)) return false;
     if (/^(une|un)\s+offre$/.test(normalized)) return false;
     if (/^(titre|nom|nomme|nommee)$/.test(normalized)) return false;
+    if (/^(quel|quelle|quels|quelles)\s+(prix|nom|titre)$/.test(normalized)) return false;
 
     const weakTokens = new Set([
-      "je", "j", "veux", "voudrais", "souhaite", "ajoute", "ajouter", "cree", "creer",
-      "offre", "un", "une", "le", "la", "les", "de", "des", "du", "stp", "svp", "merci"
+      "je", "j", "tu", "vous", "on", "veux", "veut", "voulez", "voudrais", "voudriez", "souhaite", "souhaites",
+      "peux", "pouvez", "ajoute", "ajouter", "cree", "creer", "offre", "un", "une", "le", "la", "les",
+      "de", "des", "du", "stp", "svp", "merci", "quel", "quelle", "quels", "quelles", "prix", "dt", "dinar", "dinars", "tnd"
     ]);
     const tokens = normalized.split(/\s+/).filter(Boolean);
     const strongTokens = tokens.filter((t) => !weakTokens.has(t));
