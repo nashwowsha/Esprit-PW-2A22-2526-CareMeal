@@ -601,6 +601,12 @@
       if (navHandled) return true;
     }
 
+    // If user says a brand new command, exit current pending flow instead of staying stuck.
+    if (this.shouldExitPendingForNewIntent(text, pending)) {
+      this.clearPendingIntent();
+      return false;
+    }
+
     // Expire old pending intent to avoid sticky lock.
     if (pending.createdAt && Date.now() - pending.createdAt > 5 * 60 * 1000) {
       this.clearPendingIntent();
@@ -726,9 +732,12 @@
     }
 
     if (pending.type === "delete_offer") {
-      await this.callAdminApi({ action: "delete_offer", titre: answer });
+      const offerTitle = this.sanitizeOfferTitle(
+        this.cleanEntityName(this.extractOfferTitle(text) || this.extractDeleteOfferTarget(text) || answer)
+      );
+      await this.callAdminApi({ action: "delete_offer", titre: offerTitle });
       this.clearPendingIntent();
-      this.respond(`Offre supprimee: ${answer}.`, true);
+      this.respond(`Offre supprimee: ${offerTitle}.`, true);
       return true;
     }
 
@@ -1020,6 +1029,12 @@
         this.respond("Je n ai pas compris le nom de l offre. Redonne le titre exact.", true);
         return true;
       }
+      const exists = await this.offerExistsByTitle(sourceTitle);
+      if (!exists) {
+        this.clearPendingIntent();
+        this.respond("Offre introuvable.", true);
+        return true;
+      }
       this.setPendingIntent(
         { type: "update_offer_fields", sourceTitle },
         `D accord. Pour l offre ${sourceTitle}, tu veux modifier quoi ?`
@@ -1060,6 +1075,30 @@
     return /^(salut|bonjour|bonsoir|hello|hi|ok|d accord|merci|ca va|oui|non)$/.test(n.trim());
   },
 
+  shouldExitPendingForNewIntent(text, pending) {
+    const n = this.normalize(text);
+    if (!n.trim()) return false;
+
+    const hasNewIntentVerb =
+      /(supprime|supprimer|efface|retire|delete|modifie|modifier|update|ajoute|ajouter|cree|creer|bloque|debloque|reactive|reactiver|ouvre|ouvrir|va|aller|affiche|montrer|montre|consulter|combien|logout|deconnexion|deconnecter|rafraich)/.test(n);
+
+    if (!hasNewIntentVerb) return false;
+
+    const pendingType = String(pending?.type || "");
+    const isDeleteOfferPending = pendingType === "delete_offer";
+    const isDeleteCategoryPending = pendingType === "delete_category";
+
+    // Keep same flow if user repeats same delete command with explicit wording.
+    if (isDeleteOfferPending && /(supprime|supprimer|delete).*(offre|titre)/.test(n)) {
+      return false;
+    }
+    if (isDeleteCategoryPending && /(supprime|supprimer|delete).*(categorie|cat[eé]gorie)/.test(n)) {
+      return false;
+    }
+
+    return true;
+  },
+
   isEntityNotFoundError(error) {
     const msg = this.normalize(error?.message || "");
     return /(introuvable|not found|inexistant|does not exist)/.test(msg);
@@ -1072,22 +1111,45 @@
 
     const type = String(pending.type || "").trim();
     if (type === "delete_offer") {
-      this.setPendingIntent({ type: "delete_offer" }, "Offre introuvable. Donne un autre titre d offre a supprimer.");
+      this.clearPendingIntent();
+      this.respond("Offre introuvable.", true);
       return true;
     }
     if (type === "delete_category") {
-      this.setPendingIntent({ type: "delete_category" }, "Categorie introuvable. Donne un autre nom de categorie a supprimer.");
+      this.clearPendingIntent();
+      this.respond("Categorie introuvable.", true);
       return true;
     }
     if (type.startsWith("update_offer")) {
-      this.setPendingIntent({ type: "update_offer_source" }, "Offre introuvable. Donne un autre titre d offre a modifier.");
+      this.clearPendingIntent();
+      this.respond("Offre introuvable.", true);
       return true;
     }
     if (type.startsWith("update_category")) {
-      this.setPendingIntent({ type: "update_category_source" }, "Categorie introuvable. Donne un autre nom de categorie a modifier.");
+      this.clearPendingIntent();
+      this.respond("Categorie introuvable.", true);
       return true;
     }
     return false;
+  },
+
+  async offerExistsByTitle(title) {
+    const wanted = this.normalize(this.sanitizeOfferTitle(title || ""));
+    if (!wanted) return false;
+    try {
+      const result = await this.callAdminApi({
+        action: "search_offers",
+        keyword: wanted,
+        limit: 50,
+      });
+      const offers = Array.isArray(result?.offers) ? result.offers : [];
+      return offers.some((offer) => {
+        const current = this.normalize(this.sanitizeOfferTitle(String(offer?.titre || "")));
+        return current === wanted;
+      });
+    } catch (_e) {
+      return false;
+    }
   },
 
   isNewIntentCommand(text) {
@@ -1441,9 +1503,16 @@
     }
 
     if (actionDelete && isOffer) {
-      const title = this.extractOfferTitle(text);
+      const title = this.sanitizeOfferTitle(
+        this.cleanEntityName(
+          this.extractDeleteOfferTarget(text) ||
+          this.extractOfferSourceFromUpdate(text) ||
+          this.extractOfferTitle(text) ||
+          ""
+        )
+      );
       if (!title) {
-        this.setPendingIntent({ type: "delete_offer" }, "D accord. Quelle offre veux-tu supprimer ?");
+        this.respond("Offre introuvable.", true);
         return true;
       }
       await this.callAdminApi({ action: "delete_offer", titre: title });
@@ -1460,6 +1529,11 @@
         this.extractOfferTitle(text);
       if (!source) {
         this.respond("Quelle offre veux-tu modifier ?", true);
+        return true;
+      }
+      const exists = await this.offerExistsByTitle(source);
+      if (!exists) {
+        this.respond("Offre introuvable.", true);
         return true;
       }
 
@@ -1621,25 +1695,12 @@
 
       if (this.isEntityNotFoundError(error)) {
         const n = this.normalize(text);
-        const isOffer = /(offre|offres)/.test(n);
-        const isCategory = /(categorie|categories)/.test(n);
-        const isDelete = /(supprime|supprimer|delete|efface|retire)/.test(n);
-        const isUpdate = /(modifie|modifier|update|renomme|renommer)/.test(n);
-
-        if (isOffer && isDelete) {
-          this.setPendingIntent({ type: "delete_offer" }, "Offre introuvable. Donne un autre titre d offre a supprimer.");
+        if (/(offre|offres)/.test(n)) {
+          this.respond("Offre introuvable.", true);
           return true;
         }
-        if (isOffer && isUpdate) {
-          this.setPendingIntent({ type: "update_offer_source" }, "Offre introuvable. Donne un autre titre d offre a modifier.");
-          return true;
-        }
-        if (isCategory && isDelete) {
-          this.setPendingIntent({ type: "delete_category" }, "Categorie introuvable. Donne un autre nom de categorie a supprimer.");
-          return true;
-        }
-        if (isCategory && isUpdate) {
-          this.setPendingIntent({ type: "update_category_source" }, "Categorie introuvable. Donne un autre nom de categorie a modifier.");
+        if (/(categorie|categories)/.test(n)) {
+          this.respond("Categorie introuvable.", true);
           return true;
         }
       }
@@ -1935,6 +1996,11 @@
         this.setPendingIntent({ type: "update_offer_source" }, "Quelle offre veux-tu modifier ?");
         return true;
       }
+      const exists = await this.offerExistsByTitle(source);
+      if (!exists) {
+        this.respond("Offre introuvable.", true);
+        return true;
+      }
       const payload = {
         action: "update_offer",
         titre_source: source,
@@ -1970,9 +2036,21 @@
     }
 
     if (action === "delete_offer") {
-      const title = this.cleanEntityName(cmd.source_title || cmd.title || cmd.target_name || "");
+      const title = this.sanitizeOfferTitle(
+        this.cleanEntityName(
+          cmd.source_title ||
+          cmd.source_name ||
+          cmd.new_name ||
+          cmd.title ||
+          cmd.target_name ||
+          this.extractOfferSourceFromUpdate(originalText) ||
+          this.extractOfferTitle(originalText) ||
+          this.extractDeleteOfferTarget(originalText) ||
+          ""
+        )
+      );
       if (!title) {
-        this.setPendingIntent({ type: "delete_offer" }, "Quelle offre veux-tu supprimer ?");
+        this.respond("Offre introuvable.", true);
         return true;
       }
       await this.callAdminApi({ action: "delete_offer", titre: title });
@@ -2221,11 +2299,30 @@
     return m ? m[1].trim() : "";
   },
 
+  extractEntityAfterKeyword(text, keywordPattern) {
+    const raw = String(text || "").trim();
+    if (!raw) return "";
+
+    const patterns = [
+      new RegExp(`(?:l['’]\\s*)?(?:${keywordPattern})\\s+(?:nomme[eé]?|nomm[eé]e?|intitul[eé]e?)?\\s*(.+)$`, "i"),
+      new RegExp(`(?:supprime|supprimez|supprimer|efface|effacez|retire|retirez|delete|modifie|modifiez|modifier|update|edite|editez|editer)\\s+(?:l['’]\\s*)?(?:${keywordPattern})\\s+(.+)$`, "i"),
+    ];
+
+    for (const pattern of patterns) {
+      const m = raw.match(pattern);
+      if (m && m[1]) return this.cleanEntityName(m[1]);
+    }
+    return "";
+  },
+
   extractCategoryName(text) {
     const quoted = this.extractQuoted(text);
     if (quoted) return this.cleanEntityName(quoted);
     const labeled = this.extractLabeledValue(text, ["nom", "categorie", "category"]);
     if (labeled) return this.cleanEntityName(labeled);
+
+    const natural = this.extractEntityAfterKeyword(text, "cat[eé]gorie|categorie|category");
+    if (natural) return this.cleanEntityName(natural);
 
     const m = text.match(/cat[eé]gorie\s+(.+)$/i);
     if (m && m[1]) return this.cleanEntityName(m[1]);
@@ -2233,7 +2330,7 @@
   },
 
   extractDeleteCategoryTarget(text) {
-    const m = String(text || "").match(/\b(?:supprime|supprimer|efface|retire|delete)\b\s+(?:la|le|les|l['’])?\s*(?:cat[eé]gorie)?\s*(.+)$/i);
+    const m = String(text || "").match(/\b(?:supprime|supprimez|supprimer|efface|effacez|retire|retirez|delete)\b\s+(?:la|le|les|l['’])?\s*(?:cat[eé]gorie)?\s*(.+)$/i);
     if (!m || !m[1]) return "";
     return this.cleanEntityName(m[1]);
   },
@@ -2250,13 +2347,35 @@
 
   extractOfferTitle(text) {
     const quoted = this.extractQuoted(text);
-    if (quoted) return this.cleanEntityName(quoted);
+    if (quoted) {
+      const direct = this.sanitizeOfferTitle(this.cleanEntityName(quoted));
+      return this.isMeaningfulOfferTitle(direct) ? direct : "";
+    }
     const labeled = this.extractLabeledValue(text, ["titre", "offre", "nom"]);
-    if (labeled) return this.cleanEntityName(labeled);
+    if (labeled) {
+      const direct = this.sanitizeOfferTitle(this.cleanEntityName(labeled));
+      return this.isMeaningfulOfferTitle(direct) ? direct : "";
+    }
+
+    const natural = this.extractEntityAfterKeyword(text, "offre|offer");
+    if (natural) {
+      const direct = this.sanitizeOfferTitle(this.cleanEntityName(natural));
+      return this.isMeaningfulOfferTitle(direct) ? direct : "";
+    }
 
     const m = text.match(/offre\s+(.+)$/i);
-    if (m && m[1]) return this.sanitizeOfferTitle(this.cleanEntityName(m[1]));
+    if (m && m[1]) {
+      const direct = this.sanitizeOfferTitle(this.cleanEntityName(m[1]));
+      return this.isMeaningfulOfferTitle(direct) ? direct : "";
+    }
     return "";
+  },
+
+  extractDeleteOfferTarget(text) {
+    const m = String(text || "").match(/\b(?:supprime|supprimez|supprimer|efface|effacez|retire|retirez|delete)\b\s+(?:la|le|les|l['’]|une?|des)?\s*(?:offre|offer)?\s*(.+)$/i);
+    if (!m || !m[1]) return "";
+    const title = this.sanitizeOfferTitle(this.cleanEntityName(m[1]));
+    return this.isMeaningfulOfferTitle(title) ? title : "";
   },
 
   extractOfferSourceFromUpdate(text) {
