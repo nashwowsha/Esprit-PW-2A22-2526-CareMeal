@@ -548,6 +548,13 @@
       return true;
     }
 
+    // Highest priority: explicit page navigation must always interrupt pending flow.
+    if (this.isExplicitPageNavigation(text)) {
+      this.clearPendingIntent();
+      const navHandled = this.executeNavigationOnly(text);
+      if (navHandled) return true;
+    }
+
     // Allow immediate pivot to navigation without being blocked in a multi-turn form.
     if (this.isNavigationCommand(text)) {
       this.clearPendingIntent();
@@ -574,8 +581,48 @@
     if (pending.type === "create_offer_collect" || pending.type === "create_offer_title") {
       const basePayload = pending.payload && typeof pending.payload === "object" ? pending.payload : {};
       const merged = this.mergeOfferPayload(basePayload, text);
+      const step = String(pending.step || "").trim() || (this.isMeaningfulOfferTitle(merged.titre || "") ? "price" : "title");
+
+      if (step === "price") {
+        // In price step, never overwrite title from spoken number like "5 dinars".
+        const rawPrice = this.extractNumberByKeyword(text, ["prix", "dt", "dinar", "dinars"]) || text;
+        const parsedPrice = String(rawPrice).replace(",", ".").match(/[0-9]+(?:\.[0-9]+)?/)?.[0] || "";
+        if (this.hasValidPositiveNumber(parsedPrice)) {
+          merged.prix = parsedPrice;
+        }
+
+        if (this.looksLikePriceOnly(merged.titre || "")) {
+          merged.titre = "";
+        }
+
+        if (!this.isMeaningfulOfferTitle(merged.titre || "")) {
+          this.setPendingIntent(
+            { type: "create_offer_collect", payload: merged, step: "title" },
+            "Donne le titre de l offre."
+          );
+          return true;
+        }
+
+        if (!this.hasValidPositiveNumber(merged.prix || "")) {
+          this.setPendingIntent(
+            { type: "create_offer_collect", payload: merged, step: "price" },
+            `Quel prix pour l offre ${merged.titre} ?`
+          );
+          return true;
+        }
+
+        const created = await this.callAdminApi(this.buildCreateOfferPayload(merged));
+        this.clearPendingIntent();
+        this.respond(`Offre creee: ${created.titre}.`, true);
+        return true;
+      }
+
+      if (this.looksLikePriceOnly(merged.titre || "")) {
+        merged.titre = "";
+      }
+
       const titleCandidate = this.sanitizeOfferTitle(merged.titre || answer);
-      if (this.isMeaningfulOfferTitle(titleCandidate)) {
+      if (this.isMeaningfulOfferTitle(titleCandidate) && !this.looksLikePriceOnly(titleCandidate)) {
         merged.titre = titleCandidate;
       }
 
@@ -1816,6 +1863,16 @@
     const m = text.match(/cat[eé]gorie\s+(.+)$/i);
     if (m && m[1]) return this.cleanEntityName(m[1]);
     return "";
+  },
+
+  looksLikePriceOnly(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return false;
+    const n = this.normalize(raw);
+    if (/^[0-9]+(?:[.,][0-9]+)?$/.test(n)) return true;
+    if (/^[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars|tnd)$/.test(n)) return true;
+    if (/^(dt|dinar|dinars|tnd)\s*[0-9]+(?:[.,][0-9]+)?$/.test(n)) return true;
+    return false;
   },
 
   extractOfferTitle(text) {
