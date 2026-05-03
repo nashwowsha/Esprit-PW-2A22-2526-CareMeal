@@ -701,9 +701,11 @@
     }
 
     if (pending.type === "delete_category") {
-      await this.callAdminApi({ action: "delete_category", nom_categorie: answer });
+      const categoryName =
+        this.cleanEntityName(this.extractCategoryName(text) || this.extractDeleteCategoryTarget(text) || answer);
+      await this.callAdminApi({ action: "delete_category", nom_categorie: categoryName });
       this.clearPendingIntent();
-      this.respond(`Categorie supprimee: ${answer}.`, true);
+      this.respond(`Categorie supprimee: ${categoryName}.`, true);
       return true;
     }
 
@@ -1774,7 +1776,14 @@
     }
 
     if (action === "delete_category") {
-      const name = this.cleanEntityName(cmd.source_name || cmd.target_name || cmd.new_name || "");
+      const name = this.cleanEntityName(
+        cmd.source_name ||
+        cmd.target_name ||
+        cmd.new_name ||
+        this.extractCategoryName(originalText) ||
+        this.extractDeleteCategoryTarget(originalText) ||
+        ""
+      );
       if (!name) {
         this.setPendingIntent({ type: "delete_category" }, "Quelle categorie veux-tu supprimer ?");
         return true;
@@ -2134,6 +2143,12 @@
     return "";
   },
 
+  extractDeleteCategoryTarget(text) {
+    const m = String(text || "").match(/\b(?:supprime|supprimer|efface|retire|delete)\b\s+(?:la|le|les|l['’])?\s*(?:cat[eé]gorie)?\s*(.+)$/i);
+    if (!m || !m[1]) return "";
+    return this.cleanEntityName(m[1]);
+  },
+
   looksLikePriceOnly(value) {
     const raw = String(value || "").trim();
     if (!raw) return false;
@@ -2182,8 +2197,8 @@
     const normalized = this.normalizeSpokenSymbols(value || "");
     return normalized
       .trim()
-      .replace(/^[\s,:;=-]+/, "")
-      .replace(/[\s,:;=-]+$/, "")
+      .replace(/^[\s,:;=.!?'"`«»()\-]+/, "")
+      .replace(/[\s,:;=.!?'"`«»()\-]+$/, "")
       .replace(/^(cat[eé]gorie|categorie|category|offre|offer)\s+/i, "")
       .replace(/^(la|le|les|une|un|du|de|des)\s+/i, "")
       .trim();

@@ -515,12 +515,8 @@ const StudentVoiceAssistant = {
 
   autoBriefing() {
     if (!this.isDashboardPage()) return;
-    const today = new Date().toISOString().slice(0, 10);
-    if (this.state.lastBriefingDate === today) return;
     const total = this.getAllOfferCards().length;
-    const msg = `Bonjour ! Tu as ${total} nouvelle${total > 1 ? "s" : ""} offre${total > 1 ? "s" : ""} pres de toi aujourd'hui.`;
-    this.state.lastBriefingDate = today;
-    this.saveState();
+    const msg = `Bonjour ! Il y a ${total} offre${total > 1 ? "s" : ""} disponible${total > 1 ? "s" : ""} aujourd'hui.`;
     this.respond(msg, true);
   },
 
@@ -538,10 +534,22 @@ const StudentVoiceAssistant = {
 
   applyVoiceOfferSearch(rawText) {
     const normalized = this.normalize(rawText);
-    const keyword = this.extractKeyword(normalized);
+    let keyword = this.extractKeyword(normalized);
     const maxPrice = this.extractMaxPrice(normalized);
     const categoryName = this.extractCategoryName(normalized);
     const wantsAllOffers = /\b(toutes?|tous)\b/.test(normalized) && /\boffres?\b/.test(normalized);
+
+    if (categoryName && keyword) {
+      const keywordNorm = this.normalize(keyword);
+      const categoryNorm = this.normalize(categoryName);
+      if (
+        keywordNorm === categoryNorm ||
+        keywordNorm === `categorie ${categoryNorm}` ||
+        keywordNorm === `categories ${categoryNorm}`
+      ) {
+        keyword = "";
+      }
+    }
 
     if (categoryName) {
       const categoryApplied = this.applyCategoryFilterByName(categoryName);
@@ -562,7 +570,20 @@ const StudentVoiceAssistant = {
       this.applyMaxPriceFilter(maxPrice);
     }
 
-    const visibleCards = this.getVisibleOfferCards();
+    let visibleCards = this.getVisibleOfferCards();
+    if (visibleCards.length === 0 && categoryName && keyword) {
+      if (searchInput) searchInput.value = "";
+      if (typeof window.applyFilters === "function") {
+        window.applyFilters();
+      } else {
+        this.filterCardsByKeyword("");
+      }
+      if (maxPrice !== null) {
+        this.applyMaxPriceFilter(maxPrice);
+      }
+      visibleCards = this.getVisibleOfferCards();
+    }
+
     if (visibleCards.length === 0) {
       return { message: "Aucune offre correspondante trouvee." };
     }
@@ -584,7 +605,7 @@ const StudentVoiceAssistant = {
       .replace(/affiche[- ]?moi|affiche moi|afficher|affiche|montre[- ]?moi|montre moi|montrer|montre|voir/g, " ")
       .replace(/moins de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
       .replace(/plus de\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars)?/g, " ")
-      .replace(/categories?\s+(?:de|du|des|d)?\s*[a-z0-9\s-]+/g, " ")
+      .replace(/categories?\s+(?:de|du|des|d)?\s*[«"']?\s*[a-z0-9\s-]+\s*[»"']?/g, " ")
       .replace(/\b(offres|offre|disponibles|disponible|s il te plait|svp|stp)\b/g, " ")
       .replace(/\b(toutes|tous|toute|tout|moi|me|mon|ma|mes)\b/g, " ")
       .replace(/\b(le|la|les|du|des|de|d|l)\b/g, " ")
@@ -602,7 +623,7 @@ const StudentVoiceAssistant = {
   },
 
   extractCategoryName(normalizedText) {
-    const m = normalizedText.match(/categories?\s+(?:de|du|des|d)?\s*([a-z0-9\s-]+)/);
+    const m = normalizedText.match(/categories?\s+(?:de|du|des|d)?\s*[«"']?\s*([a-z0-9\s-]+?)\s*[»"']?(?:\s|$)/);
     if (!m) return "";
     return (m[1] || "")
       .trim()
