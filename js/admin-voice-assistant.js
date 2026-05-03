@@ -10,6 +10,7 @@
     pendingIntent: null,
     lastHeard: "",
     lastReply: "",
+    pendingOfferSearchQuery: "",
   },
 
   init() {
@@ -20,6 +21,7 @@
     this.bindUI();
     this.initSpeechRecognition();
     this.restoreUIState();
+    this.resumePendingOfferSearch();
   },
 
   loadState() {
@@ -443,15 +445,21 @@
   },
 
   async onSpeechText(text) {
-    this.elements.heard.textContent = text || "(aucun texte)";
-    this.state.lastHeard = text;
+    const wakeParsed = this.extractWakeCommand(text || "");
+    const heardText = wakeParsed.command || text || "";
+    this.elements.heard.textContent = heardText || "(aucun texte)";
+    this.state.lastHeard = heardText;
     this.saveState();
-    if (!text) {
+    if (!heardText) {
       this.setStatus("Aucun texte reconnu.");
       return;
     }
+    if (wakeParsed.onlyWakeWord) {
+      this.respond("Oui, je t ecoute.", true);
+      return;
+    }
     try {
-      await this.handlePrompt(text);
+      await this.handlePrompt(heardText);
     } catch (_e) {
       this.setStatus("Erreur traitement.");
       this.respond("Je n ai pas pu traiter cette demande. Reessaie avec une phrase plus precise.", true);
@@ -461,13 +469,19 @@
   async handleTypedPrompt() {
     const text = (this.elements.textInput.value || "").trim();
     if (!text) return;
+    const wakeParsed = this.extractWakeCommand(text);
+    const prompt = wakeParsed.command || text;
     this.state.open = true;
     this.elements.panel.classList.remove("hidden");
-    this.elements.heard.textContent = text;
-    this.state.lastHeard = text;
+    this.elements.heard.textContent = prompt;
+    this.state.lastHeard = prompt;
     this.saveState();
     this.elements.textInput.value = "";
-    await this.handlePrompt(text);
+    if (wakeParsed.onlyWakeWord) {
+      this.respond("Oui, je t ecoute.", true);
+      return;
+    }
+    await this.handlePrompt(prompt);
   },
 
   async handlePrompt(text) {
@@ -504,6 +518,14 @@
 
     // Outside pending flow, navigation can be handled directly.
     if (this.executeNavigationOnly(text)) {
+      return;
+    }
+
+    if (await this.handleAdminOfferSearchIntent(text)) {
+      return;
+    }
+
+    if (await this.handleCreateOfferBootstrap(text)) {
       return;
     }
 
@@ -628,6 +650,14 @@
 
       if (this.looksLikePriceOnly(merged.titre || "")) {
         merged.titre = "";
+      }
+
+      if (step === "title" && this.isMeaningfulOfferTitle(basePayload.titre || "") && this.looksLikePriceOnly(answer)) {
+        const inferredPrice = String(answer).replace(",", ".").match(/[0-9]+(?:\.[0-9]+)?/)?.[0] || "";
+        merged.titre = this.sanitizeOfferTitle(basePayload.titre || "");
+        if (this.hasValidPositiveNumber(inferredPrice)) {
+          merged.prix = inferredPrice;
+        }
       }
 
       const titleCandidate = this.sanitizeOfferTitle(merged.titre || answer);
@@ -1421,6 +1451,36 @@
     return false;
   },
 
+  async handleCreateOfferBootstrap(text) {
+    const normalized = this.normalize(text);
+    const wantsCreateOffer = /(ajoute|ajouter|cree|creer|cr[eé]e|nouvelle|nouveau)/.test(normalized) && /\boffre(s)?\b/.test(normalized);
+    if (!wantsCreateOffer) return false;
+
+    const payload = this.extractOfferPayload(text);
+    const hasTitle = this.isMeaningfulOfferTitle(payload.titre || "");
+
+    if (!hasTitle) {
+      this.setPendingIntent(
+        { type: "create_offer_collect", payload: {}, step: "title" },
+        "D accord. Donne le titre de l offre, puis je te demanderai prix, categorie et quantite."
+      );
+      return true;
+    }
+
+    const missingFields = this.getMissingCreateOfferFields(payload);
+    if (missingFields.length > 0) {
+      this.setPendingIntent(
+        { type: "create_offer_collect", payload, step: "required_fields" },
+        this.buildCreateOfferFieldsQuestion(this.sanitizeOfferTitle(payload.titre), missingFields)
+      );
+      return true;
+    }
+
+    const created = await this.callAdminApi(this.buildCreateOfferPayload(payload));
+    this.respond(`Offre creee: ${created.titre}.`, true);
+    return true;
+  },
+
   async askGemini(text) {
     if (this.isRequestInFlight) {
       this.setStatus("Une requete est deja en cours...");
@@ -1840,6 +1900,190 @@
     return false;
   },
 
+  extractWakeCommand(text) {
+    const raw = String(text || "").trim();
+    if (!raw) return { command: "", onlyWakeWord: false };
+    const normalized = this.normalize(raw);
+    const wakePatterns = ["hey caremeal", "hey car meal", "salut caremeal", "ok caremeal", "ok car meal"];
+    const hasWake = wakePatterns.some((p) => normalized.includes(p));
+    if (!hasWake) return { command: raw, onlyWakeWord: false };
+
+    const stripped = raw
+      .replace(/\b(hey|ok|salut)\s+care\s*meal\b/gi, " ")
+      .replace(/\bcare\s*meal\b/gi, " ")
+      .replace(/^[\s,;:.!?-]+/, "")
+      .trim();
+
+    return {
+      command: stripped,
+      onlyWakeWord: stripped === "",
+    };
+  },
+
+  isAdminOffersPage() {
+    return /\/admin\/offers\.php$/i.test(window.location.pathname);
+  },
+
+  resumePendingOfferSearch() {
+    if (!this.isAdminOffersPage()) return;
+    const pending = String(this.state.pendingOfferSearchQuery || "").trim();
+    if (!pending) return;
+    this.state.pendingOfferSearchQuery = "";
+    this.saveState();
+    setTimeout(() => {
+      this.handleAdminOfferSearchIntent(pending);
+    }, 350);
+  },
+
+  isOfferSearchFilterIntent(text) {
+    const n = this.normalize(text);
+    const hasVerb = /(cherche|chercher|recherche|filtre|filtrer|affiche|afficher|montre|montrer|liste|lister|voir)/.test(n);
+    const hasTarget = /\boffre(s)?\b/.test(n);
+    const hasCriteria = /(categorie|category|prix|moins de|plus de|inferieur|superieur|statut|brouillon|publie|expire|archive|stock)/.test(n);
+    return (hasVerb && hasTarget) || (hasTarget && hasCriteria);
+  },
+
+  parseAdminOfferSearchRequest(text) {
+    const raw = String(text || "").trim();
+    const normalized = this.normalize(raw);
+
+    const categoryMatch = normalized.match(/(?:categorie|category)\s+([a-z0-9À-ÿ_\-\s]+)/i);
+    const category = categoryMatch ? this.cleanEntityName(categoryMatch[1]) : "";
+
+    const maxMatch = normalized.match(/(?:moins de|inferieur a|max(?:imum)?|<=?)\s*([0-9]+(?:[.,][0-9]+)?)/i);
+    const minMatch = normalized.match(/(?:plus de|superieur a|min(?:imum)?|>=?)\s*([0-9]+(?:[.,][0-9]+)?)/i);
+    const maxPrice = maxMatch ? String(maxMatch[1]).replace(",", ".") : "";
+    const minPrice = minMatch ? String(minMatch[1]).replace(",", ".") : "";
+
+    const status = this.extractOfferStatus(raw);
+
+    const keyword = raw
+      .replace(/trouve[- ]?moi|trouve moi|trouver|trouve|cherche[- ]?moi|cherche moi|cherche|chercher|recherche|filtre|filtrer/gi, " ")
+      .replace(/affiche[- ]?moi|affiche moi|afficher|affiche|montre[- ]?moi|montre moi|montrer|montre|liste|lister|voir/gi, " ")
+      .replace(/\boffres?\b/gi, " ")
+      .replace(/(?:moins de|plus de|inferieur a|superieur a|max(?:imum)?|min(?:imum)?|<=?|>=?)\s*[0-9]+(?:[.,][0-9]+)?\s*(dt|dinar|dinars|tnd)?/gi, " ")
+      .replace(/(?:categorie|category)\s+[a-z0-9À-ÿ_\-\s]+/gi, " ")
+      .replace(/\b(publiee?|brouillon|expiree?|archivee?|stock)\b/gi, " ")
+      .replace(/[,:;!?()[\]{}]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return {
+      keyword: this.cleanFieldText(keyword),
+      nom_categorie: category,
+      statut: status,
+      min_prix: minPrice,
+      max_prix: maxPrice,
+    };
+  },
+
+  async handleAdminOfferSearchIntent(text) {
+    if (!this.isOfferSearchFilterIntent(text)) return false;
+
+    if (!this.isAdminOffersPage()) {
+      this.state.pendingOfferSearchQuery = String(text || "").trim();
+      this.saveState();
+      this.respond("J ouvre la page Offres et j applique le filtre.", false);
+      setTimeout(() => {
+        window.location.href = "offers.php";
+      }, 250);
+      return true;
+    }
+
+    const criteria = this.parseAdminOfferSearchRequest(text);
+    this.applyAdminOfferFiltersUi(criteria);
+
+    const payload = {
+      action: "search_offers",
+      keyword: criteria.keyword || "",
+      nom_categorie: criteria.nom_categorie || "",
+      statut: criteria.statut || "",
+      min_prix: criteria.min_prix || "",
+      max_prix: criteria.max_prix || "",
+      limit: 20,
+    };
+    const result = await this.callAdminApi(payload);
+    const offers = Array.isArray(result.offers) ? result.offers : [];
+    if (offers.length === 0) {
+      this.respond("Aucune offre ne correspond a ce filtre.", true);
+      return true;
+    }
+
+    const top = offers.slice(0, 3).map((o) => {
+      const title = String(o.titre || "Offre");
+      const price = Number.parseFloat(String(o.prix || "0"));
+      if (Number.isFinite(price) && price > 0) {
+        return `${title} a ${price.toFixed(2)} DT`;
+      }
+      return title;
+    });
+
+    this.respond(`J ai trouve ${offers.length} offre${offers.length > 1 ? "s" : ""}. ${top.join(", ")}.`, true);
+    return true;
+  },
+
+  applyAdminOfferFiltersUi(criteria) {
+    const searchInput = document.querySelector("#offer-search, input[placeholder*='Rechercher par titre']");
+    if (searchInput) {
+      searchInput.value = criteria.keyword || "";
+      searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+      searchInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    const statusText = this.normalize(criteria.statut || "");
+    if (statusText) {
+      const statusMap = {
+        publiee: ["publie", "publiees", "publi"],
+        brouillon: ["brouillon", "brouillons"],
+        expiree: ["expire", "expirees", "expir"],
+        archivee: ["archive", "archivees", "archiv"],
+      };
+      const wanted = statusMap[statusText] || [];
+      const buttons = Array.from(document.querySelectorAll("button, .filter-btn, .status-btn, .tab-btn"));
+      for (const btn of buttons) {
+        const label = this.normalize(btn.textContent || "");
+        if (wanted.some((w) => label.includes(w))) {
+          btn.click();
+          break;
+        }
+      }
+    }
+
+    if (typeof window.applyFilters === "function") {
+      try {
+        window.applyFilters();
+      } catch (_e) {}
+    }
+
+    this.filterAdminOfferRowsLocally(criteria);
+  },
+
+  filterAdminOfferRowsLocally(criteria) {
+    const rows = Array.from(document.querySelectorAll("tbody tr"));
+    if (rows.length === 0) return;
+
+    const keyword = this.normalize(criteria.keyword || "");
+    const cat = this.normalize(criteria.nom_categorie || "");
+    const minPrice = criteria.min_prix ? Number.parseFloat(String(criteria.min_prix).replace(",", ".")) : null;
+    const maxPrice = criteria.max_prix ? Number.parseFloat(String(criteria.max_prix).replace(",", ".")) : null;
+    const status = this.normalize(criteria.statut || "");
+
+    rows.forEach((row) => {
+      const txt = this.normalize(row.textContent || "");
+      const title = this.normalize(row.querySelector("h4, .offer-title, td:first-child")?.textContent || "");
+      const priceMatch = (row.textContent || "").replace(",", ".").match(/([0-9]+(?:\.[0-9]+)?)\s*dt/i);
+      const price = priceMatch ? Number.parseFloat(priceMatch[1]) : null;
+
+      let visible = true;
+      if (keyword && !(txt.includes(keyword) || title.includes(keyword))) visible = false;
+      if (cat && !txt.includes(cat)) visible = false;
+      if (status && !txt.includes(status.replace("e", ""))) visible = false;
+      if (minPrice !== null && Number.isFinite(minPrice) && price !== null && price < minPrice) visible = false;
+      if (maxPrice !== null && Number.isFinite(maxPrice) && price !== null && price > maxPrice) visible = false;
+      row.style.display = visible ? "" : "none";
+    });
+  },
+
   parseIdentityFromText(text) {
     const email = this.extractLabeledValue(text, ["email", "mail"]);
     if (email) return { type: "email", value: email.toLowerCase() };
@@ -2015,7 +2259,7 @@
   buildCreateOfferFieldsQuestion(title, missingFields = []) {
     const safeTitle = this.sanitizeOfferTitle(title || "cette offre");
     if (!Array.isArray(missingFields) || missingFields.length === 0) {
-      return `Donne les champs necessaires pour creer l offre ${safeTitle}: prix, categorie et quantite.`;
+      return `Donne-moi les informations necessaires pour creer l offre ${safeTitle}: prix, categorie et quantite. Format conseille: prix: 5, categorie: dessert, quantite: 10.`;
     }
     const labels = {
       prix: "prix",
@@ -2023,7 +2267,7 @@
       quantite: "quantite",
     };
     const readable = missingFields.map((f) => labels[f] || f).join(", ");
-    return `Pour creer l offre ${safeTitle}, donne: ${readable}. Exemple: prix 5, categorie dessert, quantite 10.`;
+    return `Pour creer l offre ${safeTitle}, donne les informations suivantes: ${readable}. Tu peux repondre en une phrase: prix: 5, categorie: dessert, quantite: 10.`;
   },
 
   mergeOfferPayload(basePayload = {}, text = "") {
@@ -2036,6 +2280,9 @@
 
     for (const [k, v] of Object.entries(extracted)) {
       if (typeof v === "string" && v.trim() !== "") {
+        if (k === "titre" && this.looksLikePriceOnly(v)) {
+          continue;
+        }
         merged[k] = v.trim();
       }
     }

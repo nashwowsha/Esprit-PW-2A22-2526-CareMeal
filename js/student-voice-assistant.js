@@ -375,24 +375,36 @@ const StudentVoiceAssistant = {
   },
 
   async onSpeechText(text) {
-    this.elements.heard.textContent = text || "(aucun texte)";
-    this.state.lastHeard = text;
+    const wakeParsed = this.extractWakeCommand(text || "");
+    const heardText = wakeParsed.command || text || "";
+    this.elements.heard.textContent = heardText || "(aucun texte)";
+    this.state.lastHeard = heardText;
     this.saveState();
-    if (!text) {
+    if (!heardText) {
       this.setStatus("Aucun texte reconnu.");
       return;
     }
-    await this.handlePrompt(text);
+    if (wakeParsed.onlyWakeWord) {
+      this.respond("Oui, je t ecoute.", true);
+      return;
+    }
+    await this.handlePrompt(heardText);
   },
 
   async handleTyped() {
     const text = (this.elements.input.value || "").trim();
     if (!text) return;
+    const wakeParsed = this.extractWakeCommand(text);
+    const prompt = wakeParsed.command || text;
     this.elements.input.value = "";
-    this.elements.heard.textContent = text;
-    this.state.lastHeard = text;
+    this.elements.heard.textContent = prompt;
+    this.state.lastHeard = prompt;
     this.saveState();
-    await this.handlePrompt(text);
+    if (wakeParsed.onlyWakeWord) {
+      this.respond("Oui, je t ecoute.", true);
+      return;
+    }
+    await this.handlePrompt(prompt);
   },
 
   async handlePrompt(text) {
@@ -732,6 +744,26 @@ const StudentVoiceAssistant = {
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
+  },
+
+  extractWakeCommand(text) {
+    const raw = String(text || "").trim();
+    if (!raw) return { command: "", onlyWakeWord: false };
+    const normalized = this.normalize(raw);
+    const wakePatterns = ["hey caremeal", "hey car meal", "salut caremeal", "ok caremeal", "ok car meal"];
+    const hasWake = wakePatterns.some((p) => normalized.includes(p));
+    if (!hasWake) return { command: raw, onlyWakeWord: false };
+
+    const stripped = raw
+      .replace(/\b(hey|ok|salut)\s+care\s*meal\b/gi, " ")
+      .replace(/\bcare\s*meal\b/gi, " ")
+      .replace(/^[\s,;:.!?-]+/, "")
+      .trim();
+
+    return {
+      command: stripped,
+      onlyWakeWord: stripped === "",
+    };
   },
 
   cleanForSpeech(text) {

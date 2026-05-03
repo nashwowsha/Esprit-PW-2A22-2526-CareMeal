@@ -42,6 +42,77 @@ try {
             ]);
         }
 
+        case 'search_offers': {
+            $keyword = trim((string)($data['keyword'] ?? ''));
+            $category = trim((string)($data['nom_categorie'] ?? ''));
+            $status = trim((string)($data['statut'] ?? ''));
+            $minPriceRaw = trim((string)($data['min_prix'] ?? ''));
+            $maxPriceRaw = trim((string)($data['max_prix'] ?? ''));
+            $limit = isset($data['limit']) ? (int)$data['limit'] : 25;
+            if ($limit < 1) {
+                $limit = 25;
+            }
+            if ($limit > 100) {
+                $limit = 100;
+            }
+
+            $sql = 'SELECT o.id_offre, o.titre, o.prix, o.quantite, o.statut, c.nom_categorie
+                    FROM offre o
+                    LEFT JOIN categorie_offre c ON c.id_categorie = o.id_categorie
+                    WHERE 1=1';
+            $params = [];
+
+            if ($keyword !== '') {
+                $sql .= ' AND (LOWER(o.titre) LIKE :kw OR LOWER(COALESCE(c.nom_categorie, \'\')) LIKE :kw)';
+                $params[':kw'] = '%' . mb_strtolower($keyword) . '%';
+            }
+
+            if ($category !== '') {
+                $sql .= ' AND LOWER(COALESCE(c.nom_categorie, \'\')) LIKE :cat';
+                $params[':cat'] = '%' . mb_strtolower($category) . '%';
+            }
+
+            if ($status !== '') {
+                $normalizedStatus = mb_strtolower($status);
+                if (in_array($normalizedStatus, ['publiee', 'brouillon', 'expiree', 'archivee'], true)) {
+                    $sql .= ' AND LOWER(o.statut) = :status';
+                    $params[':status'] = $normalizedStatus;
+                }
+            }
+
+            if ($minPriceRaw !== '') {
+                $minPrice = (float)str_replace(',', '.', $minPriceRaw);
+                if ($minPrice > 0) {
+                    $sql .= ' AND o.prix >= :min_prix';
+                    $params[':min_prix'] = $minPrice;
+                }
+            }
+
+            if ($maxPriceRaw !== '') {
+                $maxPrice = (float)str_replace(',', '.', $maxPriceRaw);
+                if ($maxPrice > 0) {
+                    $sql .= ' AND o.prix <= :max_prix';
+                    $params[':max_prix'] = $maxPrice;
+                }
+            }
+
+            $sql .= ' ORDER BY o.date_creation DESC, o.id_offre DESC LIMIT :limit_count';
+
+            $stmt = $pdo->prepare($sql);
+            foreach ($params as $k => $v) {
+                $stmt->bindValue($k, $v);
+            }
+            $stmt->bindValue(':limit_count', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            send_json(200, [
+                'ok' => true,
+                'count' => count($rows),
+                'offers' => $rows,
+            ]);
+        }
+
         case 'create_category': {
             $name = trim((string)($data['nom_categorie'] ?? ''));
             $description = trim((string)($data['description'] ?? ''));
