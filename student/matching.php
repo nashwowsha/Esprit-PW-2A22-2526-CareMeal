@@ -18,6 +18,10 @@ $sortBy = isset($_GET['sort_by']) ? strtolower(trim((string)$_GET['sort_by'])) :
 if (!in_array($sortBy, ['score', 'location', 'name'], true)) {
     $sortBy = 'score';
 }
+$safetyMode = isset($_GET['safety_mode']) ? strtolower(trim((string)$_GET['safety_mode'])) : 'strict';
+if (!in_array($safetyMode, ['strict', 'souple'], true)) {
+    $safetyMode = 'strict';
+}
 
 $matchingController = new MatchingController();
 $matchingResult = [
@@ -30,6 +34,7 @@ if ($idPref > 0) {
     $matchingResult = $matchingController->getMatchedRestaurantsForPreference($idUser, $idPref, [
         'price_mode' => $priceMode,
         'sort_by' => $sortBy,
+        'safety_mode' => $safetyMode,
     ]);
 }
 
@@ -142,6 +147,48 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
       color: var(--color-text-muted);
       font-size: .8rem;
     }
+    .matching-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 14px;
+      align-items: start;
+    }
+    .ai-assistant-card {
+      position: sticky;
+      top: 18px;
+      border: 1px solid var(--color-dark-border);
+      background: rgba(255,255,255,.03);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .ai-assistant-title {
+      margin: 0;
+      font-size: .95rem;
+      color: var(--color-white);
+    }
+    .ai-assistant-meta {
+      margin: 0;
+      font-size: .83rem;
+      color: var(--color-text-muted);
+      line-height: 1.5;
+    }
+    .ai-assistant-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--color-text-muted);
+      font-size: .82rem;
+      line-height: 1.45;
+    }
+    @media (max-width: 1080px) {
+      .matching-layout {
+        grid-template-columns: 1fr;
+      }
+      .ai-assistant-card {
+        position: static;
+      }
+    }
   </style>
 </head>
 <body>
@@ -207,6 +254,7 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
             <p class="match-meta"><strong>Regime:</strong> <?= htmlspecialchars((string)$selectedPreference['regime_alimentaire'], ENT_QUOTES, 'UTF-8') ?></p>
             <p class="match-meta"><strong>Allergies:</strong> <?= htmlspecialchars((string)$selectedPreference['allergies'], ENT_QUOTES, 'UTF-8') ?></p>
             <p class="match-meta"><strong>Localisation:</strong> <?= htmlspecialchars((string)$selectedPreference['localisation'], ENT_QUOTES, 'UTF-8') ?></p>
+            <p class="match-meta"><strong>Mode securite allergenes:</strong> <?= $safetyMode === 'souple' ? 'Souple' : 'Strict' ?></p>
           <?php else: ?>
             <p class="match-meta">Aucune preference selectionnee.</p>
           <?php endif; ?>
@@ -232,9 +280,16 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
             <div class="filter-group">
               <label for="sort_by" class="filter-label">Tri</label>
               <select id="sort_by" name="sort_by" class="filter-select">
-                <option value="score"<?= $sortBy === 'score' ? ' selected' : '' ?>>Compatibilite la plus proche</option>
-                <option value="location"<?= $sortBy === 'location' ? ' selected' : '' ?>>Location match first</option>
+                <option value="score"<?= $sortBy === 'score' ? ' selected' : '' ?>>Compatibilite globale</option>
+                <option value="location"<?= $sortBy === 'location' ? ' selected' : '' ?>>Proximite la plus proche</option>
                 <option value="name"<?= $sortBy === 'name' ? ' selected' : '' ?>>Name A-Z</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="safety_mode" class="filter-label">Mode securite allergenes</label>
+              <select id="safety_mode" name="safety_mode" class="filter-select">
+                <option value="strict"<?= $safetyMode === 'strict' ? ' selected' : '' ?>>Strict (defaut)</option>
+                <option value="souple"<?= $safetyMode === 'souple' ? ' selected' : '' ?>>Souple</option>
               </select>
             </div>
             <button type="submit" class="btn btn-outline btn-sm">Apply filters</button>
@@ -243,45 +298,85 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
           <?php if (!$matchingResult['ok'] || empty($matchedRestaurants)): ?>
             <p class="match-meta">Aucun restaurant compatible pour le moment.</p>
           <?php else: ?>
-            <div class="matching-grid">
-              <?php foreach ($matchedRestaurants as $restaurant): ?>
-                <?php
-                  $imagePath = trim((string)($restaurant['image_path'] ?? ''));
-                  if ($imagePath === '') {
-                      $imagePath = 'assets/logo.png';
-                  }
-                ?>
-                <article class="match-card">
-                  <img class="match-img" src="../<?= htmlspecialchars($imagePath, ENT_QUOTES, 'UTF-8') ?>" alt="restaurant image">
-                  <div class="match-body">
-                    <h4 class="match-title"><?= htmlspecialchars((string)$restaurant['nom'], ENT_QUOTES, 'UTF-8') ?></h4>
-                    <p class="match-meta"><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars((string)$restaurant['localisation'], ENT_QUOTES, 'UTF-8') ?></p>
-                    <p class="match-meta"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars((string)$restaurant['horaires'], ENT_QUOTES, 'UTF-8') ?></p>
-                    <div class="match-tags">
-                      <span class="badge badge-primary">Score <?= (int)$restaurant['score'] ?></span>
-                      <span class="badge badge-info"><?= (int)$restaurant['matched_meals_count'] ?> meals</span>
-                      <?php if (!empty($restaurant['location_match'])): ?>
-                        <span class="badge badge-success">Same location</span>
+            <div class="matching-layout">
+              <div class="matching-grid">
+                <?php foreach ($matchedRestaurants as $restaurant): ?>
+                  <?php
+                    $imagePath = trim((string)($restaurant['image_path'] ?? ''));
+                    if ($imagePath === '') {
+                        $imagePath = 'assets/logo.png';
+                    }
+                    $assistantPayload = [
+                        'nom' => (string)($restaurant['nom'] ?? ''),
+                        'score' => (int)($restaurant['score'] ?? 0),
+                        'distance_km' => isset($restaurant['distance_km']) ? $restaurant['distance_km'] : null,
+                        'free' => !empty($restaurant['has_free_options']),
+                        'paid' => !empty($restaurant['has_paid_options']),
+                        'safe_meals' => (int)($restaurant['safe_meals_count'] ?? 0),
+                        'ai_potential_conflict_meals' => (int)($restaurant['ai_potential_conflict_meals'] ?? 0),
+                        'reasons' => (array)($restaurant['matching_brief']['score_reasons'] ?? []),
+                        'engine' => (string)($restaurant['matching_brief']['engine'] ?? ''),
+                        'safety_mode' => (string)($restaurant['matching_brief']['safety_mode'] ?? 'strict'),
+                    ];
+                  ?>
+                  <article
+                    class="match-card js-match-card"
+                    data-ai='<?= htmlspecialchars(json_encode($assistantPayload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), ENT_QUOTES, 'UTF-8') ?>'
+                  >
+                    <img class="match-img" src="../<?= htmlspecialchars($imagePath, ENT_QUOTES, 'UTF-8') ?>" alt="restaurant image">
+                    <div class="match-body">
+                      <h4 class="match-title"><?= htmlspecialchars((string)$restaurant['nom'], ENT_QUOTES, 'UTF-8') ?></h4>
+                      <p class="match-meta"><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars((string)$restaurant['localisation'], ENT_QUOTES, 'UTF-8') ?></p>
+                      <p class="match-meta"><i class="fa-solid fa-clock"></i> <?= htmlspecialchars((string)$restaurant['horaires'], ENT_QUOTES, 'UTF-8') ?></p>
+                      <div class="match-tags">
+                        <span class="badge badge-primary" title="Score personnalise: regime > allergies > proximite">Score <?= (int)$restaurant['score'] ?></span>
+                        <span class="badge badge-info"><?= (int)$restaurant['matched_meals_count'] ?> meals</span>
+                        <?php if (!empty($restaurant['matching_brief']['engine'])): ?>
+                          <span class="badge badge-secondary"><?= htmlspecialchars((string)$restaurant['matching_brief']['engine'], ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                        <?php if (isset($restaurant['distance_km']) && $restaurant['distance_km'] !== null): ?>
+                          <span class="badge badge-secondary"><?= number_format((float)$restaurant['distance_km'], 2) ?> km</span>
+                        <?php endif; ?>
+                        <?php if (!empty($restaurant['location_match'])): ?>
+                          <span class="badge badge-success">Same location</span>
+                        <?php endif; ?>
+                        <?php if (!empty($restaurant['has_free_options'])): ?>
+                          <span class="badge badge-warning">Free</span>
+                        <?php endif; ?>
+                        <?php if (!empty($restaurant['has_paid_options'])): ?>
+                          <span class="badge badge-danger">Paid</span>
+                        <?php endif; ?>
+                        <?php if (!empty($restaurant['ai_potential_conflict_meals'])): ?>
+                          <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> IA risk <?= (int)$restaurant['ai_potential_conflict_meals'] ?></span>
+                        <?php endif; ?>
+                      </div>
+                      <?php if (!empty($restaurant['matching_brief']['score_reasons']) && is_array($restaurant['matching_brief']['score_reasons'])): ?>
+                        <p class="match-meta"><strong>IA insight:</strong> <?= htmlspecialchars(implode(' | ', $restaurant['matching_brief']['score_reasons']), ENT_QUOTES, 'UTF-8') ?></p>
                       <?php endif; ?>
-                      <?php if (!empty($restaurant['has_free_options'])): ?>
-                        <span class="badge badge-warning">Free</span>
-                      <?php endif; ?>
-                      <?php if (!empty($restaurant['has_paid_options'])): ?>
-                        <span class="badge badge-danger">Paid</span>
-                      <?php endif; ?>
+                      <a class="btn btn-primary btn-sm" href="matching_restaurant.php?id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&id_restaurant=<?= (int)$restaurant['id_restaurant'] ?>&safety_mode=<?= urlencode($safetyMode) ?>">
+                        Voir meals
+                      </a>
                     </div>
-                    <a class="btn btn-primary btn-sm" href="matching_restaurant.php?id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&id_restaurant=<?= (int)$restaurant['id_restaurant'] ?>">
-                      Voir meals
-                    </a>
-                  </div>
-                </article>
-              <?php endforeach; ?>
+                  </article>
+                <?php endforeach; ?>
+              </div>
+
+              <aside class="ai-assistant-card" id="matching-ai-assistant">
+                <h4 class="ai-assistant-title"><i class="fa-solid fa-robot"></i> Assistant IA</h4>
+                <p class="ai-assistant-meta" id="ai-restaurant-title">Survole un restaurant pour voir pourquoi il est recommande.</p>
+                <p class="ai-assistant-meta" id="ai-restaurant-summary">Le scoring prend en compte le regime, la securite allergenes, et la proximite.</p>
+                <ul class="ai-assistant-list" id="ai-reasons-list">
+                  <li>Regime prioritaire</li>
+                  <li>Conflits allergenes exclus</li>
+                  <li>Distance utilisee pour le tri proximite</li>
+                </ul>
+              </aside>
             </div>
           <?php endif; ?>
 
           <?php if ($idPref > 0): ?>
             <p class="match-meta" style="margin-top:14px;">
-              <a href="../Controller/MatchingController.php?action=student_restaurants&id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&price_mode=<?= urlencode($priceMode) ?>&sort_by=<?= urlencode($sortBy) ?>" target="_blank">
+              <a href="../Controller/MatchingController.php?action=student_restaurants&id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&price_mode=<?= urlencode($priceMode) ?>&sort_by=<?= urlencode($sortBy) ?>&safety_mode=<?= urlencode($safetyMode) ?>" target="_blank">
                 View matching JSON
               </a>
             </p>
@@ -308,6 +403,51 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
           window.history.replaceState({}, '', url.toString());
         }
       }
+
+      const assistantTitle = document.getElementById('ai-restaurant-title');
+      const assistantSummary = document.getElementById('ai-restaurant-summary');
+      const reasonsList = document.getElementById('ai-reasons-list');
+      const cards = document.querySelectorAll('.js-match-card');
+
+      function renderAssistant(payload) {
+        if (!assistantTitle || !assistantSummary || !reasonsList || !payload) return;
+        const freePaid = payload.free && payload.paid ? 'Free + Paid' : (payload.free ? 'Free only' : (payload.paid ? 'Paid only' : 'N/A'));
+        assistantTitle.textContent = payload.nom + ' (score ' + String(payload.score || 0) + ')';
+        assistantSummary.textContent =
+          'Mode prix: ' + freePaid
+          + ' | meals safe: ' + String(payload.safe_meals || 0)
+          + ' | securite: ' + String(payload.safety_mode || 'strict')
+          + ' | IA risques: ' + String(payload.ai_potential_conflict_meals || 0)
+          + (payload.distance_km !== null && payload.distance_km !== undefined ? (' | distance: ' + String(payload.distance_km) + ' km') : '');
+        reasonsList.innerHTML = '';
+        const reasons = Array.isArray(payload.reasons) ? payload.reasons : [];
+        if (!reasons.length) {
+          const li = document.createElement('li');
+          li.textContent = 'Aucune raison detaillee disponible.';
+          reasonsList.appendChild(li);
+          return;
+        }
+        reasons.forEach((r) => {
+          const li = document.createElement('li');
+          li.textContent = String(r);
+          reasonsList.appendChild(li);
+        });
+      }
+
+      cards.forEach((card) => {
+        card.addEventListener('mouseenter', () => {
+          try {
+            const payload = JSON.parse(card.getAttribute('data-ai') || '{}');
+            renderAssistant(payload);
+          } catch (e) {}
+        });
+        card.addEventListener('focusin', () => {
+          try {
+            const payload = JSON.parse(card.getAttribute('data-ai') || '{}');
+            renderAssistant(payload);
+          } catch (e) {}
+        });
+      });
     });
   </script>
 </body>

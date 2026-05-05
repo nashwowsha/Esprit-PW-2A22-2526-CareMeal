@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../Controller/PlanningCollecteController.php';
+require_once __DIR__ . '/../config/app.php';
 
 $controller = new PlanningCollecteController();
 $idOwner = isset($_GET['id_owner']) ? (int)$_GET['id_owner'] : 1;
@@ -13,9 +14,11 @@ $detail = $idCollecte > 0 ? $controller->getPartnerCollecteDetail($idCollecte, $
 $statusMessages = [
     'success_collecte_updated' => ['class' => 'success', 'text' => 'Statut de collecte mis a jour.'],
     'success_collecte_deleted' => ['class' => 'success', 'text' => 'Collecte supprimee.'],
+    'success_driver_assigned' => ['class' => 'success', 'text' => 'Livreur assigne. Ouvrez le lien tracking sur le telephone du livreur.'],
     'error_invalid_status' => ['class' => 'error', 'text' => 'Statut invalide pour ce mode.'],
     'error_forbidden_collecte' => ['class' => 'error', 'text' => 'Vous ne pouvez pas modifier cette collecte.'],
     'error_not_found' => ['class' => 'error', 'text' => 'Collecte introuvable.'],
+    'error_validation' => ['class' => 'error', 'text' => 'Validation livreur invalide.'],
     'error_db' => ['class' => 'error', 'text' => 'Erreur base de donnees.'],
 ];
 
@@ -203,6 +206,55 @@ if ($currentStatus !== '' && !in_array($currentStatus, $statusOptions, true)) {
                 </form>
               </div>
             </section>
+
+            <?php if ($mode === 'delivery'): ?>
+              <section class="card">
+                <div class="card-header"><h3 class="card-title"><i class="fa-solid fa-motorcycle"></i> Assignation livreur (tracking live)</h3></div>
+                <form method="post" action="../Controller/planning_collecte.php?action=partner_assign_driver" class="actions" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:8px;align-items:end;">
+                  <input type="hidden" name="id_collecte" value="<?= (int)$detail['id_collecte'] ?>">
+                  <input type="hidden" name="id_owner" class="js-owner-id" value="<?= (int)$idOwner ?>">
+                  <input type="hidden" name="return_to_detail" value="1">
+
+                  <div>
+                    <label>Nom</label>
+                    <input class="select" type="text" name="driver_last_name" value="<?= htmlspecialchars((string)($detail['delivery_driver_last_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Nom livreur">
+                  </div>
+                  <div>
+                    <label>Prenom</label>
+                    <input class="select" type="text" name="driver_first_name" value="<?= htmlspecialchars((string)($detail['delivery_driver_first_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Prenom livreur">
+                  </div>
+                  <div>
+                    <label>Contact</label>
+                    <input class="select" type="text" name="driver_contact" value="<?= htmlspecialchars((string)($detail['delivery_driver_contact'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="+216...">
+                  </div>
+                  <button class="btn btn-outline btn-sm" type="submit">Assigner + activer tracking</button>
+                </form>
+
+                <?php if (!empty($detail['delivery_tracking_token'])): ?>
+                  <?php
+                    $trackingToken = urlencode((string)$detail['delivery_tracking_token']);
+                    $trackingUrlRelative = '../public/delivery_live.php?token=' . $trackingToken;
+                    $trackingUrlAbsolute = caremeal_public_url('/public/delivery_live.php?token=' . $trackingToken);
+                    $trackingQrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . rawurlencode($trackingUrlAbsolute);
+                  ?>
+                  <div style="margin-top:10px;display:grid;gap:8px;">
+                    <div class="meta">Lien a ouvrir sur le telephone du livreur:</div>
+                    <a class="btn btn-primary btn-sm" href="<?= htmlspecialchars($trackingUrlRelative, ENT_QUOTES, 'UTF-8') ?>" target="_blank">Ouvrir tracking livreur</a>
+                    <a class="btn btn-outline btn-sm" href="<?= htmlspecialchars($trackingUrlAbsolute, ENT_QUOTES, 'UTF-8') ?>" target="_blank">Ouvrir lien public (telephone)</a>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                      <input id="driverTrackingUrlInput" class="select" type="text" readonly value="<?= htmlspecialchars($trackingUrlAbsolute, ENT_QUOTES, 'UTF-8') ?>">
+                      <button class="btn btn-outline btn-sm" type="button" id="copyDriverTrackingUrlBtn">Copier lien</button>
+                    </div>
+                    <div style="display:grid;gap:6px;justify-content:start;">
+                      <div class="meta">Scanner avec le telephone du livreur:</div>
+                      <img src="<?= htmlspecialchars($trackingQrUrl, ENT_QUOTES, 'UTF-8') ?>" alt="QR tracking livreur" style="width:140px;height:140px;border-radius:10px;border:1px solid var(--color-dark-border);background:#fff;">
+                    </div>
+                    <div class="meta">Pour demo externe (ngrok/cloud), ce lien doit commencer par votre domaine public et non localhost.</div>
+                    <div class="meta">Derniere position GPS: <?= htmlspecialchars((string)($detail['delivery_driver_updated_at'] ?? 'non recue'), ENT_QUOTES, 'UTF-8') ?></div>
+                  </div>
+                <?php endif; ?>
+              </section>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       </div>
@@ -242,8 +294,36 @@ if ($currentStatus !== '' && !in_array($currentStatus, $statusOptions, true)) {
         }
         document.querySelectorAll('.js-owner-id').forEach(function (el) { el.value = String(resolvedId); });
       }
+
+      var copyBtn = document.getElementById('copyDriverTrackingUrlBtn');
+      var urlInput = document.getElementById('driverTrackingUrlInput');
+      if (copyBtn && urlInput) {
+        copyBtn.addEventListener('click', function () {
+          var value = String(urlInput.value || '').trim();
+          if (!value) {
+            return;
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(function () {
+              copyBtn.textContent = 'Copie';
+              setTimeout(function () {
+                copyBtn.textContent = 'Copier lien';
+              }, 1200);
+            }).catch(function () {
+              urlInput.select();
+              document.execCommand('copy');
+            });
+          } else {
+            urlInput.select();
+            document.execCommand('copy');
+            copyBtn.textContent = 'Copie';
+            setTimeout(function () {
+              copyBtn.textContent = 'Copier lien';
+            }, 1200);
+          }
+        });
+      }
     });
   </script>
 </body>
 </html>
-

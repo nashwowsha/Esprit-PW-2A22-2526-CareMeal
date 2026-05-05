@@ -5,6 +5,7 @@
   var DEFAULT_ZOOM = 6;
   var GEOCODE_CACHE_PREFIX = "caremeal_geo_v1:";
   var DEFAULT_RESTAURANT_ICON_PATH = "/caremeal/assets/map-markers/restaurant-pin.png";
+  var DEFAULT_DRIVER_ICON_PATH = "/caremeal/assets/map-markers/deliveryboy.png";
 
   function normalizeText(value) {
     return String(value || "")
@@ -29,6 +30,13 @@
     return DEFAULT_RESTAURANT_ICON_PATH;
   }
 
+  function resolveDriverIconUrl(options) {
+    if (options && typeof options.driverIconUrl === "string" && options.driverIconUrl.trim() !== "") {
+      return options.driverIconUrl.trim();
+    }
+    return DEFAULT_DRIVER_ICON_PATH;
+  }
+
   function buildRestaurantIcon(iconUrl) {
     return L.icon({
       iconUrl: iconUrl,
@@ -36,6 +44,65 @@
       iconAnchor: [19, 38],
       popupAnchor: [0, -34],
     });
+  }
+
+  function buildDriverIcon(iconUrl) {
+    return L.icon({
+      iconUrl: iconUrl,
+      iconSize: [34, 34],
+      iconAnchor: [17, 34],
+      popupAnchor: [0, -30],
+    });
+  }
+
+  function easeOutCubic(t) {
+    var x = Math.max(0, Math.min(1, t));
+    return 1 - Math.pow(1 - x, 3);
+  }
+
+  function animateMarkerTo(marker, targetLat, targetLng, durationMs) {
+    if (!marker || !Number.isFinite(targetLat) || !Number.isFinite(targetLng)) {
+      return null;
+    }
+
+    var start = marker.getLatLng();
+    var startLat = Number(start.lat);
+    var startLng = Number(start.lng);
+    if (!Number.isFinite(startLat) || !Number.isFinite(startLng)) {
+      marker.setLatLng([targetLat, targetLng]);
+      return null;
+    }
+
+    var dLat = targetLat - startLat;
+    var dLng = targetLng - startLng;
+    var approxMeters = Math.sqrt(
+      Math.pow(dLat * 111320, 2) +
+      Math.pow(dLng * 111320 * Math.cos((startLat + targetLat) * Math.PI / 360), 2)
+    );
+
+    // Ignore micro deltas to avoid visual jitter.
+    if (approxMeters < 0.2) {
+      marker.setLatLng([targetLat, targetLng]);
+      return null;
+    }
+
+    var startedAt = performance.now();
+    var dur = Math.max(120, Number(durationMs) || 280);
+    var frameId = null;
+
+    var tick = function (now) {
+      var t = (now - startedAt) / dur;
+      if (t >= 1) {
+        marker.setLatLng([targetLat, targetLng]);
+        return;
+      }
+      var e = easeOutCubic(t);
+      marker.setLatLng([startLat + dLat * e, startLng + dLng * e]);
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return frameId;
   }
 
   function fallbackCoords(rawLocation) {
@@ -131,12 +198,27 @@
     var status = escapeHtml(point.status || "");
     var mode = escapeHtml(point.mode || "");
     var kind = escapeHtml(point.kind || "");
+    var driverName = escapeHtml(point.driver_name || "");
+    var driverContact = escapeHtml(point.driver_contact || "");
+    var updatedAt = escapeHtml(point.updated_at || "");
+    var isLive = Boolean(point.is_live);
+    var secondsSinceUpdate = Number(point.seconds_since_update || 0);
 
     var html = "<strong>" + label + "</strong><br>";
     html += "Location: " + location;
     if (status) html += "<br>Status: " + status;
     if (mode) html += "<br>Mode: " + mode;
     if (kind) html += "<br>Type: " + kind;
+    if (driverName) html += "<br>Livreur: " + driverName;
+    if (driverContact) html += "<br>Contact: " + driverContact;
+    if (updatedAt) html += "<br>Maj: " + updatedAt;
+    if (kind === "driver") {
+      if (isLive) {
+        html += "<br>Etat: Live";
+      } else if (Number.isFinite(secondsSinceUpdate) && secondsSinceUpdate > 0) {
+        html += "<br>Etat: Dernier signal il y a " + secondsSinceUpdate + "s";
+      }
+    }
     return html;
   }
 
@@ -189,45 +271,211 @@
     return resolved;
   }
 
+  function splitPoints(points) {
+    var staticPoints = [];
+    var driverPoints = [];
+    for (var i = 0; i < points.length; i += 1) {
+      var point = points[i] || {};
+      if (point.kind === "driver") {
+        driverPoints.push(point);
+      } else {
+        staticPoints.push(point);
+      }
+    }
+    return { staticPoints: staticPoints, driverPoints: driverPoints };
+  }
+
+  async function fetchLivePoints(endpoint) {
+    if (!endpoint) return [];
+    try {
+      var joiner = endpoint.indexOf("?") === -1 ? "?" : "&";
+      var url = endpoint + joiner + "_t=" + Date.now();
+      var response = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, max-age=0",
+          Pragma: "no-cache"
+        }
+      });
+      if (!response.ok) return [];
+      var data = await response.json();
+      if (!data || !data.ok || !Array.isArray(data.points)) return [];
+      return data.points;
+    } catch (e) {
+      return [];
+    }
+  }
+
   async function initCollectesMap(options) {
     if (!window.L || !options || !options.containerId) return;
     var container = document.getElementById(options.containerId);
     if (!container) return;
 
     var points = Array.isArray(options.points) ? options.points : [];
+    var split = splitPoints(points);
+    var staticPoints = split.staticPoints;
+    var initialDriverPoints = split.driverPoints;
     var restaurantIcon = buildRestaurantIcon(resolveRestaurantIconUrl(options));
+    var driverIcon = buildDriverIcon(resolveDriverIconUrl(options));
+    var markerAnimationMs = Number(options.markerAnimationMs);
+    if (!Number.isFinite(markerAnimationMs) || markerAnimationMs < 120) {
+      markerAnimationMs = 280;
+    }
     var map = L.map(container).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    var driverMarkers = {};
+    var driverAnimationFrames = {};
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
-    if (!points.length) {
-      return;
-    }
-
-    var resolved = await resolvePoints(points);
-    if (!resolved.length) {
-      return;
-    }
-
     var bounds = [];
-    for (var i = 0; i < resolved.length; i += 1) {
-      var item = resolved[i];
-      var markerConfig = {};
-      if (item.point && item.point.kind === "restaurant") {
-        markerConfig.icon = restaurantIcon;
+
+    if (staticPoints.length) {
+      var resolved = await resolvePoints(staticPoints);
+      for (var i = 0; i < resolved.length; i += 1) {
+        var item = resolved[i];
+        var markerConfig = {};
+        if (item.point && item.point.kind === "restaurant") {
+          markerConfig.icon = restaurantIcon;
+        }
+        var marker = L.marker([item.lat, item.lng], markerConfig).addTo(map);
+        marker.bindPopup(buildPopup(item.point));
+        bounds.push([item.lat, item.lng]);
       }
-      var marker = L.marker([item.lat, item.lng], markerConfig).addTo(map);
-      marker.bindPopup(buildPopup(item.point));
-      bounds.push([item.lat, item.lng]);
     }
+
+    function upsertDriverPoints(driverPoints) {
+      var seen = {};
+      for (var d = 0; d < driverPoints.length; d += 1) {
+        var point = driverPoints[d] || {};
+        var key = String(point.collecte_id || ("driver_" + d));
+        var lat = Number(point.lat);
+        var lng = Number(point.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          continue;
+        }
+        seen[key] = true;
+
+        if (!driverMarkers[key]) {
+          driverMarkers[key] = L.marker([lat, lng], { icon: driverIcon }).addTo(map);
+        } else {
+          if (driverAnimationFrames[key]) {
+            cancelAnimationFrame(driverAnimationFrames[key]);
+            driverAnimationFrames[key] = null;
+          }
+          driverAnimationFrames[key] = animateMarkerTo(
+            driverMarkers[key],
+            lat,
+            lng,
+            markerAnimationMs
+          );
+        }
+        driverMarkers[key].bindPopup(buildPopup(point));
+      }
+
+      Object.keys(driverMarkers).forEach(function (key) {
+        if (!seen[key]) {
+          if (driverAnimationFrames[key]) {
+            cancelAnimationFrame(driverAnimationFrames[key]);
+            delete driverAnimationFrames[key];
+          }
+          map.removeLayer(driverMarkers[key]);
+          delete driverMarkers[key];
+        }
+      });
+    }
+
+    function upsertSingleDriverPoint(point) {
+      if (!point || point.kind !== "driver") return;
+      var key = String(point.collecte_id || "");
+      var lat = Number(point.lat);
+      var lng = Number(point.lng);
+      if (!key || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      if (!driverMarkers[key]) {
+        driverMarkers[key] = L.marker([lat, lng], { icon: driverIcon }).addTo(map);
+      } else {
+        if (driverAnimationFrames[key]) {
+          cancelAnimationFrame(driverAnimationFrames[key]);
+          driverAnimationFrames[key] = null;
+        }
+        driverAnimationFrames[key] = animateMarkerTo(driverMarkers[key], lat, lng, markerAnimationMs);
+      }
+      driverMarkers[key].bindPopup(buildPopup(point));
+    }
+
+    upsertDriverPoints(initialDriverPoints);
 
     if (bounds.length === 1) {
       map.setView(bounds[0], 13);
-    } else {
+    } else if (bounds.length > 1) {
       map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    var liveEndpoint = typeof options.liveEndpoint === "string" ? options.liveEndpoint.trim() : "";
+    var pollMs = Number(options.pollMs);
+    if (!Number.isFinite(pollMs) || pollMs < 120) {
+      pollMs = 250;
+    }
+
+    if (liveEndpoint) {
+      var poll = async function () {
+        var livePoints = await fetchLivePoints(liveEndpoint);
+        var onlyDrivers = [];
+        for (var p = 0; p < livePoints.length; p += 1) {
+          if ((livePoints[p] || {}).kind === "driver") {
+            onlyDrivers.push(livePoints[p]);
+          }
+        }
+        upsertDriverPoints(onlyDrivers);
+      };
+      poll();
+      setInterval(poll, pollMs);
+    }
+
+    var pusherCfg = (options && typeof options.pusher === "object" && options.pusher) ? options.pusher : null;
+    if (
+      pusherCfg &&
+      pusherCfg.enabled === true &&
+      typeof window.Pusher !== "undefined" &&
+      typeof pusherCfg.key === "string" &&
+      pusherCfg.key.trim() !== "" &&
+      typeof pusherCfg.cluster === "string" &&
+      pusherCfg.cluster.trim() !== "" &&
+      typeof pusherCfg.channel === "string" &&
+      pusherCfg.channel.trim() !== ""
+    ) {
+      try {
+        if (typeof window.Pusher.logToConsole !== "undefined") {
+          window.Pusher.logToConsole = false;
+        }
+        var pusher = new window.Pusher(pusherCfg.key.trim(), {
+          cluster: pusherCfg.cluster.trim(),
+          forceTLS: true,
+        });
+        var channel = pusher.subscribe(pusherCfg.channel.trim());
+        var eventName = (typeof pusherCfg.eventName === "string" && pusherCfg.eventName.trim() !== "")
+          ? pusherCfg.eventName.trim()
+          : "driver-location";
+
+        channel.bind(eventName, function (eventPayload) {
+          var payload = eventPayload;
+          if (typeof payload === "string") {
+            try {
+              payload = JSON.parse(payload);
+            } catch (e) {
+              return;
+            }
+          }
+          if (!payload || typeof payload !== "object") return;
+          upsertSingleDriverPoint(payload);
+        });
+      } catch (e) {
+        // keep polling fallback alive
+      }
     }
   }
 

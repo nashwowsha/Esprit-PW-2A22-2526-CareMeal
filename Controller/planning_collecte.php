@@ -13,6 +13,14 @@ function redirectAdminCollecte($result, $source = [])
 {
     $status = urlencode($result['status'] ?? 'error_unknown');
     $idCollecte = isset($result['id_collecte']) ? (int)$result['id_collecte'] : 0;
+    $blockedSummary = isset($result['blocked_items_summary']) ? (string)$result['blocked_items_summary'] : '';
+    $blockedItemsJson = '';
+    if (isset($result['blocked_items']) && is_array($result['blocked_items'])) {
+        $encoded = json_encode($result['blocked_items'], JSON_UNESCAPED_UNICODE);
+        if (is_string($encoded)) {
+            $blockedItemsJson = $encoded;
+        }
+    }
 
     if (wantsCollecteDetailRedirect($source) && $idCollecte > 0) {
         $location = '../admin/collecte_detail.php?id_collecte=' . $idCollecte . '&status=' . $status;
@@ -21,6 +29,12 @@ function redirectAdminCollecte($result, $source = [])
         $location = '../admin/planning_collecte.php?status=' . $status;
         if ($idCollecte > 0) {
             $location .= '&selected_id=' . $idCollecte;
+        }
+        if ($blockedSummary !== '') {
+            $location .= '&blocked_summary_b64=' . urlencode(base64_encode($blockedSummary));
+        }
+        if ($blockedItemsJson !== '') {
+            $location .= '&blocked_items_b64=' . urlencode(base64_encode($blockedItemsJson));
         }
         $location .= '#collecte-list-section';
     }
@@ -70,6 +84,14 @@ function redirectStudentCollecte($result, $source = [])
     $heureSouhaitee = isset($source['heure_souhaitee']) ? (string)$source['heure_souhaitee'] : '';
     $adresseLat = isset($source['adresse_lat']) ? (string)$source['adresse_lat'] : '';
     $adresseLng = isset($source['adresse_lng']) ? (string)$source['adresse_lng'] : '';
+    $blockedSummary = isset($result['blocked_items_summary']) ? (string)$result['blocked_items_summary'] : '';
+    $blockedItemsJson = '';
+    if (isset($result['blocked_items']) && is_array($result['blocked_items'])) {
+        $encoded = json_encode($result['blocked_items'], JSON_UNESCAPED_UNICODE);
+        if (is_string($encoded)) {
+            $blockedItemsJson = $encoded;
+        }
+    }
 
     $isSuccessCreate = ($result['status'] ?? '') === 'success_collecte_created';
     $location = $isSuccessCreate
@@ -106,6 +128,12 @@ function redirectStudentCollecte($result, $source = [])
     }
     if ($adresseLng !== '') {
         $location .= '&adresse_lng=' . urlencode($adresseLng);
+    }
+    if ($blockedSummary !== '') {
+        $location .= '&blocked_summary_b64=' . urlencode(base64_encode($blockedSummary));
+    }
+    if ($blockedItemsJson !== '') {
+        $location .= '&blocked_items_b64=' . urlencode(base64_encode($blockedItemsJson));
     }
     if (isset($result['id_collecte']) && (int)$result['id_collecte'] > 0) {
         $location .= '&id_collecte=' . (int)$result['id_collecte'];
@@ -148,6 +176,28 @@ function redirectStudentCollecteList($result, $source = [])
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($action === 'driver_ping') {
+        header('Content-Type: application/json; charset=utf-8');
+        $payload = $_POST;
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'application/json') !== false) {
+            $raw = file_get_contents('php://input');
+            $decoded = json_decode((string)$raw, true);
+            if (is_array($decoded)) {
+                $payload = $decoded;
+            }
+        }
+        $result = $controller->driverPingLocation(
+            $payload['tracking_token'] ?? '',
+            $payload['lat'] ?? null,
+            $payload['lng'] ?? null,
+            $payload['accuracy'] ?? null,
+            $payload['tracker_client_id'] ?? ''
+        );
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     switch ($action) {
         case 'admin_create_collecte':
             redirectAdminCollecte($controller->createCollecte($_POST), $_POST);
@@ -176,6 +226,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_POST['id_collecte'] ?? 0,
                     $_POST['statut'] ?? '',
                     $_POST['id_owner'] ?? 0
+                ),
+                $_POST
+            );
+            break;
+        case 'partner_assign_driver':
+            redirectPartnerCollecte(
+                $controller->partnerAssignDeliveryDriver(
+                    $_POST['id_collecte'] ?? 0,
+                    $_POST['id_owner'] ?? 0,
+                    $_POST['driver_first_name'] ?? '',
+                    $_POST['driver_last_name'] ?? '',
+                    $_POST['driver_contact'] ?? ''
                 ),
                 $_POST
             );
@@ -227,6 +289,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             redirectAdminCollecte(['status' => 'error_unknown_action']);
     }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'live_points') {
+    header('Content-Type: application/json; charset=utf-8');
+    $scope = $_GET['scope'] ?? 'admin';
+    $idOwner = (int)($_GET['id_owner'] ?? 0);
+    $idUser = (int)($_GET['id_user'] ?? 0);
+    $points = $controller->getLiveDeliveryDriverPoints($scope, $idOwner, $idUser);
+    echo json_encode(['ok' => true, 'points' => $points], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 header('Location: ../admin/planning_collecte.php?status=error_invalid_request');

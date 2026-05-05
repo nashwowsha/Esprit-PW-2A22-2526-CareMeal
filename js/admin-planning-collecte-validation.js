@@ -21,6 +21,9 @@
   var restaurants = Array.isArray(window.ADMIN_COLLECTE_RESTAURANTS) ? window.ADMIN_COLLECTE_RESTAURANTS : [];
   var prefIds = Array.isArray(window.ADMIN_COLLECTE_PREF_IDS) ? window.ADMIN_COLLECTE_PREF_IDS : [];
   var userIds = Array.isArray(window.ADMIN_COLLECTE_USER_IDS) ? window.ADMIN_COLLECTE_USER_IDS : [];
+  var prefAllergiesMap = (window.ADMIN_COLLECTE_PREF_ALLERGIES && typeof window.ADMIN_COLLECTE_PREF_ALLERGIES === 'object')
+    ? window.ADMIN_COLLECTE_PREF_ALLERGIES
+    : {};
   var prefIdSet = {};
   var userIdSet = {};
   prefIds.forEach(function (id) { prefIdSet[String(id)] = true; });
@@ -55,6 +58,76 @@
     var m = h.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
     if (!m) return null;
     return { open: m[1], close: m[2] };
+  }
+
+  function normalizeToken(value) {
+    var token = String(value || '').trim().toLowerCase();
+    token = token.replace(/[_\s]+/g, '-').replace(/-+/g, '-').replace(/[^a-z0-9-]/g, '');
+    var map = {
+      'arachides': 'arachide',
+      'cacahuete': 'arachide',
+      'cacahuetes': 'arachide',
+      'peanut': 'arachide',
+      'peanuts': 'arachide',
+      'milk': 'lactose',
+      'lait': 'lactose',
+      'fromage': 'lactose',
+      'wheat': 'gluten',
+      'ble': 'gluten',
+      'soy': 'soja',
+      'egg': 'oeuf',
+      'eggs': 'oeuf',
+      'fish': 'poisson',
+      'nuts': 'fruits-a-coque'
+    };
+    return map[token] || token;
+  }
+
+  function parseTokenList(value) {
+    return String(value || '')
+      .split(/[,;]+/)
+      .map(function (part) { return normalizeToken(part); })
+      .filter(function (part) { return part.length > 0; })
+      .filter(function (part, index, arr) { return arr.indexOf(part) === index; });
+  }
+
+  function getCurrentPreferenceAllergies() {
+    var prefId = prefField ? String(prefField.value || '').trim() : '';
+    return parseTokenList(prefAllergiesMap[prefId] || '');
+  }
+
+  function getDeclaredMealAllergens(meal) {
+    if (!meal) return [];
+    return parseTokenList(meal.allergens || '');
+  }
+
+  function findDeclaredConflictsForSelectedItems() {
+    var items = selectedItemsPayload();
+    if (!Array.isArray(items) || items.length === 0 || !selectedRestaurant) return [];
+    var userAllergies = getCurrentPreferenceAllergies();
+    if (userAllergies.length === 0) return [];
+
+    var conflicts = [];
+    items.forEach(function (it) {
+      var meal = null;
+      for (var i = 0; i < (selectedRestaurant.meals || []).length; i += 1) {
+        if (String(selectedRestaurant.meals[i].meal_id || '') === String(it.meal_id || '')) {
+          meal = selectedRestaurant.meals[i];
+          break;
+        }
+      }
+      if (!meal) return;
+      var mealAllergens = getDeclaredMealAllergens(meal);
+      mealAllergens.forEach(function (token) {
+        if (userAllergies.indexOf(token) !== -1) {
+          conflicts.push({
+            meal_name: String(meal.meal_name || meal.meal_id || ''),
+            allergen: token
+          });
+        }
+      });
+    });
+    return conflicts;
   }
 
   function syncAddressState() {
@@ -158,8 +231,23 @@
       meta.className = 'meal-meta';
       var unitPrice = getUnitPrice(meal);
       meta.textContent = 'Prix: ' + unitPrice.toFixed(2) + ' DT | Stock dispo: ' + stock;
+      var conflictMeta = document.createElement('div');
+      conflictMeta.className = 'meal-meta';
+      var userAllergies = getCurrentPreferenceAllergies();
+      var mealAllergens = getDeclaredMealAllergens(meal);
+      var conflictTokens = mealAllergens.filter(function (token) {
+        return userAllergies.indexOf(token) !== -1;
+      });
+      if (conflictTokens.length > 0) {
+        conflictMeta.style.color = '#ff9da7';
+        conflictMeta.textContent = 'Bloque en mode strict (allergenes declares): ' + conflictTokens.join(', ');
+      } else {
+        conflictMeta.style.color = '#7dd3fc';
+        conflictMeta.textContent = 'Aucun conflit declare detecte (controle final serveur + IA).';
+      }
       left.appendChild(name);
       left.appendChild(meta);
+      left.appendChild(conflictMeta);
 
       var controls = document.createElement('div');
       controls.className = 'qty-wrap';
@@ -246,6 +334,10 @@
   if (restaurantField) {
     restaurantField.addEventListener('input', syncRestaurantContext);
     restaurantField.addEventListener('change', syncRestaurantContext);
+  }
+  if (prefField) {
+    prefField.addEventListener('input', renderMeals);
+    prefField.addEventListener('change', renderMeals);
   }
 
   syncAddressState();
@@ -341,6 +433,16 @@
       });
       if (stockInvalid) {
         setError('collecte_items_json-error', mealsList, 'Quantite invalide par rapport au stock.');
+        valid = false;
+      }
+      var declaredConflicts = findDeclaredConflictsForSelectedItems();
+      if (declaredConflicts.length > 0) {
+        var firstConflict = declaredConflicts[0];
+        setError(
+          'collecte_items_json-error',
+          mealsList,
+          'Risque allergene detecte: meal "' + firstConflict.meal_name + '" (allergene: ' + firstConflict.allergen + '). Le serveur appliquera un blocage strict.'
+        );
         valid = false;
       }
     }

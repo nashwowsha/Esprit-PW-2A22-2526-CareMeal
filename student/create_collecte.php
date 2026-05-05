@@ -9,6 +9,23 @@ $idPref = isset($_POST['id_pref']) ? (int)$_POST['id_pref'] : (isset($_GET['id_p
 $idRestaurant = isset($_POST['id_restaurant']) ? (int)$_POST['id_restaurant'] : (isset($_GET['id_restaurant']) ? (int)$_GET['id_restaurant'] : 0);
 
 $status = isset($_GET['status']) ? trim((string)$_GET['status']) : '';
+$blockedSummary = '';
+if (isset($_GET['blocked_summary_b64'])) {
+    $decodedBlockedSummary = base64_decode((string)$_GET['blocked_summary_b64'], true);
+    if ($decodedBlockedSummary !== false) {
+        $blockedSummary = trim((string)$decodedBlockedSummary);
+    }
+}
+$blockedItems = [];
+if (isset($_GET['blocked_items_b64'])) {
+    $decodedBlockedItems = base64_decode((string)$_GET['blocked_items_b64'], true);
+    if ($decodedBlockedItems !== false) {
+        $parsedBlockedItems = json_decode((string)$decodedBlockedItems, true);
+        if (is_array($parsedBlockedItems)) {
+            $blockedItems = $parsedBlockedItems;
+        }
+    }
+}
 $addressValue = isset($_POST['adresse_livraison'])
     ? trim((string)$_POST['adresse_livraison'])
     : (isset($_GET['adresse_livraison']) ? trim((string)$_GET['adresse_livraison']) : '');
@@ -76,6 +93,7 @@ foreach ($restaurantMeals as $meal) {
 
 $displayItems = [];
 $computedTotal = 0.0;
+$selectedMealsForJs = [];
 foreach ($itemsForPayload as $item) {
     $mealId = $item['meal_id'];
     $qty = (int)$item['quantity'];
@@ -93,6 +111,15 @@ foreach ($itemsForPayload as $item) {
         'unit_price' => $unitPrice,
         'line_total' => $lineTotal,
     ];
+    if ($meal) {
+        $selectedMealsForJs[] = [
+            'meal_id' => $mealId,
+            'meal_name' => trim((string)($meal['meal_name'] ?? $mealId)),
+            'allergens' => trim((string)($meal['allergens'] ?? '')),
+            'ingredients' => trim((string)($meal['ingredients'] ?? '')),
+            'allergen_disclosure_mode' => trim((string)($meal['allergen_disclosure_mode'] ?? '')),
+        ];
+    }
 }
 
 $totalInput = isset($_POST['montant_total']) ? trim((string)$_POST['montant_total']) : (isset($_GET['montant_total']) ? trim((string)$_GET['montant_total']) : '');
@@ -124,10 +151,24 @@ $statusMessages = [
     'error_items_empty' => ['class' => 'error', 'text' => 'Aucun meal selectionne.'],
     'error_items_invalid' => ['class' => 'error', 'text' => 'Items invalides pour ce restaurant.'],
     'error_items_unavailable' => ['class' => 'error', 'text' => 'Stock insuffisant pour un ou plusieurs meals.'],
+    'error_allergen_blocked' => ['class' => 'error', 'text' => 'Collecte bloquee pour securite allergene (mode strict).'],
     'error_db' => ['class' => 'error', 'text' => 'Erreur base de donnees.'],
     'error_unknown_action' => ['class' => 'error', 'text' => 'Action inconnue.'],
     'error_invalid_request' => ['class' => 'error', 'text' => 'Requete invalide.'],
 ];
+$prefAllergiesForJs = '';
+if ($idPref > 0) {
+    try {
+        $prefQ = config::getConnexion()->prepare("SELECT allergies FROM preference WHERE id_pref = :id_pref LIMIT 1");
+        $prefQ->execute(['id_pref' => $idPref]);
+        $prefRow = $prefQ->fetch();
+        if ($prefRow) {
+            $prefAllergiesForJs = trim((string)($prefRow['allergies'] ?? ''));
+        }
+    } catch (Exception $e) {
+        $prefAllergiesForJs = '';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -158,6 +199,13 @@ $statusMessages = [
       color: #842029;
       background: rgba(220, 53, 69, 0.16);
       border-color: rgba(220, 53, 69, 0.4);
+    }
+    .blocked-items-list {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+    .blocked-items-list li {
+      margin: 4px 0;
     }
     .collecte-grid {
       display: grid;
@@ -284,6 +332,35 @@ $statusMessages = [
         <?php if (isset($statusMessages[$status])): ?>
           <div class="alert-box <?= htmlspecialchars((string)$statusMessages[$status]['class'], ENT_QUOTES, 'UTF-8') ?>">
             <?= htmlspecialchars((string)$statusMessages[$status]['text'], ENT_QUOTES, 'UTF-8') ?>
+            <?php if ($status === 'error_allergen_blocked' && !empty($blockedItems)): ?>
+              <ul class="blocked-items-list">
+                <?php foreach ($blockedItems as $blocked): ?>
+                  <?php
+                    $blockedMeal = trim((string)($blocked['meal_name'] ?? '-'));
+                    $blockedAllergen = trim((string)($blocked['allergen'] ?? '-'));
+                    $blockedOrigin = trim((string)($blocked['origin'] ?? '-'));
+                    $triggerList = [];
+                    if (isset($blocked['trigger_ingredients']) && is_array($blocked['trigger_ingredients'])) {
+                        foreach ($blocked['trigger_ingredients'] as $tr) {
+                            $tv = trim((string)$tr);
+                            if ($tv !== '') {
+                                $triggerList[] = $tv;
+                            }
+                        }
+                    }
+                    $triggerText = empty($triggerList) ? 'source incertaine' : implode(', ', array_unique($triggerList));
+                  ?>
+                  <li>
+                    Meal: <?= htmlspecialchars($blockedMeal, ENT_QUOTES, 'UTF-8') ?> |
+                    Allergene: <?= htmlspecialchars($blockedAllergen, ENT_QUOTES, 'UTF-8') ?> |
+                    Source: <?= htmlspecialchars($blockedOrigin, ENT_QUOTES, 'UTF-8') ?> |
+                    Ingredient responsable: <?= htmlspecialchars($triggerText, ENT_QUOTES, 'UTF-8') ?>
+                  </li>
+                <?php endforeach; ?>
+              </ul>
+            <?php elseif ($status === 'error_allergen_blocked' && $blockedSummary !== ''): ?>
+              <p class="meta" style="margin-top:8px;color:#ffd5d9;"><?= htmlspecialchars($blockedSummary, ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
           </div>
         <?php endif; ?>
 
@@ -401,6 +478,10 @@ $statusMessages = [
   <script src="../js/components.js"></script>
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
   <script src="../js/collecte-address-picker.js"></script>
+  <script>
+    window.STUDENT_COLLECTE_PREF_ALLERGIES = <?= json_encode($prefAllergiesForJs, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    window.STUDENT_COLLECTE_SELECTED_MEALS = <?= json_encode($selectedMealsForJs, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  </script>
   <script src="../js/student-collecte-validation.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {

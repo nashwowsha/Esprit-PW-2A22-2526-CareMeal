@@ -3,10 +3,12 @@ require_once __DIR__ . '/../Controller/RestaurantController.php';
 require_once __DIR__ . '/../Controller/PreferenceController.php';
 require_once __DIR__ . '/../Controller/PlanningCollecteController.php';
 require_once __DIR__ . '/../Controller/PdfExport.php';
+require_once __DIR__ . '/../config/app.php';
 
 $controller = new RestaurantController();
 $preferenceController = new PreferenceController();
 $collecteController = new PlanningCollecteController();
+$realtimeConfig = caremeal_realtime_public_config();
 $idOwner = isset($_GET['id_owner']) ? (int)$_GET['id_owner'] : 1;
 if ($idOwner <= 0) {
     $idOwner = 1;
@@ -218,6 +220,18 @@ if ($selectedRestaurant && $mealEdit !== '') {
     }
 }
 
+$mealEditDisclosureMode = 'none';
+$mealEditAllergensValue = '';
+if ($mealEditData) {
+    $rawMode = strtolower(trim((string)($mealEditData['allergen_disclosure_mode'] ?? '')));
+    $rawAllergens = trim((string)($mealEditData['allergens'] ?? ''));
+    $legacyNone = in_array(strtolower(preg_replace('/\s+/', '', $rawAllergens)), ['', 'aucun', 'none', 'na', 'n/a', '-', 'pasdallergene', 'sansallergene'], true);
+    if ($rawMode === 'declared' || (!$legacyNone && $rawAllergens !== '')) {
+        $mealEditDisclosureMode = 'declared';
+        $mealEditAllergensValue = $rawAllergens;
+    }
+}
+
 $selectedRestaurantMealsBase = $selectedRestaurant ? (array)($selectedRestaurant['meals'] ?? []) : [];
 $selectedRestaurantMeals = [];
 foreach ($selectedRestaurantMealsBase as $meal) {
@@ -281,6 +295,7 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf' && $selectedRe
             (string)($meal['pricing_mode'] ?? ''),
             number_format((float)($meal['price'] ?? 0), 2, '.', ''),
             (string)($meal['allergens'] ?? ''),
+            (string)partnerMealDisclosureLabel($meal),
             (string)($meal['regime_tags'] ?? ''),
         ];
     }
@@ -288,7 +303,7 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf' && $selectedRe
     caremeal_stream_table_pdf(
         'partner_meals_restaurant_' . (int)$selectedRestaurant['id_restaurant'] . '_' . date('Ymd_His') . '.pdf',
         'Meals restaurant #' . (int)$selectedRestaurant['id_restaurant'],
-        ['ID Restaurant', 'Restaurant', 'Meal ID', 'Meal', 'Ingredients', 'Quantite disponible', 'Mode prix', 'Prix', 'Allergenes', 'Regime tags'],
+        ['ID Restaurant', 'Restaurant', 'Meal ID', 'Meal', 'Ingredients', 'Quantite disponible', 'Mode prix', 'Prix', 'Allergenes', 'Source allergenes', 'Regime tags'],
         $pdfRows,
         'landscape'
     );
@@ -333,6 +348,19 @@ function isMealRegimeSelected($value, $selectedMealRegimes)
     }, $selectedMealRegimes);
 
     return in_array($value, $normalized, true);
+}
+
+if (!function_exists('partnerMealDisclosureLabel')) {
+    function partnerMealDisclosureLabel($meal)
+    {
+        $mode = strtolower(trim((string)($meal['allergen_disclosure_mode'] ?? '')));
+        $allergens = trim((string)($meal['allergens'] ?? ''));
+        $legacyNone = in_array(strtolower(preg_replace('/\s+/', '', $allergens)), ['', 'aucun', 'none', 'na', 'n/a', '-', 'pasdallergene', 'sansallergene'], true);
+        if ($mode === 'declared' || (!$legacyNone && $allergens !== '')) {
+            return 'Allergenes presents';
+        }
+        return 'Aucun (vendeur non renseigne)';
+    }
 }
 
 $statusMessages = [
@@ -496,6 +524,26 @@ foreach ($restaurants as $restaurantForMap) {
     .meal-table { width: 100%; border-collapse: collapse; min-width: 900px; }
     .meal-table th, .meal-table td { border-bottom: 1px solid var(--color-dark-border); padding: 10px; text-align: left; vertical-align: top; }
     .meal-table th { color: var(--color-text-muted); font-size: .85rem; }
+    .hint-inline { color: var(--color-text-muted); font-size: .8rem; margin-top: 5px; }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: .74rem;
+      border: 1px solid transparent;
+    }
+    .live-pill.active {
+      color: #b6f6d5;
+      background: rgba(16, 185, 129, .2);
+      border-color: rgba(16, 185, 129, .45);
+    }
+    .live-pill.stale {
+      color: #ffd9b6;
+      background: rgba(249, 115, 22, .2);
+      border-color: rgba(249, 115, 22, .45);
+    }
     .thumb { width: 90px; height: 64px; border-radius: 8px; object-fit: cover; border: 1px solid var(--color-dark-border); }
     .tags-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
     .tag { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--color-dark-border); border-radius: 999px; padding: 8px 11px; background: rgba(255,255,255,.03); font-size: .86rem; cursor: pointer; }
@@ -753,8 +801,16 @@ foreach ($restaurants as $restaurantForMap) {
                     <div id="meal_regime_tags-error" class="field-error"></div>
                   </div>
                   <div>
+                    <label for="meal_allergen_disclosure_mode">Mode allergenes</label>
+                    <select class="select" id="meal_allergen_disclosure_mode" name="allergen_disclosure_mode">
+                      <option value="none"<?= $mealEditDisclosureMode === 'none' ? ' selected' : '' ?>>Aucun</option>
+                      <option value="declared"<?= $mealEditDisclosureMode === 'declared' ? ' selected' : '' ?>>Allergenes presents</option>
+                    </select>
+                    <div id="meal_allergen_disclosure_mode-error" class="field-error"></div>
+                  </div>
+                  <div id="meal_allergens_group" class="<?= $mealEditDisclosureMode === 'declared' ? '' : 'hidden' ?>">
                     <label for="meal_allergens">Allergenes declares</label>
-                    <input class="input" id="meal_allergens" name="allergens" type="text" placeholder="arachide, gluten ou aucun" value="<?= htmlspecialchars((string)($mealEditData['allergens'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                    <input class="input" id="meal_allergens" name="allergens" type="text" placeholder="arachide, gluten..." value="<?= htmlspecialchars((string)$mealEditAllergensValue, ENT_QUOTES, 'UTF-8') ?>">
                     <div id="meal_allergens-error" class="field-error"></div>
                   </div>
                   <div>
@@ -807,14 +863,14 @@ foreach ($restaurants as $restaurantForMap) {
                 <table class="meal-table">
                   <thead>
                     <tr>
-                      <th>Meal</th><th>Ingredients</th><th>Qty dispo</th><th>Regimes</th><th>Allergenes</th><th>Price</th><th>Actions</th>
+                      <th>Meal</th><th>Ingredients</th><th>Qty dispo</th><th>Regimes</th><th>Allergenes</th><th>Source allergenes</th><th>Price</th><th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     <?php if (empty($selectedRestaurantMeals)): ?>
-                      <tr><td colspan="7" style="color:var(--color-text-muted);">No meals yet for this restaurant.</td></tr>
+                      <tr><td colspan="8" style="color:var(--color-text-muted);">No meals yet for this restaurant.</td></tr>
                     <?php elseif (empty($filteredSelectedRestaurantMeals)): ?>
-                      <tr><td colspan="7" style="color:var(--color-text-muted);">No meals match the current filters.</td></tr>
+                      <tr><td colspan="8" style="color:var(--color-text-muted);">No meals match the current filters.</td></tr>
                     <?php else: ?>
                       <?php foreach ($filteredSelectedRestaurantMeals as $meal): ?>
                         <tr>
@@ -822,7 +878,8 @@ foreach ($restaurants as $restaurantForMap) {
                           <td><?= htmlspecialchars((string)($meal['ingredients'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                           <td><?= (int)($meal['display_quantity'] ?? 0) ?></td>
                           <td><?= htmlspecialchars((string)($meal['regime_tags'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                          <td><?= htmlspecialchars((string)($meal['allergens'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                          <td><?= htmlspecialchars(trim((string)($meal['allergens'] ?? '')) !== '' ? (string)$meal['allergens'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
+                          <td><?= htmlspecialchars(partnerMealDisclosureLabel($meal), ENT_QUOTES, 'UTF-8') ?></td>
                           <td><?= (($meal['pricing_mode'] ?? 'free') === 'free') ? 'Free' : number_format((float)($meal['price'] ?? 0), 2) . ' DT' ?></td>
                           <td>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -895,6 +952,15 @@ foreach ($restaurants as $restaurantForMap) {
                           $mode = strtolower((string)($collecte['mode_collecte'] ?? 'pickup'));
                           $statusOptions = partner_collecte_status_options($mode);
                           $currentStatus = trim((string)($collecte['statut'] ?? 'en_attente'));
+                          $isDelivery = $mode === 'delivery';
+                          $driverFirst = trim((string)($collecte['delivery_driver_first_name'] ?? ''));
+                          $driverLast = trim((string)($collecte['delivery_driver_last_name'] ?? ''));
+                          $driverName = trim($driverFirst . ' ' . $driverLast);
+                          $driverContact = trim((string)($collecte['delivery_driver_contact'] ?? ''));
+                          $driverUpdatedAt = trim((string)($collecte['delivery_driver_updated_at'] ?? ''));
+                          $driverUpdatedTs = $driverUpdatedAt !== '' ? strtotime($driverUpdatedAt) : false;
+                          $secondsSince = ($driverUpdatedTs !== false) ? max(0, time() - (int)$driverUpdatedTs) : null;
+                          $isLiveNow = ($secondsSince !== null && $secondsSince <= 20);
                           if (!in_array($currentStatus, $statusOptions, true) && $currentStatus !== '') {
                               $statusOptions[] = $currentStatus;
                           }
@@ -917,7 +983,20 @@ foreach ($restaurants as $restaurantForMap) {
                           <td><?= htmlspecialchars(partner_collecte_status_label($mode), ENT_QUOTES, 'UTF-8') ?></td>
                           <td><?= htmlspecialchars((string)$collecte['heure_souhaitee'], ENT_QUOTES, 'UTF-8') ?></td>
                           <td><?= number_format((float)$collecte['montant_total'], 2) ?> DT</td>
-                          <td><?= htmlspecialchars(partner_collecte_status_label($currentStatus), ENT_QUOTES, 'UTF-8') ?></td>
+                          <td>
+                            <?= htmlspecialchars(partner_collecte_status_label($currentStatus), ENT_QUOTES, 'UTF-8') ?>
+                            <?php if ($isDelivery && $driverUpdatedAt !== ''): ?>
+                              <div class="live-pill <?= $isLiveNow ? 'active' : 'stale' ?>">
+                                <?= $isLiveNow ? 'Livreur en direct' : ('Signal ancien (' . (int)$secondsSince . 's)') ?>
+                              </div>
+                            <?php endif; ?>
+                            <?php if ($isDelivery): ?>
+                              <div class="hint-inline">Livreur: <?= htmlspecialchars($driverName !== '' ? $driverName : 'non assigne', ENT_QUOTES, 'UTF-8') ?></div>
+                              <?php if ($driverContact !== ''): ?>
+                                <div class="hint-inline">Contact: <?= htmlspecialchars($driverContact, ENT_QUOTES, 'UTF-8') ?></div>
+                              <?php endif; ?>
+                            <?php endif; ?>
+                          </td>
                           <td>
                             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                               <a class="btn btn-outline btn-sm" href="collecte_detail.php?id_collecte=<?= (int)$collecte['id_collecte'] ?>&id_owner=<?= (int)$idOwner ?>#collecte-detail-card">Voir detail</a>
@@ -1006,6 +1085,9 @@ foreach ($restaurants as $restaurantForMap) {
   <script src="../js/app.js"></script>
   <script src="../js/components.js"></script>
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
+  <?php if (!empty($realtimeConfig['enabled'])): ?>
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+  <?php endif; ?>
   <script src="../js/collecte-address-picker.js"></script>
   <script src="../js/collectes-map.js"></script>
   <script src="../js/partner-restaurants-validation.js"></script>
@@ -1124,7 +1206,17 @@ foreach ($restaurants as $restaurantForMap) {
       if (typeof window.initCollectesMap === 'function') {
         window.initCollectesMap({
           containerId: 'partner-restaurants-map',
-          points: window.PARTNER_RESTAURANTS_MAP_POINTS || []
+          points: window.PARTNER_RESTAURANTS_MAP_POINTS || [],
+          liveEndpoint: '../Controller/planning_collecte.php?action=live_points&scope=partner&id_owner=<?= (int)$idOwner ?>',
+          pusher: {
+            enabled: <?= !empty($realtimeConfig['enabled']) ? 'true' : 'false' ?>,
+            key: <?= json_encode((string)($realtimeConfig['key'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            cluster: <?= json_encode((string)($realtimeConfig['cluster'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            channel: <?= json_encode('caremeal-partner-' . (int)$idOwner . '-live', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            eventName: 'driver-location'
+          },
+          pollMs: 200,
+          markerAnimationMs: 320
         });
       }
     });

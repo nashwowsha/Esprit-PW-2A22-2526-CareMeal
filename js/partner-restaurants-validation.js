@@ -145,6 +145,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var pricingModeField = document.getElementById('meal_pricing_mode');
     var priceField = document.getElementById('meal_price');
     var priceGroup = document.getElementById('meal_price_group');
+    var allergenModeField = document.getElementById('meal_allergen_disclosure_mode');
+    var allergensGroup = document.getElementById('meal_allergens_group');
     var regimeCheckboxes = mealForm.querySelectorAll('input[name="regime_tags[]"]');
     var firstRegimeInput = regimeCheckboxes.length ? regimeCheckboxes[0] : null;
 
@@ -175,6 +177,23 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
+    function syncAllergensField() {
+      var allergensField = document.getElementById('meal_allergens');
+      if (!allergenModeField || !allergensField) return;
+      var declared = allergenModeField.value === 'declared';
+      if (allergensGroup) {
+        if (declared) {
+          allergensGroup.classList.remove('hidden');
+        } else {
+          allergensGroup.classList.add('hidden');
+        }
+      }
+      if (!declared) {
+        allergensField.value = '';
+        setError('meal_allergens-error', allergensField, '');
+      }
+    }
+
     regimeCheckboxes.forEach(function (checkbox) {
       syncTagVisual(checkbox);
       checkbox.addEventListener('change', function () {
@@ -190,6 +209,13 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       syncPriceField();
     }
+    if (allergenModeField) {
+      allergenModeField.addEventListener('change', function () {
+        syncAllergensField();
+        setError('meal_allergen_disclosure_mode-error', allergenModeField, '');
+      });
+      syncAllergensField();
+    }
 
     mealForm.addEventListener('submit', function (event) {
       var valid = true;
@@ -197,6 +223,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var qtyField = document.getElementById('meal_quantity');
       var ingField = document.getElementById('meal_ingredients');
       var allergensField = document.getElementById('meal_allergens');
+      var allergenMode = allergenModeField ? allergenModeField.value : 'none';
 
       var name = nameField ? nameField.value.trim() : '';
       var qty = qtyField ? qtyField.value.trim() : '';
@@ -211,6 +238,7 @@ document.addEventListener('DOMContentLoaded', function () {
       setError('meal_ingredients-error', ingField, '');
       setError('meal_regime_tags-error', firstRegimeInput, '');
       setError('meal_allergens-error', allergensField, '');
+      setError('meal_allergen_disclosure_mode-error', allergenModeField, '');
       setError('meal_pricing_mode-error', pricingModeField, '');
       setError('meal_price-error', priceField, '');
 
@@ -230,8 +258,24 @@ document.addEventListener('DOMContentLoaded', function () {
         setError('meal_regime_tags-error', firstRegimeInput, 'Selectionner au moins un regime.');
         valid = false;
       }
-      if (!allergens) {
-        setError('meal_allergens-error', allergensField, 'Champ obligatoire (mettre "aucun" si besoin).');
+      if (allergenMode !== 'none' && allergenMode !== 'declared') {
+        setError('meal_allergen_disclosure_mode-error', allergenModeField, 'Mode allergenes invalide.');
+        valid = false;
+      }
+      if (allergenMode === 'declared') {
+        if (!allergens) {
+          setError('meal_allergens-error', allergensField, 'Champ obligatoire.');
+          valid = false;
+        } else if (!/^[A-Za-z\u00C0-\u024F\s,'-]+$/u.test(allergens)) {
+          setError('meal_allergens-error', allergensField, 'Lettres uniquement (pas de chiffres/symboles).');
+          valid = false;
+        }
+      } else if (allergensField) {
+        allergensField.value = '';
+        allergens = '';
+      }
+      if (allergens && /[0-9]/.test(allergens)) {
+        setError('meal_allergens-error', allergensField, 'Pas de chiffres dans les allergenes.');
         valid = false;
       }
       if (mode !== 'free' && mode !== 'paid') {

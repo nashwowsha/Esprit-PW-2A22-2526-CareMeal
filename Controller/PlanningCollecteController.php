@@ -1,8 +1,12 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/MatchingController.php';
 
 class PlanningCollecteController
 {
+    private $geoRad = 0.017453292519943295;
+
     private function db()
     {
         return config::getConnexion();
@@ -57,6 +61,449 @@ class PlanningCollecteController
             return null;
         }
         return (float)$value;
+    }
+
+    private function normalizePhoneInput($value)
+    {
+        $value = $this->norm($value);
+        if ($value === '') {
+            return '';
+        }
+        return preg_replace('/\s+/', ' ', $value) ?? '';
+    }
+
+    private function createTrackingToken()
+    {
+        try {
+            return bin2hex(random_bytes(16));
+        } catch (Exception $e) {
+            return sha1(uniqid('track_', true) . mt_rand());
+        }
+    }
+
+    private function trackingSnapEnabled()
+    {
+        $flag = strtolower((string)caremeal_env('CAREMEAL_TRACKING_SNAP_ENABLED', '1'));
+        return in_array($flag, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function trackingMaxAcceptAccuracyMeters()
+    {
+        $value = caremeal_env('CAREMEAL_TRACKING_MAX_ACCEPT_ACCURACY_M', '120');
+        $meters = is_numeric($value) ? (float)$value : 120.0;
+        return max(20.0, min(500.0, $meters));
+    }
+
+    private function trackingPoorAccuracyMeters()
+    {
+        $value = caremeal_env('CAREMEAL_TRACKING_POOR_ACCURACY_M', '70');
+        $meters = is_numeric($value) ? (float)$value : 70.0;
+        return max(15.0, min(300.0, $meters));
+    }
+
+    private function trackingSnapMaxAccuracyMeters()
+    {
+        $value = caremeal_env('CAREMEAL_TRACKING_SNAP_MAX_ACCURACY_M', '35');
+        $meters = is_numeric($value) ? (float)$value : 35.0;
+        return max(5.0, min(120.0, $meters));
+    }
+
+    private function trackingMaxSpeedMps()
+    {
+        $value = caremeal_env('CAREMEAL_TRACKING_MAX_SPEED_MPS', '40');
+        $mps = is_numeric($value) ? (float)$value : 40.0;
+        return max(8.0, min(100.0, $mps));
+    }
+
+    private function trackingTrackerLockTtlSec()
+    {
+        $value = caremeal_env('CAREMEAL_TRACKING_TRACKER_LOCK_TTL_SEC', '180');
+        $sec = is_numeric($value) ? (int)$value : 180;
+        return max(30, min(3600, $sec));
+    }
+
+    private function normalizeTrackerClientId($value)
+    {
+        $value = strtolower($this->norm($value));
+        if ($value === '') {
+            return '';
+        }
+        $value = preg_replace('/[^a-z0-9_\-]/', '', $value);
+        if (!is_string($value)) {
+            return '';
+        }
+        if (strlen($value) > 80) {
+            $value = substr($value, 0, 80);
+        }
+        return $value;
+    }
+
+    private function pusherEnabled()
+    {
+        $flag = strtolower((string)caremeal_env('CAREMEAL_PUSHER_ENABLED', '0'));
+        if (!in_array($flag, ['1', 'true', 'yes', 'on'], true)) {
+            return false;
+        }
+        return $this->pusherKey() !== '' && $this->pusherSecret() !== '' && $this->pusherAppId() !== '' && $this->pusherCluster() !== '';
+    }
+
+    private function pusherAppId()
+    {
+        return trim((string)caremeal_env('CAREMEAL_PUSHER_APP_ID', ''));
+    }
+
+    private function pusherKey()
+    {
+        return trim((string)caremeal_env('CAREMEAL_PUSHER_KEY', ''));
+    }
+
+    private function pusherSecret()
+    {
+        return trim((string)caremeal_env('CAREMEAL_PUSHER_SECRET', ''));
+    }
+
+    private function pusherCluster()
+    {
+        return trim((string)caremeal_env('CAREMEAL_PUSHER_CLUSTER', ''));
+    }
+
+    private function pusherApiHost()
+    {
+        return 'api-' . $this->pusherCluster() . '.pusher.com';
+    }
+
+    private function triggerPusherEvent($channels, $eventName, $payload)
+    {
+        if (!$this->pusherEnabled()) {
+            return false;
+        }
+        $channels = array_values(array_filter(array_unique(array_map(static function ($c) {
+            return trim((string)$c);
+        }, (array)$channels)), static function ($c) {
+            return $c !== '';
+        }));
+        if (empty($channels)) {
+            return false;
+        }
+
+        $bodyData = [
+            'name' => (string)$eventName,
+            'channels' => $channels,
+            'data' => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        ];
+        $body = json_encode($bodyData, JSON_UNESCAPED_UNICODE);
+        if (!is_string($body) || $body === '') {
+            return false;
+        }
+
+        $authTimestamp = time();
+        $authVersion = '1.0';
+        $bodyMd5 = md5($body);
+        $path = '/apps/' . rawurlencode($this->pusherAppId()) . '/events';
+        $queryParams = [
+            'auth_key' => $this->pusherKey(),
+            'auth_timestamp' => $authTimestamp,
+            'auth_version' => $authVersion,
+            'body_md5' => $bodyMd5,
+        ];
+        ksort($queryParams);
+        $query = http_build_query($queryParams);
+        $stringToSign = "POST\n{$path}\n{$query}";
+        $signature = hash_hmac('sha256', $stringToSign, $this->pusherSecret());
+        $url = 'https://' . $this->pusherApiHost() . $path . '?' . $query . '&auth_signature=' . $signature;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'CareMeal/1.0');
+            curl_exec($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            return $httpCode >= 200 && $httpCode < 300;
+        }
+
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'timeout' => 2,
+                'header' => "Content-Type: application/json\r\n",
+                'content' => $body,
+            ],
+        ]);
+        $result = @file_get_contents($url, false, $ctx);
+        return $result !== false;
+    }
+
+    private function toRad($deg)
+    {
+        return ((float)$deg) * $this->geoRad;
+    }
+
+    private function distanceMeters($lat1, $lng1, $lat2, $lng2)
+    {
+        $lat1 = $this->toRad($lat1);
+        $lng1 = $this->toRad($lng1);
+        $lat2 = $this->toRad($lat2);
+        $lng2 = $this->toRad($lng2);
+        $dLat = $lat2 - $lat1;
+        $dLng = $lng2 - $lng1;
+        $a = sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * (sin($dLng / 2) ** 2);
+        $c = 2 * atan2(sqrt($a), sqrt(max(0, 1 - $a)));
+        return 6371000 * $c;
+    }
+
+    private function fetchJson($url, $timeoutSec = 2)
+    {
+        $url = trim((string)$url);
+        if ($url === '') {
+            return null;
+        }
+
+        $timeoutSec = max(1, (int)$timeoutSec);
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeoutSec);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSec);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'CareMeal/1.0');
+            $raw = curl_exec($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if (!is_string($raw) || $raw === '' || $httpCode < 200 || $httpCode >= 300) {
+                return null;
+            }
+            $decoded = json_decode($raw, true);
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => $timeoutSec,
+                'header' => "User-Agent: CareMeal/1.0\r\n",
+            ],
+        ]);
+        $raw = @file_get_contents($url, false, $ctx);
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function snapCoordsToRoad($lat, $lng)
+    {
+        $lat = (float)$lat;
+        $lng = (float)$lng;
+
+        if (!$this->trackingSnapEnabled()) {
+            return ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => null];
+        }
+
+        $url = 'https://router.project-osrm.org/nearest/v1/driving/'
+            . rawurlencode((string)$lng) . ',' . rawurlencode((string)$lat)
+            . '?number=1';
+        $data = $this->fetchJson($url, 2);
+        if (!is_array($data) || ($data['code'] ?? '') !== 'Ok') {
+            return ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => null];
+        }
+
+        $waypoint = $data['waypoints'][0] ?? null;
+        if (!is_array($waypoint)) {
+            return ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => null];
+        }
+
+        $location = $waypoint['location'] ?? null; // [lng, lat]
+        if (!is_array($location) || count($location) < 2) {
+            return ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => null];
+        }
+
+        $snapLng = is_numeric($location[0]) ? (float)$location[0] : null;
+        $snapLat = is_numeric($location[1]) ? (float)$location[1] : null;
+        if ($snapLat === null || $snapLng === null) {
+            return ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => null];
+        }
+
+        $distance = isset($waypoint['distance']) && is_numeric($waypoint['distance'])
+            ? (float)$waypoint['distance']
+            : $this->distanceMeters($lat, $lng, $snapLat, $snapLng);
+
+        // If snap is too far from GPS point, keep raw location.
+        if ($distance > 120) {
+            return ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => $distance];
+        }
+
+        return ['lat' => $snapLat, 'lng' => $snapLng, 'source' => 'snapped_osrm', 'snap_distance_m' => $distance];
+    }
+
+    private function getTrackingPointForUpdate($trackingToken)
+    {
+        try {
+            $query = $this->db()->prepare(
+                "SELECT
+                    pc.id_collecte,
+                    pc.id_user,
+                    pc.statut,
+                    pc.delivery_tracker_client_id,
+                    pc.delivery_driver_first_name,
+                    pc.delivery_driver_last_name,
+                    pc.delivery_driver_contact,
+                    pc.delivery_driver_lat,
+                    pc.delivery_driver_lng,
+                    pc.delivery_driver_updated_at,
+                    r.id_owner AS restaurant_owner_id,
+                    r.nom AS restaurant_nom
+                 FROM planning_collecte pc
+                 LEFT JOIN restaurant r ON r.id_restaurant = pc.id_restaurant
+                 WHERE delivery_tracking_token = :token
+                   AND pc.mode_collecte = 'delivery'
+                   AND pc.statut IN ('en_cours_livraison', 'en_attente')
+                 LIMIT 1
+                 FOR UPDATE"
+            );
+            $query->execute(['token' => $trackingToken]);
+            return $query->fetch() ?: null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    private function getTrackingPointByTokenAnyState($trackingToken)
+    {
+        try {
+            $query = $this->db()->prepare(
+                "SELECT
+                    pc.id_collecte,
+                    pc.mode_collecte,
+                    pc.statut
+                 FROM planning_collecte pc
+                 WHERE pc.delivery_tracking_token = :token
+                 LIMIT 1"
+            );
+            $query->execute(['token' => $trackingToken]);
+            $row = $query->fetch();
+            return $row ?: null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    private function shouldRejectTrackingPoint($previousRow, $lat, $lng, $accuracy)
+    {
+        if ($accuracy !== null && $accuracy > $this->trackingMaxAcceptAccuracyMeters()) {
+            return ['reject' => true, 'status' => 'ignored_low_accuracy'];
+        }
+
+        if (!$previousRow) {
+            return ['reject' => false, 'status' => 'accept'];
+        }
+
+        $prevLat = isset($previousRow['delivery_driver_lat']) && is_numeric($previousRow['delivery_driver_lat'])
+            ? (float)$previousRow['delivery_driver_lat']
+            : null;
+        $prevLng = isset($previousRow['delivery_driver_lng']) && is_numeric($previousRow['delivery_driver_lng'])
+            ? (float)$previousRow['delivery_driver_lng']
+            : null;
+
+        if ($prevLat === null || $prevLng === null) {
+            return ['reject' => false, 'status' => 'accept'];
+        }
+
+        $distanceMeters = $this->distanceMeters($prevLat, $prevLng, $lat, $lng);
+        if ($distanceMeters < 0.4) {
+            return ['reject' => true, 'status' => 'ignored_micro_move'];
+        }
+
+        // Accuracy-aware jitter filter:
+        // if movement is smaller than expected GPS uncertainty, ignore it.
+        if ($accuracy !== null) {
+            $minMoveFromAccuracy = max(4.0, min(35.0, $accuracy * 0.8));
+            if ($distanceMeters < $minMoveFromAccuracy) {
+                return ['reject' => true, 'status' => 'ignored_accuracy_jitter'];
+            }
+        }
+
+        $prevUpdatedAt = (string)($previousRow['delivery_driver_updated_at'] ?? '');
+        $dtSeconds = 0.0;
+        if ($prevUpdatedAt !== '') {
+            $prevTs = strtotime($prevUpdatedAt);
+            if ($prevTs !== false) {
+                $dtSeconds = max(0.0, time() - $prevTs);
+            }
+        }
+
+        // Reject large sudden jumps when accuracy is medium/poor and elapsed time is short.
+        if ($dtSeconds > 0.0 && $accuracy !== null && $accuracy > 25.0) {
+            $maxReasonableJump = max(35.0, $accuracy * 2.5);
+            if ($dtSeconds < 3.0 && $distanceMeters > $maxReasonableJump) {
+                return ['reject' => true, 'status' => 'ignored_large_jump'];
+            }
+        }
+
+        if ($dtSeconds > 0.0) {
+            $speedMps = $distanceMeters / $dtSeconds;
+            $maxMps = $this->trackingMaxSpeedMps();
+            if ($speedMps > $maxMps && ($accuracy === null || $accuracy > 20.0)) {
+                return ['reject' => true, 'status' => 'ignored_unrealistic_jump'];
+            }
+        }
+
+        return ['reject' => false, 'status' => 'accept'];
+    }
+
+    private function publishDriverPointRealtime($previousRow, $lat, $lng)
+    {
+        if (!$this->pusherEnabled() || !is_array($previousRow)) {
+            return;
+        }
+
+        $collecteId = (int)($previousRow['id_collecte'] ?? 0);
+        $idUser = (int)($previousRow['id_user'] ?? 0);
+        $idOwner = (int)($previousRow['restaurant_owner_id'] ?? 0);
+        $status = $this->normalizeStatus((string)($previousRow['statut'] ?? 'en_cours_livraison'));
+        $restaurantName = $this->norm((string)($previousRow['restaurant_nom'] ?? ''));
+        $driverFirst = $this->norm((string)($previousRow['delivery_driver_first_name'] ?? ''));
+        $driverLast = $this->norm((string)($previousRow['delivery_driver_last_name'] ?? ''));
+        $driverName = trim($driverFirst . ' ' . $driverLast);
+        if ($driverName === '') {
+            $driverName = 'Livreur';
+        }
+        $driverContact = $this->norm((string)($previousRow['delivery_driver_contact'] ?? ''));
+
+        if ($collecteId <= 0) {
+            return;
+        }
+
+        $channels = ['caremeal-admin-live'];
+        if ($idOwner > 0) {
+            $channels[] = 'caremeal-partner-' . $idOwner . '-live';
+        }
+        if ($idUser > 0) {
+            $channels[] = 'caremeal-student-' . $idUser . '-live';
+        }
+
+        $payload = [
+            'collecte_id' => $collecteId,
+            'kind' => 'driver',
+            'label' => 'Livreur - collecte #' . $collecteId,
+            'location' => $restaurantName,
+            'status' => $status,
+            'driver_name' => $driverName,
+            'driver_contact' => $driverContact,
+            'lat' => (float)$lat,
+            'lng' => (float)$lng,
+            'updated_at' => date('Y-m-d H:i:s'),
+            'seconds_since_update' => 0,
+            'is_live' => true,
+        ];
+
+        $this->triggerPusherEvent($channels, 'driver-location', $payload);
     }
 
     private function parseRestaurantHours($hours)
@@ -370,6 +817,14 @@ class PlanningCollecteController
                 pref_regime_snapshot VARCHAR(1000) NOT NULL DEFAULT '',
                 pref_allergies_snapshot VARCHAR(1000) NOT NULL DEFAULT '',
                 pref_localisation_snapshot VARCHAR(1000) NOT NULL DEFAULT '',
+                delivery_driver_first_name VARCHAR(100) DEFAULT NULL,
+                delivery_driver_last_name VARCHAR(100) DEFAULT NULL,
+                delivery_driver_contact VARCHAR(40) DEFAULT NULL,
+                delivery_tracking_token VARCHAR(120) DEFAULT NULL,
+                delivery_tracker_client_id VARCHAR(80) DEFAULT NULL,
+                delivery_driver_lat DECIMAL(10,7) DEFAULT NULL,
+                delivery_driver_lng DECIMAL(10,7) DEFAULT NULL,
+                delivery_driver_updated_at DATETIME DEFAULT NULL,
                 heure_demande DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 heure_souhaitee DATETIME NOT NULL,
                 statut VARCHAR(30) NOT NULL DEFAULT 'en_attente',
@@ -381,11 +836,13 @@ class PlanningCollecteController
                 INDEX idx_collecte_pref (id_pref),
                 INDEX idx_collecte_user (id_user),
                 INDEX idx_collecte_statut (statut),
-                INDEX idx_collecte_heure (heure_souhaitee)
+                INDEX idx_collecte_heure (heure_souhaitee),
+                INDEX idx_collecte_delivery_token (delivery_tracking_token)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
         $this->ensureSnapshotColumns();
+        $this->ensureDeliveryColumns();
 
         // If the table already existed before, CREATE TABLE IF NOT EXISTS
         // does not add FK constraints. We enforce them separately.
@@ -414,6 +871,30 @@ class PlanningCollecteController
             'pref_regime_snapshot' => "ALTER TABLE planning_collecte ADD COLUMN pref_regime_snapshot VARCHAR(1000) NOT NULL DEFAULT '' AFTER adresse_lng",
             'pref_allergies_snapshot' => "ALTER TABLE planning_collecte ADD COLUMN pref_allergies_snapshot VARCHAR(1000) NOT NULL DEFAULT '' AFTER pref_regime_snapshot",
             'pref_localisation_snapshot' => "ALTER TABLE planning_collecte ADD COLUMN pref_localisation_snapshot VARCHAR(1000) NOT NULL DEFAULT '' AFTER pref_allergies_snapshot",
+        ];
+
+        foreach ($columnsToAdd as $column => $alterSql) {
+            if (!$this->columnExists($column)) {
+                try {
+                    $this->db()->exec($alterSql);
+                } catch (Exception $e) {
+                    // Keep runtime stable if migration cannot run now.
+                }
+            }
+        }
+    }
+
+    private function ensureDeliveryColumns()
+    {
+        $columnsToAdd = [
+            'delivery_driver_first_name' => "ALTER TABLE planning_collecte ADD COLUMN delivery_driver_first_name VARCHAR(100) DEFAULT NULL AFTER pref_localisation_snapshot",
+            'delivery_driver_last_name' => "ALTER TABLE planning_collecte ADD COLUMN delivery_driver_last_name VARCHAR(100) DEFAULT NULL AFTER delivery_driver_first_name",
+            'delivery_driver_contact' => "ALTER TABLE planning_collecte ADD COLUMN delivery_driver_contact VARCHAR(40) DEFAULT NULL AFTER delivery_driver_last_name",
+            'delivery_tracking_token' => "ALTER TABLE planning_collecte ADD COLUMN delivery_tracking_token VARCHAR(120) DEFAULT NULL AFTER delivery_driver_contact",
+            'delivery_tracker_client_id' => "ALTER TABLE planning_collecte ADD COLUMN delivery_tracker_client_id VARCHAR(80) DEFAULT NULL AFTER delivery_tracking_token",
+            'delivery_driver_lat' => "ALTER TABLE planning_collecte ADD COLUMN delivery_driver_lat DECIMAL(10,7) DEFAULT NULL AFTER delivery_tracker_client_id",
+            'delivery_driver_lng' => "ALTER TABLE planning_collecte ADD COLUMN delivery_driver_lng DECIMAL(10,7) DEFAULT NULL AFTER delivery_driver_lat",
+            'delivery_driver_updated_at' => "ALTER TABLE planning_collecte ADD COLUMN delivery_driver_updated_at DATETIME DEFAULT NULL AFTER delivery_driver_lng",
         ];
 
         foreach ($columnsToAdd as $column => $alterSql) {
@@ -636,6 +1117,333 @@ class PlanningCollecteController
         ];
     }
 
+    private function allergenSafetyMode()
+    {
+        $mode = strtolower((string)caremeal_env('CAREMEAL_ALLERGEN_SAFETY_MODE', 'strict'));
+        return $mode === 'souple' ? 'souple' : 'strict';
+    }
+
+    private function allergenOriginLabel($origin)
+    {
+        $origin = strtolower($this->norm($origin));
+        $map = [
+            'vendor_declared' => 'vendor_declared',
+            'declared' => 'vendor_declared',
+            'ai_from_ingredients' => 'ai_from_ingredients',
+            'ingredients' => 'ai_from_ingredients',
+            'ai_from_basic_recipe' => 'ai_from_basic_recipe',
+            'meal_name_recipe' => 'ai_from_basic_recipe',
+        ];
+        return $map[$origin] ?? 'ai_from_ingredients';
+    }
+
+    private function simpleAllergenAliasMap()
+    {
+        return [
+            'arachide' => 'arachide',
+            'arachides' => 'arachide',
+            'cacahuete' => 'arachide',
+            'cacahuetes' => 'arachide',
+            'peanut' => 'arachide',
+            'peanuts' => 'arachide',
+            'penut' => 'arachide',
+            'peenut' => 'arachide',
+            'pnut' => 'arachide',
+            'lactose' => 'lactose',
+            'lait' => 'lactose',
+            'milk' => 'lactose',
+            'fromage' => 'lactose',
+            'gluten' => 'gluten',
+            'ble' => 'gluten',
+            'wheat' => 'gluten',
+            'pain' => 'gluten',
+            'bread' => 'gluten',
+            'bun' => 'gluten',
+            'baguette' => 'gluten',
+            'sandwich' => 'gluten',
+            'soja' => 'soja',
+            'soy' => 'soja',
+            'sesame' => 'sesame',
+            'oeuf' => 'oeuf',
+            'egg' => 'oeuf',
+            'poisson' => 'poisson',
+            'fish' => 'poisson',
+            'noix' => 'fruits-a-coque',
+            'nuts' => 'fruits-a-coque',
+            'moutarde' => 'moutarde',
+            'mustard' => 'moutarde',
+            'celeri' => 'celeri',
+            'celery' => 'celeri',
+            'mollusque' => 'mollusques',
+            'mollusques' => 'mollusques',
+            'mollusk' => 'mollusques',
+            'mollusks' => 'mollusques',
+            'sulfite' => 'sulfites',
+            'sulfites' => 'sulfites',
+            'sulphite' => 'sulfites',
+            'sulphites' => 'sulfites',
+        ];
+    }
+
+    private function knownAllergenCanonicalsLite()
+    {
+        return array_values(array_unique(array_values($this->simpleAllergenAliasMap())));
+    }
+
+    private function isKnownAllergenCanonicalLite($token)
+    {
+        $token = $this->normalizeAllergenTokenLite($token);
+        if ($token === '') {
+            return false;
+        }
+        return in_array($token, $this->knownAllergenCanonicalsLite(), true);
+    }
+
+    private function extractAllergenCandidatesLite($value)
+    {
+        $chunks = is_array($value) ? $value : [(string)$value];
+        $out = [];
+
+        foreach ($chunks as $chunk) {
+            $text = strtolower($this->norm($chunk));
+            if ($text === '') {
+                continue;
+            }
+
+            $parts = preg_split('/[,;]+/', $text);
+            if (is_array($parts)) {
+                foreach ($parts as $part) {
+                    $norm = $this->normalizeAllergenTokenLite($part);
+                    if ($norm !== '') {
+                        $out[] = $norm;
+                    }
+                }
+            }
+
+            $clean = preg_replace('/[^a-z0-9]+/', ' ', $text);
+            $clean = trim((string)$clean);
+            if ($clean === '') {
+                continue;
+            }
+            $words = array_values(array_filter(explode(' ', $clean), static function ($w) {
+                return $w !== '' && strlen($w) >= 3;
+            }));
+            $count = count($words);
+            for ($i = 0; $i < $count; $i++) {
+                $out[] = $this->normalizeAllergenTokenLite($words[$i]);
+                if (strlen($words[$i]) > 4 && substr($words[$i], -1) === 's') {
+                    $out[] = $this->normalizeAllergenTokenLite(substr($words[$i], 0, -1));
+                }
+                if ($i + 1 < $count) {
+                    $out[] = $this->normalizeAllergenTokenLite($words[$i] . '-' . $words[$i + 1]);
+                }
+            }
+        }
+
+        $out = array_values(array_unique(array_values(array_filter($out, function ($token) {
+            return $token !== '' && $this->isKnownAllergenCanonicalLite($token);
+        }))));
+        return $out;
+    }
+
+    private function closestAllergenAliasTokenLite($token)
+    {
+        if (!function_exists('levenshtein')) {
+            return '';
+        }
+        $token = strtolower((string)$token);
+        if ($token === '' || strlen($token) < 4) {
+            return '';
+        }
+        $aliases = array_keys($this->simpleAllergenAliasMap());
+        $best = '';
+        $bestDist = 999;
+        foreach ($aliases as $alias) {
+            $dist = levenshtein($token, (string)$alias);
+            if ($dist < $bestDist) {
+                $bestDist = $dist;
+                $best = (string)$alias;
+            }
+        }
+        if ($best === '') {
+            return '';
+        }
+        $maxDist = strlen($token) <= 6 ? 2 : 3;
+        $ratio = $bestDist / max(1, strlen($token));
+        if ($bestDist <= $maxDist && $ratio <= 0.34) {
+            return $best;
+        }
+        return '';
+    }
+
+    private function normalizeAllergenTokenLite($value)
+    {
+        $token = strtolower($this->norm($value));
+        $token = str_replace(['_', ' '], '-', $token);
+        $token = preg_replace('/-+/', '-', $token);
+        $token = preg_replace('/[^a-z0-9\-]/', '', (string)$token);
+        $token = trim((string)$token, '-');
+        if ($token === '') {
+            return '';
+        }
+        $aliases = $this->simpleAllergenAliasMap();
+        if (isset($aliases[$token])) {
+            return $aliases[$token];
+        }
+        $parts = preg_split('/-+/', $token);
+        if (is_array($parts)) {
+            foreach ($parts as $part) {
+                $part = trim((string)$part);
+                if ($part !== '' && isset($aliases[$part])) {
+                    return $aliases[$part];
+                }
+            }
+        }
+        $closest = $this->closestAllergenAliasTokenLite($token);
+        if ($closest !== '' && isset($aliases[$closest])) {
+            return $aliases[$closest];
+        }
+        return $token;
+    }
+
+    private function parseAllergensLite($value)
+    {
+        return $this->extractAllergenCandidatesLite($value);
+    }
+
+    private function buildBlockedItemSummary($blockedItems)
+    {
+        $lines = [];
+        foreach ((array)$blockedItems as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $meal = $this->norm($item['meal_name'] ?? '');
+            $allergen = $this->norm($item['allergen'] ?? '');
+            $origin = $this->allergenOriginLabel($item['origin'] ?? '');
+            $triggers = [];
+            if (isset($item['trigger_ingredients']) && is_array($item['trigger_ingredients'])) {
+                foreach ($item['trigger_ingredients'] as $t) {
+                    $v = $this->norm((string)$t);
+                    if ($v !== '') {
+                        $triggers[] = $v;
+                    }
+                }
+            }
+            $triggerText = empty($triggers) ? 'source incertaine' : implode(', ', array_values(array_unique($triggers)));
+            $lines[] = 'Meal: ' . ($meal !== '' ? $meal : '-') . ' | Allergene: ' . ($allergen !== '' ? $allergen : '-') . ' | Source: ' . $origin . ' | Ingredient responsable: ' . $triggerText;
+        }
+        return implode(' || ', $lines);
+    }
+
+    private function validateAllergenSafetyGate($selectedItems, $restaurantMeals, $preferenceSnapshot)
+    {
+        $mode = $this->allergenSafetyMode();
+        $selectedItems = is_array($selectedItems) ? $selectedItems : [];
+        $restaurantMeals = is_array($restaurantMeals) ? $restaurantMeals : [];
+        if (empty($selectedItems) || empty($restaurantMeals)) {
+            return ['ok' => true, 'mode' => $mode, 'blocked_items' => []];
+        }
+
+        $mealIndex = [];
+        foreach ($restaurantMeals as $meal) {
+            if (!is_array($meal)) {
+                continue;
+            }
+            $mealId = $this->norm($meal['meal_id'] ?? '');
+            if ($mealId === '') {
+                continue;
+            }
+            $mealIndex[$mealId] = $meal;
+        }
+
+        $blocked = [];
+        $debug = [];
+        $allergyInput = $preferenceSnapshot['allergies'] ?? '';
+        try {
+            $matchingController = new MatchingController();
+            foreach ($selectedItems as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $mealId = $this->norm($item['meal_id'] ?? '');
+                if ($mealId === '' || !isset($mealIndex[$mealId])) {
+                    continue;
+                }
+                $meal = $mealIndex[$mealId];
+                $risk = $matchingController->assessMealAllergenRisk($meal, $allergyInput, $mode);
+                $mealName = $this->norm($meal['meal_name'] ?? $mealId);
+                $conflicts = is_array($risk['conflicts'] ?? null) ? $risk['conflicts'] : [];
+                $debug[] = [
+                    'meal_id' => $mealId,
+                    'meal_name' => $mealName,
+                    'safe' => !empty($risk['safe']),
+                    'conflicts' => $conflicts,
+                ];
+                if ($mode === 'strict' && !empty($conflicts)) {
+                    foreach ($conflicts as $conflict) {
+                        if (!is_array($conflict)) {
+                            continue;
+                        }
+                        $blocked[] = [
+                            'meal_id' => $mealId,
+                            'meal_name' => $mealName,
+                            'allergen' => $this->norm($conflict['allergen'] ?? ''),
+                            'trigger_ingredients' => isset($conflict['trigger_ingredients']) && is_array($conflict['trigger_ingredients']) ? array_values($conflict['trigger_ingredients']) : [],
+                            'origin' => $this->allergenOriginLabel($conflict['origin'] ?? ''),
+                        ];
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // Deterministic fallback when IA engine/controller is unavailable.
+            $userTokens = $this->parseAllergensLite($allergyInput);
+            foreach ($selectedItems as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $mealId = $this->norm($item['meal_id'] ?? '');
+                if ($mealId === '' || !isset($mealIndex[$mealId])) {
+                    continue;
+                }
+                $meal = $mealIndex[$mealId];
+                $mealName = $this->norm($meal['meal_name'] ?? $mealId);
+                $declaredTokens = $this->parseAllergensLite($meal['allergens'] ?? '');
+                $conflicts = array_values(array_intersect($userTokens, $declaredTokens));
+                if ($mode === 'strict' && !empty($conflicts)) {
+                    foreach ($conflicts as $conflictToken) {
+                        $blocked[] = [
+                            'meal_id' => $mealId,
+                            'meal_name' => $mealName,
+                            'allergen' => $conflictToken,
+                            'trigger_ingredients' => [],
+                            'origin' => 'vendor_declared',
+                        ];
+                    }
+                }
+            }
+        }
+
+        if (!empty($blocked) && $mode === 'strict') {
+            return [
+                'ok' => false,
+                'status' => 'error_allergen_blocked',
+                'errors' => ['items_json'],
+                'blocked_items' => $blocked,
+                'blocked_items_summary' => $this->buildBlockedItemSummary($blocked),
+                'safety_mode' => $mode,
+                'matching_debug' => $debug,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'mode' => $mode,
+            'blocked_items' => [],
+            'matching_debug' => $debug,
+        ];
+    }
+
     private function validateCollecte($source)
     {
         $idRestaurant = (int)($source['id_restaurant'] ?? 0);
@@ -663,8 +1471,15 @@ class PlanningCollecteController
         if ($idPref <= 0 || !$this->preferenceExists($idPref)) {
             return ['ok' => false, 'status' => 'error_pref_not_found', 'errors' => ['id_pref']];
         }
+        $prefSnapshot = $this->getPreferenceSnapshot($idPref);
+        if (!$prefSnapshot) {
+            return ['ok' => false, 'status' => 'error_pref_not_found', 'errors' => ['id_pref']];
+        }
         if ($idUser <= 0 || !$this->userExists($idUser)) {
             return ['ok' => false, 'status' => 'error_user_not_found', 'errors' => ['id_user']];
+        }
+        if ((int)($prefSnapshot['id_user'] ?? 0) !== $idUser) {
+            return ['ok' => false, 'status' => 'error_pref_user_mismatch', 'errors' => ['id_pref', 'id_user']];
         }
         if (!in_array($mode, ['pickup', 'delivery'], true)) {
             $errors[] = 'mode_collecte';
@@ -709,6 +1524,10 @@ class PlanningCollecteController
                 return ['ok' => false, 'status' => 'error_items_empty', 'errors' => ['items_json']];
             }
             return ['ok' => false, 'status' => 'error_items_invalid', 'errors' => ['items_json']];
+        }
+        $safetyGate = $this->validateAllergenSafetyGate($itemsResult['items'], $effectiveMeals ?? [], $prefSnapshot);
+        if (empty($safetyGate['ok'])) {
+            return $safetyGate;
         }
         if ($itemsResult['ok'] && (float)$itemsResult['total'] > 10000) {
             $errors[] = 'montant_total';
@@ -799,6 +1618,11 @@ class PlanningCollecteController
                     return ['ok' => false, 'status' => 'error_items_empty', 'errors' => ['items_json']];
                 }
                 return ['ok' => false, 'status' => 'error_items_invalid', 'errors' => ['items_json']];
+            }
+            $safetyGate = $this->validateAllergenSafetyGate($itemsResult['items'], $effectiveMeals, $snapshot);
+            if (empty($safetyGate['ok'])) {
+                $db->rollBack();
+                return $safetyGate;
             }
 
             $payload['pref_regime_snapshot'] = $snapshot['regime_alimentaire'];
@@ -1015,6 +1839,351 @@ class PlanningCollecteController
     public function partnerUpdateStatus($idCollecte, $status, $idOwner)
     {
         return $this->updateStatusInternal($idCollecte, $status, (int)$idOwner);
+    }
+
+    public function partnerAssignDeliveryDriver($idCollecte, $idOwner, $firstName, $lastName, $contact)
+    {
+        $this->ensureTable();
+        $idCollecte = (int)$idCollecte;
+        $idOwner = (int)$idOwner;
+        $firstName = $this->norm($firstName);
+        $lastName = $this->norm($lastName);
+        $contact = $this->normalizePhoneInput($contact);
+
+        if ($idCollecte <= 0) {
+            return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => $idOwner];
+        }
+        if ($idOwner <= 0) {
+            return ['ok' => false, 'status' => 'error_forbidden_collecte', 'id_owner' => 0];
+        }
+        if ($firstName === '' || $lastName === '' || $contact === '') {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => ['driver']];
+        }
+        if (!preg_match("/^[\\p{L}\\s'\\-]{2,100}$/u", $firstName)) {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => ['driver']];
+        }
+        if (!preg_match("/^[\\p{L}\\s'\\-]{2,100}$/u", $lastName)) {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => ['driver']];
+        }
+        if (!preg_match('/^\+?[0-9 ]{8,20}$/', $contact)) {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => ['driver']];
+        }
+
+        $db = $this->db();
+        try {
+            $db->beginTransaction();
+            $context = $this->getCollecteContextForUpdate($idCollecte);
+            if (!$context) {
+                $db->rollBack();
+                return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => $idOwner];
+            }
+            if ((int)($context['restaurant_owner_id'] ?? 0) !== $idOwner) {
+                $db->rollBack();
+                return [
+                    'ok' => false,
+                    'status' => 'error_forbidden_collecte',
+                    'id_owner' => $idOwner,
+                    'id_restaurant' => (int)($context['id_restaurant'] ?? 0),
+                ];
+            }
+
+            $mode = strtolower($this->norm($context['mode_collecte'] ?? ''));
+            if ($mode !== 'delivery') {
+                $db->rollBack();
+                return [
+                    'ok' => false,
+                    'status' => 'error_invalid_status',
+                    'id_owner' => $idOwner,
+                    'id_restaurant' => (int)($context['id_restaurant'] ?? 0),
+                    'id_collecte' => $idCollecte,
+                ];
+            }
+
+            $currentStatus = strtolower($this->norm($context['statut'] ?? ''));
+            if (!in_array($currentStatus, ['en_attente', 'en_cours_livraison'], true)) {
+                $db->rollBack();
+                return [
+                    'ok' => false,
+                    'status' => 'error_invalid_status',
+                    'id_owner' => $idOwner,
+                    'id_restaurant' => (int)($context['id_restaurant'] ?? 0),
+                    'id_collecte' => $idCollecte,
+                ];
+            }
+
+            $token = $this->createTrackingToken();
+            $query = $db->prepare(
+                "UPDATE planning_collecte
+                 SET delivery_driver_first_name = :first_name,
+                     delivery_driver_last_name = :last_name,
+                     delivery_driver_contact = :contact,
+                     delivery_tracking_token = :token,
+                     delivery_tracker_client_id = NULL,
+                     delivery_driver_lat = NULL,
+                     delivery_driver_lng = NULL,
+                     delivery_driver_updated_at = NULL,
+                     statut = :status
+                 WHERE id_collecte = :id_collecte"
+            );
+            $query->execute([
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'contact' => $contact,
+                'token' => $token,
+                'status' => 'en_cours_livraison',
+                'id_collecte' => $idCollecte,
+            ]);
+            $db->commit();
+
+            return [
+                'ok' => true,
+                'status' => 'success_driver_assigned',
+                'id_collecte' => $idCollecte,
+                'id_owner' => $idOwner,
+                'id_restaurant' => (int)($context['id_restaurant'] ?? 0),
+                'tracking_token' => $token,
+            ];
+        } catch (Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['ok' => false, 'status' => 'error_db', 'id_owner' => $idOwner];
+        }
+    }
+
+    public function driverPingLocation($trackingToken, $lat, $lng, $accuracy = null, $trackerClientId = '')
+    {
+        $this->ensureTable();
+        $trackingToken = trim((string)$trackingToken);
+        if ($trackingToken === '') {
+            return ['ok' => false, 'status' => 'error_invalid_request'];
+        }
+        $trackerClientId = $this->normalizeTrackerClientId($trackerClientId);
+        if ($trackerClientId === '') {
+            $trackerClientId = 'legacy';
+        }
+        $lat = is_numeric($lat) ? (float)$lat : null;
+        $lng = is_numeric($lng) ? (float)$lng : null;
+        if ($lat === null || $lng === null || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return ['ok' => false, 'status' => 'error_validation', 'errors' => ['coords']];
+        }
+        $accuracy = is_numeric($accuracy) ? max(0, (float)$accuracy) : null;
+
+        $effective = ['lat' => $lat, 'lng' => $lng, 'source' => 'raw', 'snap_distance_m' => null];
+        if ($accuracy === null || $accuracy <= $this->trackingSnapMaxAccuracyMeters()) {
+            $effective = $this->snapCoordsToRoad($lat, $lng);
+        }
+
+        $db = $this->db();
+        try {
+            $db->beginTransaction();
+            $previous = $this->getTrackingPointForUpdate($trackingToken);
+            if (!$previous) {
+                $db->rollBack();
+                $anyState = $this->getTrackingPointByTokenAnyState($trackingToken);
+                if ($anyState) {
+                    $modeAny = strtolower($this->norm($anyState['mode_collecte'] ?? ''));
+                    $statusAny = $this->normalizeStatus((string)($anyState['statut'] ?? ''));
+                    if ($modeAny !== 'delivery') {
+                        return ['ok' => false, 'status' => 'error_not_delivery_mode'];
+                    }
+                    if (!in_array($statusAny, ['en_attente', 'en_cours_livraison'], true)) {
+                        return ['ok' => false, 'status' => 'error_not_trackable_status'];
+                    }
+                }
+                return ['ok' => false, 'status' => 'error_not_found'];
+            }
+
+            $lockedClientId = $this->normalizeTrackerClientId((string)($previous['delivery_tracker_client_id'] ?? ''));
+            if ($lockedClientId !== '' && $lockedClientId !== $trackerClientId) {
+                $lastTs = strtotime((string)($previous['delivery_driver_updated_at'] ?? ''));
+                $secondsSince = $lastTs !== false ? max(0, time() - (int)$lastTs) : 999999;
+                if ($secondsSince < $this->trackingTrackerLockTtlSec()) {
+                    $db->rollBack();
+                    return ['ok' => false, 'status' => 'error_tracker_locked'];
+                }
+            }
+
+            $decision = $this->shouldRejectTrackingPoint($previous, $effective['lat'], $effective['lng'], $accuracy);
+            // If snapped point causes false micro-lock, fallback to raw GPS point.
+            if (!empty($decision['reject'])
+                && (string)($decision['status'] ?? '') === 'ignored_micro_move'
+                && (string)($effective['source'] ?? '') === 'snapped_osrm') {
+                $rawDecision = $this->shouldRejectTrackingPoint($previous, $lat, $lng, $accuracy);
+                if (empty($rawDecision['reject'])) {
+                    $effective = ['lat' => $lat, 'lng' => $lng, 'source' => 'raw_fallback', 'snap_distance_m' => null];
+                    $decision = $rawDecision;
+                }
+            }
+            if (!empty($decision['reject'])) {
+                $db->rollBack();
+                return [
+                    'ok' => true,
+                    'status' => (string)$decision['status'],
+                    'ignored' => true,
+                    'source' => 'raw',
+                    'snap_distance_m' => null,
+                ];
+            }
+
+            $query = $db->prepare(
+                "UPDATE planning_collecte
+                 SET delivery_driver_lat = :lat,
+                     delivery_driver_lng = :lng,
+                     delivery_tracker_client_id = :tracker_client_id,
+                     delivery_driver_updated_at = NOW()
+                 WHERE delivery_tracking_token = :token
+                   AND mode_collecte = 'delivery'
+                   AND statut IN ('en_cours_livraison', 'en_attente')
+                 LIMIT 1"
+            );
+            $query->execute([
+                'lat' => $effective['lat'],
+                'lng' => $effective['lng'],
+                'tracker_client_id' => $trackerClientId,
+                'token' => $trackingToken,
+            ]);
+
+            // In MySQL, rowCount can be 0 when values stay identical.
+            // Since we already locked/validated the target row above,
+            // treat this as a valid ping instead of "not found".
+            $db->commit();
+            $this->publishDriverPointRealtime($previous, $effective['lat'], $effective['lng']);
+            return [
+                'ok' => true,
+                'status' => 'success_driver_ping',
+                'source' => $effective['source'],
+                'snap_distance_m' => $effective['snap_distance_m'],
+            ];
+        } catch (Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['ok' => false, 'status' => 'error_db'];
+        }
+    }
+
+    public function getLiveDeliveryDriverPoints($scope = 'admin', $idOwner = 0, $idUser = 0)
+    {
+        $this->ensureTable();
+        $scope = strtolower($this->norm($scope));
+        $idOwner = (int)$idOwner;
+        $idUser = (int)$idUser;
+
+        $where = "WHERE pc.mode_collecte = 'delivery'
+                  AND pc.statut IN ('en_attente', 'en_cours_livraison')
+                  AND pc.delivery_tracking_token IS NOT NULL
+                  AND pc.delivery_tracking_token <> ''
+                  AND pc.delivery_driver_lat IS NOT NULL
+                  AND pc.delivery_driver_lng IS NOT NULL";
+        $params = [];
+
+        if ($scope === 'partner') {
+            if ($idOwner <= 0) {
+                return [];
+            }
+            $where .= " AND r.id_owner = :id_owner";
+            $params['id_owner'] = $idOwner;
+        } elseif ($scope === 'student') {
+            if ($idUser <= 0) {
+                return [];
+            }
+            $where .= " AND pc.id_user = :id_user";
+            $params['id_user'] = $idUser;
+        }
+
+        $sql = "SELECT
+                    pc.id_collecte,
+                    pc.delivery_driver_first_name,
+                    pc.delivery_driver_last_name,
+                    pc.delivery_driver_contact,
+                    pc.delivery_driver_lat,
+                    pc.delivery_driver_lng,
+                    pc.delivery_driver_updated_at,
+                    TIMESTAMPDIFF(SECOND, pc.delivery_driver_updated_at, NOW()) AS seconds_since_update,
+                    pc.statut,
+                    r.nom AS restaurant_nom
+                FROM planning_collecte pc
+                LEFT JOIN restaurant r ON r.id_restaurant = pc.id_restaurant
+                $where
+                ORDER BY pc.id_collecte DESC";
+
+        try {
+            $query = $this->db()->prepare($sql);
+            $query->execute($params);
+            $rows = $query->fetchAll();
+        } catch (Exception $e) {
+            return [];
+        }
+
+        $points = [];
+        foreach ($rows as $row) {
+            $first = $this->norm($row['delivery_driver_first_name'] ?? '');
+            $last = $this->norm($row['delivery_driver_last_name'] ?? '');
+            $name = trim($first . ' ' . $last);
+            if ($name === '') {
+                $name = 'Livreur';
+            }
+            $secondsSinceUpdate = isset($row['seconds_since_update']) ? (int)$row['seconds_since_update'] : 999999;
+            $isLive = $secondsSinceUpdate >= 0 && $secondsSinceUpdate <= 20;
+            $points[] = [
+                'collecte_id' => (int)($row['id_collecte'] ?? 0),
+                'kind' => 'driver',
+                'label' => 'Livreur - collecte #' . (int)($row['id_collecte'] ?? 0),
+                'location' => (string)($row['restaurant_nom'] ?? ''),
+                'status' => $this->normalizeStatus((string)($row['statut'] ?? '')),
+                'driver_name' => $name,
+                'driver_contact' => (string)($row['delivery_driver_contact'] ?? ''),
+                'updated_at' => (string)($row['delivery_driver_updated_at'] ?? ''),
+                'seconds_since_update' => $secondsSinceUpdate,
+                'is_live' => $isLive,
+                'lat' => (float)($row['delivery_driver_lat'] ?? 0),
+                'lng' => (float)($row['delivery_driver_lng'] ?? 0),
+            ];
+        }
+
+        return $points;
+    }
+
+    public function getDriverSessionByToken($trackingToken)
+    {
+        $this->ensureTable();
+        $trackingToken = trim((string)$trackingToken);
+        if ($trackingToken === '') {
+            return null;
+        }
+
+        try {
+            $query = $this->db()->prepare(
+                "SELECT
+                    pc.id_collecte,
+                    pc.id_restaurant,
+                    pc.id_user,
+                    pc.mode_collecte,
+                    pc.statut,
+                    pc.delivery_driver_first_name,
+                    pc.delivery_driver_last_name,
+                    pc.delivery_driver_contact,
+                    pc.delivery_driver_updated_at,
+                    pc.delivery_driver_lat,
+                    pc.delivery_driver_lng,
+                    r.nom AS restaurant_nom,
+                    r.localisation AS restaurant_localisation
+                 FROM planning_collecte pc
+                 LEFT JOIN restaurant r ON r.id_restaurant = pc.id_restaurant
+                 WHERE pc.delivery_tracking_token = :token
+                   AND pc.mode_collecte = 'delivery'
+                 LIMIT 1"
+            );
+            $query->execute(['token' => $trackingToken]);
+            $row = $query->fetch();
+            if (!$row) {
+                return null;
+            }
+            return $row;
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     private function deleteCollecteInternal($idCollecte, $options = [])

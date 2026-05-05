@@ -125,6 +125,18 @@ if ($selectedRestaurant && $mealEdit !== '') {
     }
 }
 
+$mealEditDisclosureMode = 'none';
+$mealEditAllergensValue = '';
+if ($mealEditData) {
+    $rawMode = strtolower(trim((string)($mealEditData['allergen_disclosure_mode'] ?? '')));
+    $rawAllergens = trim((string)($mealEditData['allergens'] ?? ''));
+    $legacyNone = in_array(strtolower(preg_replace('/\s+/', '', $rawAllergens)), ['', 'aucun', 'none', 'na', 'n/a', '-', 'pasdallergene', 'sansallergene'], true);
+    if ($rawMode === 'declared' || (!$legacyNone && $rawAllergens !== '')) {
+        $mealEditDisclosureMode = 'declared';
+        $mealEditAllergensValue = $rawAllergens;
+    }
+}
+
 $formAction = $editRestaurant ? 'admin_update_restaurant' : 'admin_create_restaurant';
 $formTitle = $editRestaurant ? 'Edit Restaurant #' . (int)$editRestaurant['id_restaurant'] : 'Create Restaurant';
 $mealAction = $mealEditData ? 'admin_update_meal' : 'admin_add_meal';
@@ -164,6 +176,17 @@ function isMealRegimeSelected($value, $selectedMealRegimes)
     }, $selectedMealRegimes);
 
     return in_array($value, $normalized, true);
+}
+
+function adminMealDisclosureLabel($meal)
+{
+    $mode = strtolower(trim((string)($meal['allergen_disclosure_mode'] ?? '')));
+    $allergens = trim((string)($meal['allergens'] ?? ''));
+    $legacyNone = in_array(strtolower(preg_replace('/\s+/', '', $allergens)), ['', 'aucun', 'none', 'na', 'n/a', '-', 'pasdallergene', 'sansallergene'], true);
+    if ($mode === 'declared' || (!$legacyNone && $allergens !== '')) {
+        return 'Allergenes presents';
+    }
+    return 'Aucun (vendeur non renseigne)';
 }
 
 $statusMessages = [
@@ -295,13 +318,14 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf') {
             (string)($meal['pricing_mode'] ?? ''),
             number_format((float)($meal['price'] ?? 0), 2, '.', ''),
             (string)($meal['allergens'] ?? ''),
+            (string)adminMealDisclosureLabel($meal),
             (string)($meal['regime_tags'] ?? ''),
         ];
     }
     caremeal_stream_table_pdf(
         'admin_all_meals_' . date('Ymd_His') . '.pdf',
         'Tous les meals/aliments (admin)',
-        ['ID Restaurant', 'Restaurant', 'ID Owner', 'Owner', 'Meal', 'Ingredients', 'Quantite disponible', 'Mode prix', 'Prix', 'Allergenes', 'Regime tags'],
+        ['ID Restaurant', 'Restaurant', 'ID Owner', 'Owner', 'Meal', 'Ingredients', 'Quantite disponible', 'Mode prix', 'Prix', 'Allergenes', 'Source allergenes', 'Regime tags'],
         $pdfRows,
         'landscape'
     );
@@ -582,10 +606,10 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf') {
               <p class="section-note">First, see the current meals list. Then add, edit or delete meals for this restaurant.</p>
               <div class="table-wrap">
                 <table class="table">
-                  <thead><tr><th>Meal</th><th>Ingredients</th><th>Qty dispo</th><th>Regime</th><th>Allergens</th><th>Price</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Meal</th><th>Ingredients</th><th>Qty dispo</th><th>Regime</th><th>Allergens</th><th>Source allergenes</th><th>Price</th><th>Actions</th></tr></thead>
                   <tbody>
                     <?php if (empty($selectedRestaurant['meals'])): ?>
-                      <tr><td colspan="7" style="color:var(--color-text-muted);">No meals yet.</td></tr>
+                      <tr><td colspan="8" style="color:var(--color-text-muted);">No meals yet.</td></tr>
                     <?php else: ?>
                       <?php foreach ($selectedRestaurant['meals'] as $meal): ?>
                         <?php
@@ -602,7 +626,8 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf') {
                           <td><?= htmlspecialchars((string)($meal['ingredients'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                           <td><?= $mealAvailableQty ?></td>
                           <td><?= htmlspecialchars((string)($meal['regime_tags'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                          <td><?= htmlspecialchars((string)($meal['allergens'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                          <td><?= htmlspecialchars(trim((string)($meal['allergens'] ?? '')) !== '' ? (string)$meal['allergens'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
+                          <td><?= htmlspecialchars(adminMealDisclosureLabel($meal), ENT_QUOTES, 'UTF-8') ?></td>
                           <td><?= (($meal['pricing_mode'] ?? 'free') === 'free') ? 'Free' : number_format((float)($meal['price'] ?? 0), 2) . ' DT' ?></td>
                           <td>
                             <div class="actions">
@@ -659,7 +684,19 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf') {
                     </div>
                     <div id="meal_regime_tags-error" class="field-error"></div>
                   </div>
-                  <div><label for="meal_allergens">Allergens</label><input class="input" id="meal_allergens" name="allergens" type="text" value="<?= htmlspecialchars((string)($mealEditData['allergens'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"><div id="meal_allergens-error" class="field-error"></div></div>
+                  <div>
+                    <label for="meal_allergen_disclosure_mode">Mode allergenes</label>
+                    <select class="select" id="meal_allergen_disclosure_mode" name="allergen_disclosure_mode">
+                      <option value="none"<?= $mealEditDisclosureMode === 'none' ? ' selected' : '' ?>>Aucun</option>
+                      <option value="declared"<?= $mealEditDisclosureMode === 'declared' ? ' selected' : '' ?>>Allergenes presents</option>
+                    </select>
+                    <div id="meal_allergen_disclosure_mode-error" class="field-error"></div>
+                  </div>
+                  <div id="meal_allergens_group" class="<?= $mealEditDisclosureMode === 'declared' ? '' : 'hidden' ?>">
+                    <label for="meal_allergens">Allergenes declares</label>
+                    <input class="input" id="meal_allergens" name="allergens" type="text" value="<?= htmlspecialchars((string)$mealEditAllergensValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="arachide, gluten...">
+                    <div id="meal_allergens-error" class="field-error"></div>
+                  </div>
                   <div><label for="meal_pricing_mode">Pricing mode</label><select class="select" id="meal_pricing_mode" name="pricing_mode"><option value="free"<?= (($mealEditData['pricing_mode'] ?? '') === 'free') ? ' selected' : '' ?>>Free</option><option value="paid"<?= (($mealEditData['pricing_mode'] ?? '') === 'paid') ? ' selected' : '' ?>>Paid</option></select><div id="meal_pricing_mode-error" class="field-error"></div></div>
                   <div id="meal_price_group"><label for="meal_price">Price (if paid)</label><input class="input" id="meal_price" name="price" type="number" step="0.01" placeholder="ex: 7.50" value="<?= htmlspecialchars((string)($mealEditData['price'] ?? '0'), ENT_QUOTES, 'UTF-8') ?>"><div id="meal_price-error" class="field-error"></div></div>
                 </div>
@@ -708,14 +745,15 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf') {
                     <th>Qty dispo</th>
                     <th>Price</th>
                     <th>Allergens</th>
+                    <th>Source allergenes</th>
                     <th>Regime tags</th>
                   </tr>
                 </thead>
                 <tbody>
                   <?php if (empty($allMealsRows)): ?>
-                    <tr><td colspan="7" style="color:var(--color-text-muted);">No meals in database.</td></tr>
+                    <tr><td colspan="8" style="color:var(--color-text-muted);">No meals in database.</td></tr>
                   <?php elseif (empty($allMealsRowsFiltered)): ?>
-                    <tr><td colspan="7" style="color:var(--color-text-muted);">No meals match current filters.</td></tr>
+                    <tr><td colspan="8" style="color:var(--color-text-muted);">No meals match current filters.</td></tr>
                   <?php else: ?>
                     <?php foreach ($allMealsRowsFiltered as $row): ?>
                       <?php $meal = $row['meal']; ?>
@@ -725,7 +763,8 @@ if (isset($_GET['meal_export']) && $_GET['meal_export'] === 'pdf') {
                         <td>#<?= (int)$row['owner_id'] ?> - <?= htmlspecialchars((string)$row['owner_name'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= (int)($row['available_quantity'] ?? 0) ?></td>
                         <td><?= (($meal['pricing_mode'] ?? 'free') === 'free') ? 'Free' : number_format((float)($meal['price'] ?? 0), 2) . ' DT' ?></td>
-                        <td><?= htmlspecialchars((string)($meal['allergens'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars(trim((string)($meal['allergens'] ?? '')) !== '' ? (string)$meal['allergens'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars(adminMealDisclosureLabel($meal), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)($meal['regime_tags'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                       </tr>
                     <?php endforeach; ?>

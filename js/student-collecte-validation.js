@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var addressLngField = document.getElementById('student_collecte_adresse_lng');
   var timeField = document.getElementById('student_collecte_heure');
   var itemsField = document.getElementById('student_collecte_items_json');
+  var prefAllergiesRaw = String(window.STUDENT_COLLECTE_PREF_ALLERGIES || '');
+  var selectedMealsMeta = Array.isArray(window.STUDENT_COLLECTE_SELECTED_MEALS) ? window.STUDENT_COLLECTE_SELECTED_MEALS : [];
 
   var openTime = String(form.getAttribute('data-open-time') || '').trim();
   var closeTime = String(form.getAttribute('data-close-time') || '').trim();
@@ -41,6 +43,55 @@ document.addEventListener('DOMContentLoaded', function () {
     var min = parseInt(m[2], 10);
     if (h < 0 || h > 23 || min < 0 || min > 59) return null;
     return (h * 60) + min;
+  }
+
+  function normalizeToken(value) {
+    var token = String(value || '').trim().toLowerCase();
+    token = token.replace(/[_\s]+/g, '-').replace(/-+/g, '-').replace(/[^a-z0-9-]/g, '');
+    var map = {
+      'arachides': 'arachide',
+      'cacahuete': 'arachide',
+      'cacahuetes': 'arachide',
+      'peanut': 'arachide',
+      'peanuts': 'arachide',
+      'milk': 'lactose',
+      'lait': 'lactose',
+      'fromage': 'lactose',
+      'wheat': 'gluten',
+      'ble': 'gluten',
+      'soy': 'soja',
+      'egg': 'oeuf',
+      'eggs': 'oeuf',
+      'fish': 'poisson',
+      'nuts': 'fruits-a-coque'
+    };
+    return map[token] || token;
+  }
+
+  function parseTokenList(value) {
+    return String(value || '')
+      .split(/[,;]+/)
+      .map(function (part) { return normalizeToken(part); })
+      .filter(function (part) { return part.length > 0; })
+      .filter(function (part, index, arr) { return arr.indexOf(part) === index; });
+  }
+
+  function findDeclaredMealConflicts() {
+    var allergies = parseTokenList(prefAllergiesRaw);
+    if (allergies.length === 0) return [];
+    var conflicts = [];
+    selectedMealsMeta.forEach(function (meal) {
+      var mealAllergens = parseTokenList(meal && meal.allergens ? meal.allergens : '');
+      mealAllergens.forEach(function (token) {
+        if (allergies.indexOf(token) !== -1) {
+          conflicts.push({
+            meal_name: String((meal && meal.meal_name) || (meal && meal.meal_id) || ''),
+            allergen: token
+          });
+        }
+      });
+    });
+    return conflicts;
   }
 
   function syncAddressVisibility() {
@@ -130,6 +181,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (!Array.isArray(items) || items.length === 0) {
       setError('student_collecte_mode-error', modeField, 'Aucun item selectionne.');
+      valid = false;
+    }
+    var declaredConflicts = findDeclaredMealConflicts();
+    if (declaredConflicts.length > 0) {
+      var first = declaredConflicts[0];
+      setError(
+        'student_collecte_mode-error',
+        modeField,
+        'Risque allergene detecte: meal "' + first.meal_name + '" (allergene: ' + first.allergen + '). Le serveur appliquera un blocage strict.'
+      );
       valid = false;
     }
 

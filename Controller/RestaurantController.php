@@ -31,6 +31,59 @@ class RestaurantController
         return implode(', ', array_values(array_unique($out)));
     }
 
+    private function normalizeDisclosureMode($value)
+    {
+        $value = strtolower($this->norm($value));
+        if ($value === 'declared') {
+            return 'declared';
+        }
+        return 'none';
+    }
+
+    private function isLegacyNoneAllergenText($value)
+    {
+        $text = strtolower($this->norm((string)$value));
+        if ($text === '') {
+            return true;
+        }
+        $token = preg_replace('/\s+/', '', $text);
+        return in_array($token, ['aucun', 'none', 'na', 'n/a', '-', 'pasdallergene', 'sansallergene'], true);
+    }
+
+    private function normalizeMealCompatibility($meal)
+    {
+        if (!is_array($meal)) {
+            return [];
+        }
+
+        $allergens = $this->normList($meal['allergens'] ?? '');
+        $modeRaw = $meal['allergen_disclosure_mode'] ?? '';
+        $mode = $this->normalizeDisclosureMode($modeRaw);
+        if (($modeRaw === '' || $modeRaw === null) && !$this->isLegacyNoneAllergenText($allergens)) {
+            $mode = 'declared';
+        }
+        if ($this->isLegacyNoneAllergenText($allergens)) {
+            $mode = 'none';
+            $allergens = '';
+        }
+
+        $meal['allergen_disclosure_mode'] = $mode;
+        $meal['allergens'] = ($mode === 'declared') ? $allergens : '';
+        return $meal;
+    }
+
+    private function normalizeMealsCompatibilityArray($meals)
+    {
+        $out = [];
+        foreach ((array)$meals as $meal) {
+            $row = $this->normalizeMealCompatibility($meal);
+            if (!empty($row)) {
+                $out[] = $row;
+            }
+        }
+        return $out;
+    }
+
     private function normalizeCoordinateInput($value)
     {
         $value = $this->norm($value);
@@ -104,12 +157,16 @@ class RestaurantController
             return [];
         }
         $arr = json_decode($json, true);
-        return is_array($arr) ? $arr : [];
+        if (!is_array($arr)) {
+            return [];
+        }
+        return $this->normalizeMealsCompatibilityArray($arr);
     }
 
     private function mealsEncode($arr)
     {
-        return json_encode(array_values($arr), JSON_UNESCAPED_UNICODE);
+        $safe = $this->normalizeMealsCompatibilityArray((array)$arr);
+        return json_encode(array_values($safe), JSON_UNESCAPED_UNICODE);
     }
 
     private function uploadDir()
@@ -278,20 +335,41 @@ class RestaurantController
         } else {
             $reg = $this->normList($regInput);
         }
+        $disclosureMode = $this->normalizeDisclosureMode($src['allergen_disclosure_mode'] ?? 'none');
         $alg = $this->normList($src['allergens'] ?? '');
         $errors = [];
         if ($name === '' || strlen($name) < 2 || strlen($name) > 100 || !preg_match("/^[\\p{L}\\p{N}\\s'\\-]+$/u", $name)) { $errors[] = 'meal_name'; }
         if ($ing === '' || strlen($ing) < 2 || strlen($ing) > 1000 || !preg_match("/^[\\p{L}\\s,'\\-]+$/u", $ing)) { $errors[] = 'ingredients'; }
         if ($qty <= 0 || $qty > 1000) { $errors[] = 'quantity'; }
         if ($reg === '') { $errors[] = 'regime_tags'; }
-        if ($alg === '') { $errors[] = 'allergens'; }
+        if ($disclosureMode === 'declared') {
+            if ($alg === '') {
+                $errors[] = 'allergens';
+            } elseif (!preg_match("/^[\\p{L}\\s,'\\-]+$/u", $alg)) {
+                $errors[] = 'allergens';
+            }
+        } else {
+            $alg = '';
+        }
         if (!in_array($mode, ['free', 'paid'], true)) { $errors[] = 'pricing_mode'; }
         if ($mode === 'paid' && ($price <= 0 || $price > 500)) { $errors[] = 'price'; }
         if ($mode === 'free') { $price = 0; }
         if (!empty($errors)) {
             return ['ok' => false, 'status' => 'error_validation', 'errors' => array_values(array_unique($errors))];
         }
-        return ['ok' => true, 'meal' => ['meal_name' => $name, 'ingredients' => $ing, 'quantity' => $qty, 'pricing_mode' => $mode, 'price' => $price, 'regime_tags' => $reg, 'allergens' => $alg]];
+        return [
+            'ok' => true,
+            'meal' => [
+                'meal_name' => $name,
+                'ingredients' => $ing,
+                'quantity' => $qty,
+                'pricing_mode' => $mode,
+                'price' => $price,
+                'regime_tags' => $reg,
+                'allergen_disclosure_mode' => $disclosureMode,
+                'allergens' => $alg,
+            ],
+        ];
     }
 
     public function getPartnerRestaurants($idOwner)

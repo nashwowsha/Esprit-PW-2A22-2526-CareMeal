@@ -2,11 +2,30 @@
 require_once __DIR__ . '/../Controller/PlanningCollecteController.php';
 require_once __DIR__ . '/../Controller/RestaurantController.php';
 require_once __DIR__ . '/../Controller/PdfExport.php';
+require_once __DIR__ . '/../config/app.php';
 
 $controller = new PlanningCollecteController();
 $restaurantController = new RestaurantController();
+$realtimeConfig = caremeal_realtime_public_config();
 
 $status = $_GET['status'] ?? '';
+$blockedSummary = '';
+if (isset($_GET['blocked_summary_b64'])) {
+    $decodedBlockedSummary = base64_decode((string)$_GET['blocked_summary_b64'], true);
+    if ($decodedBlockedSummary !== false) {
+        $blockedSummary = trim((string)$decodedBlockedSummary);
+    }
+}
+$blockedItems = [];
+if (isset($_GET['blocked_items_b64'])) {
+    $decodedBlockedItems = base64_decode((string)$_GET['blocked_items_b64'], true);
+    if ($decodedBlockedItems !== false) {
+        $parsedBlockedItems = json_decode((string)$decodedBlockedItems, true);
+        if (is_array($parsedBlockedItems)) {
+            $blockedItems = $parsedBlockedItems;
+        }
+    }
+}
 $selectedId = isset($_GET['selected_id']) ? (int)$_GET['selected_id'] : 0;
 $search = trim((string)($_GET['q'] ?? ''));
 $sortBy = strtolower(trim((string)($_GET['sort_by'] ?? 'newest')));
@@ -17,7 +36,16 @@ if (!in_array($sortBy, $allowedSorts, true)) {
 $rows = $controller->getAllWithJoin($search, $sortBy);
 $db = config::getConnexion();
 $prefIds = $db->query("SELECT id_pref FROM preference ORDER BY id_pref")->fetchAll(PDO::FETCH_COLUMN);
+$prefRowsForJs = $db->query("SELECT id_pref, allergies FROM preference ORDER BY id_pref")->fetchAll();
 $userIds = $db->query("SELECT id FROM utilisateur ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+$prefAllergiesMap = [];
+foreach ($prefRowsForJs as $prefRowForJs) {
+    $prefIdKey = (int)($prefRowForJs['id_pref'] ?? 0);
+    if ($prefIdKey <= 0) {
+        continue;
+    }
+    $prefAllergiesMap[$prefIdKey] = trim((string)($prefRowForJs['allergies'] ?? ''));
+}
 
 $restaurantsRaw = $restaurantController->getAllRestaurantsForAdmin('');
 $restaurantsForPicker = [];
@@ -77,6 +105,9 @@ foreach ($restaurantsRaw as $restaurantRow) {
             'quantity' => $availableQty,
             'price' => (float)($meal['price'] ?? 0),
             'pricing_mode' => (($meal['pricing_mode'] ?? 'free') === 'paid') ? 'paid' : 'free',
+            'allergens' => trim((string)($meal['allergens'] ?? '')),
+            'ingredients' => trim((string)($meal['ingredients'] ?? '')),
+            'allergen_disclosure_mode' => trim((string)($meal['allergen_disclosure_mode'] ?? '')),
         ];
     }
     $restaurantsForPicker[] = [
@@ -100,6 +131,7 @@ $statusMessages = [
     'error_items_empty' => ['class' => 'error', 'text' => 'Aucun meal selectionne.'],
     'error_items_invalid' => ['class' => 'error', 'text' => 'Meals invalides pour ce restaurant.'],
     'error_items_unavailable' => ['class' => 'error', 'text' => 'Quantite demandee depasse le stock disponible.'],
+    'error_allergen_blocked' => ['class' => 'error', 'text' => 'Collecte bloquee pour securite allergene (mode strict).'],
     'error_invalid_status' => ['class' => 'error', 'text' => 'Statut invalide pour ce mode de collecte.'],
     'error_not_found' => ['class' => 'error', 'text' => 'Collecte introuvable.'],
     'error_cannot_delete_active_collecte' => ['class' => 'error', 'text' => 'Collecte active: suppression et/ou stock non autorise.'],
@@ -282,6 +314,8 @@ foreach ($rows as $row) {
     .alert-box { border-radius: var(--radius-md); padding: 12px 14px; border: 1px solid transparent; font-size: .9rem; }
     .alert-box.success { color: #0f5132; background: rgba(25,135,84,.18); border-color: rgba(25,135,84,.4); }
     .alert-box.error { color: #842029; background: rgba(220,53,69,.16); border-color: rgba(220,53,69,.4); }
+    .blocked-items-list { margin: 8px 0 0; padding-left: 18px; }
+    .blocked-items-list li { margin: 4px 0; }
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .full { grid-column: 1 / -1; }
@@ -295,6 +329,26 @@ foreach ($rows as $row) {
     .row-selected { background: rgba(249,115,22,.14); }
     .json-preview { font-size: .78rem; color: var(--color-text-muted); max-width: 280px; white-space: pre-wrap; word-break: break-word; }
     .hint-text { margin-top: 6px; color: var(--color-text-muted); font-size: .8rem; }
+    .hint-inline { color: var(--color-text-muted); font-size: .8rem; margin-top: 5px; }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: .74rem;
+      border: 1px solid transparent;
+    }
+    .live-pill.active {
+      color: #b6f6d5;
+      background: rgba(16, 185, 129, .2);
+      border-color: rgba(16, 185, 129, .45);
+    }
+    .live-pill.stale {
+      color: #ffd9b6;
+      background: rgba(249, 115, 22, .2);
+      border-color: rgba(249, 115, 22, .45);
+    }
     .meals-box { border: 1px solid var(--color-dark-border); border-radius: var(--radius-md); padding: 12px; background: rgba(255,255,255,.02); display: grid; gap: 8px; }
     .meal-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; }
     .meal-name { font-weight: 600; }
@@ -342,6 +396,35 @@ foreach ($rows as $row) {
           <?php if (isset($statusMessages[$status])): ?>
             <div class="alert-box <?= htmlspecialchars($statusMessages[$status]['class'], ENT_QUOTES, 'UTF-8') ?>">
               <?= htmlspecialchars($statusMessages[$status]['text'], ENT_QUOTES, 'UTF-8') ?>
+              <?php if ($status === 'error_allergen_blocked' && !empty($blockedItems)): ?>
+                <ul class="blocked-items-list">
+                  <?php foreach ($blockedItems as $blocked): ?>
+                    <?php
+                      $blockedMeal = trim((string)($blocked['meal_name'] ?? '-'));
+                      $blockedAllergen = trim((string)($blocked['allergen'] ?? '-'));
+                      $blockedOrigin = trim((string)($blocked['origin'] ?? '-'));
+                      $triggerList = [];
+                      if (isset($blocked['trigger_ingredients']) && is_array($blocked['trigger_ingredients'])) {
+                          foreach ($blocked['trigger_ingredients'] as $tr) {
+                              $tv = trim((string)$tr);
+                              if ($tv !== '') {
+                                  $triggerList[] = $tv;
+                              }
+                          }
+                      }
+                      $triggerText = empty($triggerList) ? 'source incertaine' : implode(', ', array_unique($triggerList));
+                    ?>
+                    <li>
+                      Meal: <?= htmlspecialchars($blockedMeal, ENT_QUOTES, 'UTF-8') ?> |
+                      Allergene: <?= htmlspecialchars($blockedAllergen, ENT_QUOTES, 'UTF-8') ?> |
+                      Source: <?= htmlspecialchars($blockedOrigin, ENT_QUOTES, 'UTF-8') ?> |
+                      Ingredient responsable: <?= htmlspecialchars($triggerText, ENT_QUOTES, 'UTF-8') ?>
+                    </li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php elseif ($status === 'error_allergen_blocked' && $blockedSummary !== ''): ?>
+                <p class="meta" style="margin-top:8px;color:#ffd5d9;"><?= htmlspecialchars($blockedSummary, ENT_QUOTES, 'UTF-8') ?></p>
+              <?php endif; ?>
             </div>
           <?php endif; ?>
 
@@ -474,6 +557,15 @@ foreach ($rows as $row) {
                         $mode = strtolower((string)($row['mode_collecte'] ?? 'pickup'));
                         $statusOptions = collecte_status_options($mode);
                         $currentStatus = trim((string)($row['statut'] ?? 'en_attente'));
+                        $isDelivery = $mode === 'delivery';
+                        $driverFirst = trim((string)($row['delivery_driver_first_name'] ?? ''));
+                        $driverLast = trim((string)($row['delivery_driver_last_name'] ?? ''));
+                        $driverName = trim($driverFirst . ' ' . $driverLast);
+                        $driverContact = trim((string)($row['delivery_driver_contact'] ?? ''));
+                        $driverUpdatedAt = trim((string)($row['delivery_driver_updated_at'] ?? ''));
+                        $driverUpdatedTs = $driverUpdatedAt !== '' ? strtotime($driverUpdatedAt) : false;
+                        $secondsSince = ($driverUpdatedTs !== false) ? max(0, time() - (int)$driverUpdatedTs) : null;
+                        $isLiveNow = ($secondsSince !== null && $secondsSince <= 20);
                         if (!in_array($currentStatus, $statusOptions, true) && $currentStatus !== '') {
                             $statusOptions[] = $currentStatus;
                         }
@@ -496,7 +588,20 @@ foreach ($rows as $row) {
                         <td><?= htmlspecialchars(collecte_status_label($mode), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$row['heure_souhaitee'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= number_format((float)$row['montant_total'], 2) ?> DT</td>
-                        <td><?= htmlspecialchars(collecte_status_label($currentStatus), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                          <?= htmlspecialchars(collecte_status_label($currentStatus), ENT_QUOTES, 'UTF-8') ?>
+                          <?php if ($isDelivery && $driverUpdatedAt !== ''): ?>
+                            <div class="live-pill <?= $isLiveNow ? 'active' : 'stale' ?>">
+                              <?= $isLiveNow ? 'Livreur en direct' : ('Signal ancien (' . (int)$secondsSince . 's)') ?>
+                            </div>
+                          <?php endif; ?>
+                          <?php if ($isDelivery): ?>
+                            <div class="hint-inline">Livreur: <?= htmlspecialchars($driverName !== '' ? $driverName : 'non assigne', ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php if ($driverContact !== ''): ?>
+                              <div class="hint-inline">Contact: <?= htmlspecialchars($driverContact, ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                          <?php endif; ?>
+                        </td>
                         <td>
                           <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <a class="btn btn-outline btn-sm" href="collecte_detail.php?id_collecte=<?= (int)$row['id_collecte'] ?>#collecte-detail-card">Voir detail</a>
@@ -574,12 +679,16 @@ foreach ($rows as $row) {
   <script src="../js/app.js?v=20260420c"></script>
   <script src="../js/components.js?v=20260421a"></script>
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
+  <?php if (!empty($realtimeConfig['enabled'])): ?>
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+  <?php endif; ?>
   <script src="../js/collecte-address-picker.js"></script>
   <script src="../js/collectes-map.js"></script>
   <script>
     window.ADMIN_COLLECTE_RESTAURANTS = <?= json_encode($restaurantsForPicker, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     window.ADMIN_COLLECTE_PREF_IDS = <?= json_encode(array_map('intval', $prefIds), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     window.ADMIN_COLLECTE_USER_IDS = <?= json_encode(array_map('intval', $userIds), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    window.ADMIN_COLLECTE_PREF_ALLERGIES = <?= json_encode($prefAllergiesMap, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     window.ADMIN_COLLECTES_MAP_POINTS = <?= json_encode($adminMapPoints, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
   </script>
   <script src="../js/admin-planning-collecte-validation.js"></script>
@@ -669,7 +778,17 @@ foreach ($rows as $row) {
       if (typeof window.initCollectesMap === 'function') {
         window.initCollectesMap({
           containerId: 'admin-collectes-map',
-          points: window.ADMIN_COLLECTES_MAP_POINTS || []
+          points: window.ADMIN_COLLECTES_MAP_POINTS || [],
+          liveEndpoint: '../Controller/planning_collecte.php?action=live_points&scope=admin',
+          pusher: {
+            enabled: <?= !empty($realtimeConfig['enabled']) ? 'true' : 'false' ?>,
+            key: <?= json_encode((string)($realtimeConfig['key'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            cluster: <?= json_encode((string)($realtimeConfig['cluster'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            channel: 'caremeal-admin-live',
+            eventName: 'driver-location'
+          },
+          pollMs: 200,
+          markerAnimationMs: 320
         });
       }
     });

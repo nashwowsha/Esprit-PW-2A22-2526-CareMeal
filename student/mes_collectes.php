@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../Controller/PlanningCollecteController.php';
 require_once __DIR__ . '/../Controller/PdfExport.php';
+require_once __DIR__ . '/../config/app.php';
 
 $controller = new PlanningCollecteController();
+$realtimeConfig = caremeal_realtime_public_config();
 
 $idUser = isset($_GET['id_user']) ? (int)$_GET['id_user'] : 1;
 if ($idUser <= 0) {
@@ -189,6 +191,25 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
       border: 1px solid var(--color-dark-border);
       background: rgba(255,255,255,.04);
     }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: .74rem;
+      border: 1px solid transparent;
+    }
+    .live-pill.active {
+      color: #b6f6d5;
+      background: rgba(16, 185, 129, .2);
+      border-color: rgba(16, 185, 129, .45);
+    }
+    .live-pill.stale {
+      color: #ffd9b6;
+      background: rgba(249, 115, 22, .2);
+      border-color: rgba(249, 115, 22, .45);
+    }
     .collectes-map {
       width: 100%;
       height: 340px;
@@ -344,7 +365,35 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
                         <td><?= htmlspecialchars(student_collecte_status_label($row['mode_collecte'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)($row['heure_souhaitee'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= number_format((float)($row['montant_total'] ?? 0), 2) ?> DT</td>
-                        <td><span class="status-pill"><?= htmlspecialchars(student_collecte_status_label($currentStatus), ENT_QUOTES, 'UTF-8') ?></span></td>
+                        <td>
+                          <span class="status-pill"><?= htmlspecialchars(student_collecte_status_label($currentStatus), ENT_QUOTES, 'UTF-8') ?></span>
+                          <?php if (strtolower(trim((string)($row['mode_collecte'] ?? ''))) === 'delivery'): ?>
+                            <?php
+                              $driverFirst = trim((string)($row['delivery_driver_first_name'] ?? ''));
+                              $driverLast = trim((string)($row['delivery_driver_last_name'] ?? ''));
+                              $driverName = trim($driverFirst . ' ' . $driverLast);
+                              $driverContact = trim((string)($row['delivery_driver_contact'] ?? ''));
+                              $driverUpdatedAt = trim((string)($row['delivery_driver_updated_at'] ?? ''));
+                              $driverUpdatedTs = $driverUpdatedAt !== '' ? strtotime($driverUpdatedAt) : false;
+                              $secondsSince = ($driverUpdatedTs !== false) ? max(0, time() - (int)$driverUpdatedTs) : null;
+                              $isLiveNow = ($secondsSince !== null && $secondsSince <= 20);
+                            ?>
+                            <?php if ($driverUpdatedAt !== ''): ?>
+                              <div class="live-pill <?= $isLiveNow ? 'active' : 'stale' ?>">
+                                <?= $isLiveNow ? 'Livreur en direct' : ('Signal ancien (' . (int)$secondsSince . 's)') ?>
+                              </div>
+                            <?php endif; ?>
+                            <div class="hint" style="margin-top:6px;">
+                              Livreur: <?= htmlspecialchars($driverName !== '' ? $driverName : 'non assigne', ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                            <?php if ($driverContact !== ''): ?>
+                              <div class="hint">Contact: <?= htmlspecialchars($driverContact, ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                            <?php if ($driverUpdatedAt !== ''): ?>
+                              <div class="hint">Derniere maj GPS: <?= htmlspecialchars($driverUpdatedAt, ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                          <?php endif; ?>
+                        </td>
                         <td>
                           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                             <a class="btn btn-outline btn-sm" href="collecte_detail.php?id_collecte=<?= (int)$row['id_collecte'] ?>&id_user=<?= (int)$idUser ?>#collecte-detail-card">Voir detail</a>
@@ -372,6 +421,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
   <script src="../js/app.js"></script>
   <script src="../js/components.js"></script>
   <script src="../assets/vendor/leaflet/leaflet.js"></script>
+  <?php if (!empty($realtimeConfig['enabled'])): ?>
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+  <?php endif; ?>
   <script src="../js/collectes-map.js"></script>
   <script>
     window.STUDENT_COLLECTES_MAP_POINTS = <?= json_encode($studentMapPoints, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
@@ -396,7 +448,17 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
       if (typeof window.initCollectesMap === 'function') {
         window.initCollectesMap({
           containerId: 'student-collectes-map',
-          points: window.STUDENT_COLLECTES_MAP_POINTS || []
+          points: window.STUDENT_COLLECTES_MAP_POINTS || [],
+          liveEndpoint: '../Controller/planning_collecte.php?action=live_points&scope=student&id_user=<?= (int)$idUser ?>',
+          pusher: {
+            enabled: <?= !empty($realtimeConfig['enabled']) ? 'true' : 'false' ?>,
+            key: <?= json_encode((string)($realtimeConfig['key'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            cluster: <?= json_encode((string)($realtimeConfig['cluster'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            channel: <?= json_encode('caremeal-student-' . (int)$idUser . '-live', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            eventName: 'driver-location'
+          },
+          pollMs: 200,
+          markerAnimationMs: 320
         });
       }
     });
