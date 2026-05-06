@@ -1,4 +1,4 @@
-<?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
+﻿<?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -22,11 +22,9 @@
       <nav class="sidebar-nav">
         <div class="sidebar-section">
           <div class="sidebar-section-title">Menu</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Accueil</a>
-          <a href="profile.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-user"></i></span> Mon Profil</a>
+                    <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-line"></i></span> Mon Dashboard</a>
           <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences</a>
           <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Commandes</a>
-          <a href="points.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-star"></i></span> Mes Points</a>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-section-title">Paramètres</div>
@@ -53,6 +51,9 @@
           <div class="page-title"><h2>Paramètres</h2><p>Gérez votre compte</p></div>
         </div>
         <div class="header-right">
+                    <a href="/projet2a22/View/FrontOffice/feed.php" title="Retour au Feed" style="display: flex; align-items: center; color: #FE5516; background: rgba(254,85,22,0.1); border-radius: 20px; padding: 6px 16px; font-size: 0.95rem; font-weight: 600; text-decoration: none; margin-right: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-house" style="margin-right: 8px;"></i> Retour au Feed
+          </a>
           <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar">AA</div>
         </div>
@@ -93,7 +94,7 @@
               <div style="flex:1;">
                 <label for="edit-university">Université / École</label>
                 <div class="input-wrapper">
-                  <select id="edit-university" class="form-input" onchange="document.getElementById('edit-university-other-container').style.display = this.value === 'autre' ? 'block' : 'none'">
+                  <select id="edit-university" class="form-input" onchange="document.getElementById('edit-university-other-container').style.display = this.value === 'autre' - 'block' : 'none'">
                     <option value="">Sélectionnez...</option>
                     <option value="Esprit">Esprit</option>
                     <option value="Sesame">Sesame</option>
@@ -113,7 +114,7 @@
               <div style="flex:1;">
                 <label for="edit-quartier">Quartier</label>
                 <div class="input-wrapper">
-                  <select id="edit-quartier" class="form-input" onchange="document.getElementById('edit-quartier-other-container').style.display = this.value === 'autre' ? 'block' : 'none'">
+                  <select id="edit-quartier" class="form-input" onchange="document.getElementById('edit-quartier-other-container').style.display = this.value === 'autre' - 'block' : 'none'">
                     <option value="">Sélectionnez...</option>
                     <option value="Ariana">Ariana</option>
                     <option value="Cité El Ghazela">Cité El Ghazela</option>
@@ -320,8 +321,8 @@
         <div class="face-modal-icon">
           <i class="fa-solid fa-user-shield"></i>
         </div>
-        <h2>Enregistrement du visage</h2>
-        <p>Regardez la camera et restez immobile pour capturer votre visage</p>
+        <h2>Face ID</h2>
+        <p>Regardez l'écran pour configurer la reconnaissance faciale.</p>
       </div>
       <div class="face-video-container">
         <video id="face-video" autoplay muted playsinline></video>
@@ -355,3 +356,9 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+

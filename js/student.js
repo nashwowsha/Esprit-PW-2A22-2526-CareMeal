@@ -222,66 +222,7 @@ const Student = {
     }).join('');
   },
 
-  // --- Points ---
-  async initPoints() {
-    await App.refreshCurrentUser();
-    if (!App.requireAuth(['student'])) return;
-    const user = App.getCurrentUser();
-    
-    // Total points and level
-    const totalPointsNode = document.getElementById('total-points');
-    if (totalPointsNode) totalPointsNode.textContent = user.points_accumules || 0;
-    
-    const levelNameNode = document.getElementById('level-name');
-    const currentLevelNode = document.getElementById('current-level');
-    const pointsNextNode = document.getElementById('points-next');
-    const levelProgressNode = document.getElementById('level-progress');
-    
-    const pts = user.points_accumules || 0;
-    let level = 1, levelName = "Débutant 🌱", maxPts = 100;
-    
-    if (pts >= 1000) { level = 4; levelName = "Légende Anti-Gaspi 👑"; maxPts = 1000; }
-    else if (pts >= 500) { level = 3; levelName = "Héros 🦸"; maxPts = 1000; }
-    else if (pts >= 100) { level = 2; levelName = "Initié 🌟"; maxPts = 500; }
 
-    if (levelNameNode) levelNameNode.textContent = levelName;
-    if (currentLevelNode) currentLevelNode.textContent = level;
-    
-    if (level < 4) {
-      if (pointsNextNode) pointsNextNode.textContent = (maxPts - pts) + ' points pour le niveau suivant';
-      if (levelProgressNode) levelProgressNode.style.width = Math.min(100, (pts / maxPts) * 100) + '%';
-    } else {
-      if (pointsNextNode) pointsNextNode.textContent = 'Niveau Maximum Atteint !';
-      if (levelProgressNode) levelProgressNode.style.width = '100%';
-    }
-
-    // Referral Code
-    const refCodeNode = document.getElementById('user-referral-code');
-    if (refCodeNode) {
-      refCodeNode.textContent = user.referral_code || 'NON-DISPONIBLE';
-    }
-  },
-
-  copyReferralCode() {
-    const code = document.getElementById('user-referral-code')?.textContent.trim();
-    if (code && code !== 'NON-DISPONIBLE' && code !== 'CHARGEMENT...') {
-      navigator.clipboard.writeText(code).then(() => {
-        const btn = document.getElementById('btn-copy-code');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-outline');
-        setTimeout(() => {
-          btn.innerHTML = originalHtml;
-          btn.classList.remove('btn-primary');
-          btn.classList.add('btn-outline');
-        }, 2000);
-        Components.showToast('Succès', 'Code copié dans le presse-papiers !', 'success');
-      }).catch(() => {
-        Components.showToast('Erreur', 'Impossible de copier le code', 'error');
-      });
-    }
-  },
 
   // --- Settings ---
   async initSettings() {

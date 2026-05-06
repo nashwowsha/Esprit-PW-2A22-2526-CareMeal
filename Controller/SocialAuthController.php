@@ -298,8 +298,8 @@ class SocialAuthController {
     private function getDashboardUrl($role) {
         $base = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
         switch ($role) {
-            case 'student': return $base . '/projet2a22/View/FrontOffice/student/dashboard.php';
-            case 'partner': return $base . '/projet2a22/View/FrontOffice/partner/dashboard.php';
+            case 'student': return $base . '/projet2a22/View/FrontOffice/feed.php';
+            case 'partner': return $base . '/projet2a22/View/FrontOffice/feed.php';
             case 'admin':   return $base . '/projet2a22/View/BackOffice/admin/dashboard.php';
             default:        return $base . '/projet2a22/View/FrontOffice/index.php';
         }
@@ -329,3 +329,4 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
     }
 }
 ?>
+

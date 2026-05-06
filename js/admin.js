@@ -182,9 +182,11 @@ const Admin = {
       const data = await res.json();
       
       if(data.success && data.users) {
+        this._allUsersRaw = data.users; // keep full list for type stats
         users = data.users.filter(u => u.role !== 'admin');
         App.saveUsers(users); // Sync local storage for other scripts
       } else {
+        this._allUsersRaw = null;
         users = App.getUsers().filter(u => u.role !== 'admin'); // Fallback local storage
       }
     } catch (e) {
@@ -260,6 +262,69 @@ const Admin = {
         </td>
       </tr>
     `).join('');
+
+    // Update type stats below the table
+    this.updateUserTypeStats();
+  },
+
+  updateUserTypeStats() {
+    const all = this._allUsersRaw || App.getUsers();
+    const total = all.length;
+
+    // Totals
+    const nStudents = all.filter(u => u.role === 'student').length;
+    const nPartners = all.filter(u => u.role === 'partner').length;
+    const nAdmins   = all.filter(u => u.role === 'admin').length;
+    const nActive   = all.filter(u => u.status === 'active').length;
+    const nPending  = all.filter(u => u.status === 'pending').length;
+    const nBanned   = all.filter(u => u.status === 'banned').length;
+
+    // Helper: set text
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    // Total card
+    setText('ustat-total', total);
+
+    // Legend values
+    setText('ustat-student-val', nStudents);
+    setText('ustat-partner-val', nPartners);
+    setText('ustat-admin-val',   nAdmins);
+    setText('ustat-active-val',  nActive);
+    setText('ustat-pending-val', nPending);
+    setText('ustat-banned-val',  nBanned);
+
+    // Donut centers
+    setText('donut-role-center',   total);
+    setText('donut-status-center', total);
+
+    if (!total) return;
+
+    // SVG donut helper — each segment offset by sum of previous
+    // circumference of r=15.9 ≈ 99.9 ≈ 100 (we use 100 as base)
+    const setDonut = (segments) => {
+      // segments: [{id, count}], total already known
+      let offset = 0;
+      segments.forEach(({ id, count }) => {
+        const pct = (count / total) * 100;
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.strokeDasharray  = `${pct} ${100 - pct}`;
+        el.style.strokeDashoffset = -offset;
+        offset += pct;
+      });
+    };
+
+    setDonut([
+      { id: 'donut-role-student', count: nStudents },
+      { id: 'donut-role-partner', count: nPartners },
+      { id: 'donut-role-admin',   count: nAdmins   },
+    ]);
+
+    setDonut([
+      { id: 'donut-status-active',  count: nActive  },
+      { id: 'donut-status-pending', count: nPending },
+      { id: 'donut-status-banned',  count: nBanned  },
+    ]);
   },
 
     // ================================================================

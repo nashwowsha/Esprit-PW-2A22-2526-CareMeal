@@ -49,32 +49,40 @@
   /* Colors */
   --color-primary: #FE5516;
   --color-primary-hover: #e84a10;
-  --color-primary-light: rgba(254, 85, 22, 0.15);
-  --color-primary-glow: rgba(254, 85, 22, 0.4);
+  --color-primary-light: rgba(254, 85, 22, 0.12);
+  --color-primary-glow: rgba(254, 85, 22, 0.25);
 
-  --color-dark: #0D1B2A;
-  --color-dark-lighter: #1B2838;
-  --color-dark-card: #162233;
-  --color-dark-border: rgba(255, 255, 255, 0.08);
-  --color-dark-hover: #1e2f44;
+  /* Light mode backgrounds */
+  --color-dark: #F0F2F5;
+  --color-dark-lighter: #FFFFFF;
+  --color-dark-card: #FFFFFF;
+  --color-dark-border: rgba(0, 0, 0, 0.08);
+  --color-dark-hover: #F5F7FA;
 
-  --color-beige: #E8D9BB;
+  /* Semantic aliases used across components */
+  --color-bg: #F0F2F5;
+  --color-bg-secondary: #FFFFFF;
+  --color-border: rgba(0, 0, 0, 0.09);
+  --color-surface: #FFFFFF;
+
+  --color-beige: #8B4513;
   --color-beige-light: #F5EDE0;
 
   --color-white: #FFFFFF;
-  --color-text: #E8E8E8;
-  --color-text-muted: #8899AA;
+  /* Text — dark on light */
+  --color-text: #1A202C;
+  --color-text-muted: #64748B;
   --color-text-dark: #2D3748;
 
   /* Status Colors */
   --color-success: #10B981;
-  --color-success-bg: rgba(16, 185, 129, 0.15);
+  --color-success-bg: rgba(16, 185, 129, 0.12);
   --color-warning: #F59E0B;
-  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
   --color-danger: #EF4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
   --color-info: #3B82F6;
-  --color-info-bg: rgba(59, 130, 246, 0.15);
+  --color-info-bg: rgba(59, 130, 246, 0.12);
 
   /* Typography */
   --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -207,7 +215,7 @@ input, select, textarea {
 h1, h2, h3, h4, h5, h6 {
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 h1 { font-size: var(--font-size-5xl); }

@@ -18,15 +18,15 @@
         <div class="sidebar-brand">Care<span>Meal</span></div>
       </div>
       <nav class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Administration</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
-          <a href="users.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
-          <a href="partners.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-                      <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> √âv√©nements</a>
-            <a href="logs.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activit√©</a>
-        </div>
-      </nav>
+          <div class="sidebar-section">
+            <div class="sidebar-section-title">Administration</div>
+            <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
+            <a href="users.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
+            <a href="partners.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
+            <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> …vÈnements</a>
+            <a href="logs.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activitÈ</a>
+          </div>
+        </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user">
           <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
@@ -49,6 +49,10 @@
           <div class="page-title"><h2>Logs d'activit√©</h2><p>Qui a fait quoi, quand</p></div>
         </div>
         <div class="header-right">
+          <a href="/projet2a22/View/FrontOffice/feed.php" title="Fil d'actualitÈ" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:1.1rem;text-decoration:none;transition:background .15s;" onmouseover="this.style.background='rgba(254,85,22,0.1)';this.style.color='#FE5516'" onmouseout="this.style.background='none';this.style.color='var(--color-text-muted)'">
+            <i class="fa-solid fa-house"></i>
+          </a>
+          <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
         </div>
       </header>
@@ -80,6 +84,8 @@
   </script>
 </body>
 </html>
+
+
 
 
 

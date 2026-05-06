@@ -40,7 +40,7 @@
           <div class="form-group">
             <label for="forgot-email">Adresse email ou Numéro de téléphone <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="text" id="forgot-email" class="form-input" placeholder="votre@email.com ou 12345678" required>
+              <input type="text" id="forgot-email" class="form-input" placeholder="votre@email.com ou 12345678">
               <span class="input-icon"><i class="fa-solid fa-envelope"></i></span>
             </div>
             <div class="form-error" id="forgot-email-error"></div>
@@ -56,7 +56,7 @@
           <div class="form-group">
             <label for="forgot-code">Code de vérification <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="text" id="forgot-code" class="form-input" placeholder="123456" maxlength="6" required>
+              <input type="text" id="forgot-code" class="form-input" placeholder="123456">
               <span class="input-icon"><i class="fa-solid fa-key"></i></span>
             </div>
             <div class="form-error" id="forgot-code-error"></div>
@@ -77,7 +77,7 @@
           <div class="form-group">
             <label for="forgot-new-password">Nouveau mot de passe <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="password" id="forgot-new-password" class="form-input" placeholder="Min. 6 caractères" required>
+              <input type="password" id="forgot-new-password" class="form-input" placeholder="Min. 6 caractères">
               <span class="input-icon"><i class="fa-solid fa-lock"></i></span>
               <button type="button" class="password-toggle" tabindex="-1"><i class="fa-solid fa-eye"></i></button>
             </div>

@@ -1,4 +1,4 @@
-<?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
+﻿<?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -21,8 +21,9 @@
       <nav class="sidebar-nav">
         <div class="sidebar-section">
           <div class="sidebar-section-title">Partenaire</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Établissement</a>
-          <a href="offers.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Offres</a>
+                    <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Mon Établissement</a>
+          <a href="offers.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Offres</a>
+          <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-alt"></i></span> Mes Événements</a>
           <a href="stats.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-simple"></i></span> Statistiques</a>
           <a href="settings.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
         </div>
@@ -47,6 +48,10 @@
           <div class="page-title"><h2>Mes Offres</h2><p>Gérez vos offres anti-gaspillage</p></div>
         </div>
         <div class="header-right">
+                    <a href="/projet2a22/View/FrontOffice/feed.php" title="Retour au Feed" style="display: flex; align-items: center; color: #FE5516; background: rgba(254,85,22,0.1); border-radius: 20px; padding: 6px 16px; font-size: 0.95rem; font-weight: 600; text-decoration: none; margin-right: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-house" style="margin-right: 8px;"></i> Retour au Feed
+          </a>
+          <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,var(--color-primary),#FF7A3D);">P</div>
         </div>
       </header>
@@ -99,3 +104,10 @@
   <script>document.addEventListener('DOMContentLoaded', () => Partner.initOffers());</script>
 </body>
 </html>
+
+
+
+
+
+
+

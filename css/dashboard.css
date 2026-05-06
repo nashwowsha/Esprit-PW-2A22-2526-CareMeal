@@ -13,8 +13,8 @@
 /* --- Sidebar --- */
 .sidebar {
   width: var(--sidebar-width);
-  background: linear-gradient(180deg, #0a1520 0%, var(--color-dark) 100%);
-  border-right: 1px solid var(--color-dark-border);
+  background: transparent;
+  border-right: none;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -29,7 +29,7 @@
 
 .sidebar-header {
   padding: var(--space-6);
-  border-bottom: 1px solid var(--color-dark-border);
+  border-bottom: none;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -49,7 +49,7 @@
 .sidebar-brand {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 .sidebar-brand span {
@@ -92,12 +92,12 @@
 }
 
 .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-white);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text);
 }
 
 .sidebar-link.active {
-  background: var(--color-primary-light);
+  background: rgba(254, 85, 22, 0.1);
   color: var(--color-primary);
 }
 
@@ -107,10 +107,7 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 60%;
-  background: var(--color-primary);
-  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  display: none;
 }
 
 .sidebar-link .link-icon {
@@ -141,7 +138,7 @@
 /* Sidebar Footer */
 .sidebar-footer {
   padding: var(--space-4) var(--space-3);
-  border-top: 1px solid var(--color-dark-border);
+  border-top: none;
 }
 
 .sidebar-user {
@@ -155,7 +152,7 @@
 }
 
 .sidebar-user:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-user-info {
@@ -166,7 +163,7 @@
 .sidebar-user-name {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-white);
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -201,10 +198,10 @@
 /* --- Top Header --- */
 .top-header {
   height: var(--header-height);
-  background: rgba(13, 27, 42, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--color-dark-border);
+  background: transparent;
+  
+  -webkit-
+  border-bottom: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -267,8 +264,8 @@
 }
 
 .header-notification:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-white);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text);
 }
 
 .header-notification .notif-dot {
@@ -307,10 +304,10 @@
 
 /* --- Welcome Banner --- */
 .welcome-banner {
-  background: linear-gradient(135deg, var(--color-dark-lighter) 0%, var(--color-dark-card) 100%);
+  background: linear-gradient(135deg, #FFF7F4 0%, #FFFFFF 100%);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(254, 85, 22, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   padding: var(--space-8);
   display: flex;
   align-items: center;
@@ -366,8 +363,8 @@
   padding: var(--space-8);
   background: var(--color-dark-card);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   margin-bottom: var(--space-8);
   position: relative;
   overflow: hidden;
@@ -451,8 +448,8 @@
 .impact-card {
   background: var(--color-dark-card);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   padding: var(--space-8);
   text-align: center;
   transition: all var(--transition-base);
@@ -460,8 +457,8 @@
 
 .impact-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  border-color: rgba(254, 85, 22, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .impact-card .impact-icon {
@@ -472,7 +469,7 @@
 .impact-card .impact-value {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 .impact-card .impact-label {
@@ -485,8 +482,8 @@
 .settings-group {
   background: var(--color-dark-card);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
@@ -495,7 +492,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-6);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: none;
   transition: all var(--transition-fast);
 }
 
@@ -504,7 +501,7 @@
 }
 
 .settings-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .settings-item-left {
@@ -568,7 +565,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-dark-border);
+  border-bottom: none;
 }
 
 .hours-row:last-child {
@@ -578,7 +575,7 @@
 .hours-day {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  color: var(--color-white);
+  color: var(--color-text);
   min-width: 100px;
 }
 
@@ -671,3 +668,5 @@
     padding: 0 var(--space-4);
   }
 }
+
+

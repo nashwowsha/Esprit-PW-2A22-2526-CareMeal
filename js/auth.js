@@ -83,8 +83,8 @@ const Auth = {
             
             // Redirect based on role
             switch (user.role) {
-                case 'student': window.location.href = '/projet2a22/View/FrontOffice/student/dashboard.php'; break;
-                case 'partner': window.location.href = '/projet2a22/View/FrontOffice/partner/dashboard.php'; break;
+                case 'student': window.location.href = '/projet2a22/View/FrontOffice/feed.php'; break;
+                case 'partner': window.location.href = '/projet2a22/View/FrontOffice/feed.php'; break;
                 case 'admin': window.location.href = '/projet2a22/View/BackOffice/admin/dashboard.php'; break;
                 default: window.location.href = '/projet2a22/View/FrontOffice/index.php'; break;
             }
@@ -860,6 +860,7 @@ const Auth = {
 
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => Auth.init());
+
 
 
 

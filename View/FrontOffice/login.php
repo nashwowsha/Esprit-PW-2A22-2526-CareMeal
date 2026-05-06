@@ -19,29 +19,36 @@
   <div class="auth-page">
     <!-- Left: Visual -->
     <div class="auth-visual">
+      <div class="auth-visual-pattern"></div>
       <div class="shape shape-1"></div>
       <div class="shape shape-2"></div>
       <div class="shape shape-3"></div>
       <div class="auth-visual-content">
-        <div class="logo" style="width:120px;height:120px;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
-        <h2>Bienvenue sur CareMeal</h2>
-        <p>Rejoignez la communauté qui lutte contre le gaspillage alimentaire tout en faisant des économies.</p>
-        <div style="display:flex;gap:24px;justify-content:center;margin-top:48px;">
-          <div style="text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--color-white);">-60%</div>
-            <div style="font-size:0.8rem;color:var(--color-text-muted);">Prix réduits</div>
+
+        <!-- Logo -->
+        <div style="width:88px;height:88px;background:rgba(255,255,255,0.18);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;border:2px solid rgba(255,255,255,0.3);">
+          <img src="/projet2a22/assets/logo.png" alt="Logo" style="width:60px;height:60px;object-fit:contain;">
+        </div>
+
+        <h2 style="font-size:1.75rem;font-weight:800;color:#fff;margin:0 0 12px;line-height:1.2;">Bienvenue sur<br>CareMeal</h2>
+        <p style="font-size:0.9rem;color:rgba(255,255,255,0.8);line-height:1.6;margin:0 0 48px;max-width:260px;margin-left:auto;margin-right:auto;">La plateforme anti-gaspillage alimentaire pour les étudiants.</p>
+
+        <!-- 3 stats épurées -->
+        <div style="display:flex;gap:0;justify-content:center;border-top:1px solid rgba(255,255,255,0.2);padding-top:32px;">
+          <div style="flex:1;text-align:center;padding:0 12px;border-right:1px solid rgba(255,255,255,0.2);">
+            <div style="font-size:1.4rem;margin-bottom:8px;"><i class="fa-solid fa-tag" style="color:#fff;"></i></div>
+            <div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:.06em;">Prix réduits</div>
           </div>
-          <div style="text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--color-white);">
-              <i class="fa-solid fa-seedling"></i></div>
-            <div style="font-size:0.8rem;color:var(--color-text-muted);">éco-responsable</div>
+          <div style="flex:1;text-align:center;padding:0 12px;border-right:1px solid rgba(255,255,255,0.2);">
+            <div style="font-size:1.4rem;margin-bottom:8px;"><i class="fa-solid fa-seedling" style="color:#fff;"></i></div>
+            <div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:.06em;">Éco-responsable</div>
           </div>
-          <div style="text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--color-white);">
-              <i class="fa-solid fa-bolt"></i></div>
-            <div style="font-size:0.8rem;color:var(--color-text-muted);">Rapide & Simple</div>
+          <div style="flex:1;text-align:center;padding:0 12px;">
+            <div style="font-size:1.4rem;margin-bottom:8px;"><i class="fa-solid fa-bolt" style="color:#fff;"></i></div>
+            <div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:.06em;">Rapide</div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -50,10 +57,10 @@
       <div class="auth-form-container">
         <div class="auth-form-header">
           <a href="/projet2a22/View/FrontOffice/index.php" class="brand-link">
-            <div class="brand-icon"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
+            <div class="brand-icon"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;"></div>
             Care<span style="color:var(--color-primary)">Meal</span>
           </a>
-          <h1>Bon retour ! <i class="fa-solid fa-hand-wave"></i></h1>
+          <h1>Bon retour !</h1>
           <p>Connectez-vous pour accéder à votre espace.</p>
         </div>
 
@@ -63,21 +70,20 @@
         <!-- Login Form -->
         <form id="login-form" onsubmit="Auth.handleLogin(event)">
           <div class="form-group">
-            <label for="login-email">Email <span class="required">*</span></label>
+            <label for="login-email">EMAIL <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="text" id="login-email" class="form-input" placeholder="votre@email.com" autocomplete="email">
               <span class="input-icon"><i class="fa-solid fa-envelope"></i></span>
+              <input type="text" id="login-email" class="form-input" placeholder="votre@email.com" autocomplete="email">
             </div>
             <div class="form-error" id="login-email-error"></div>
           </div>
 
           <div class="form-group">
-            <label for="login-password">Mot de passe <span class="required">*</span></label>
+            <label for="login-password">MOT DE PASSE <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="password" id="login-password" class="form-input" placeholder="Votre mot de passe" autocomplete="current-password">
               <span class="input-icon"><i class="fa-solid fa-lock"></i></span>
-              <button type="button" class="password-toggle">
-              <i class="fa-solid fa-eye"></i></button>
+              <input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password">
+              <button type="button" class="password-toggle"><i class="fa-solid fa-eye"></i></button>
             </div>
             <div class="form-error" id="login-password-error"></div>
           </div>
@@ -91,19 +97,16 @@
           </div>
 
           <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-login">
-            <span>
-              <span class="input-icon"><i class="fa-solid fa-rocket"></i></span> Se connecter
+            Se connecter
           </button>
         </form>
 
-        <div class="divider">
-          <span>ou continuer avec</span>
-        </div>
+        <div class="divider"><span>ou continuer avec</span></div>
 
         <div class="social-buttons">
           <div id="google-btn-container" style="display:none;position:absolute;"></div>
           <button class="btn btn-social btn-google" id="btn-google" onclick="Auth.handleGoogleLogin()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -111,16 +114,14 @@
             </svg>
             <span>Google</span>
           </button>
-
           <button class="btn btn-social btn-facebook" id="btn-facebook" onclick="Auth.handleFacebookLogin()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.99 4.388 10.954 10.125 11.854V15.47H7.078V12h3.047V9.356c0-3.007 1.792-4.668 4.533-4.668 1.312 0 2.686.234 2.686.234v2.953H15.83c-1.491 0-1.956.925-1.956 1.875V12h3.328l-.532 3.47h-2.796v8.385C19.612 22.954 24 17.99 24 12z" fill="#1877F2"/>
             </svg>
             <span>Facebook</span>
           </button>
-
           <button class="btn btn-social btn-face" id="btn-face-login" onclick="FaceAuth.openFaceLogin()">
-            <i class="fa-solid fa-camera" style="font-size:1.1rem;"></i>
+            <i class="fa-solid fa-camera" style="font-size:1rem;"></i>
             <span>Visage</span>
           </button>
         </div>
@@ -128,17 +129,6 @@
         <div class="auth-footer">
           <p>Pas encore de compte ? <a href="/projet2a22/View/FrontOffice/register-student.php">Créer un compte étudiant</a></p>
           <p style="margin-top:8px;">Vous êtes un restaurant ? <a href="/projet2a22/View/FrontOffice/register-partner.php">Devenir partenaire</a></p>
-        </div>
-
-        <!-- Demo credentials info -->
-        <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid rgba(255,255,255,0.1);">
-          <p style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:6px;">
-              <i class="fa-solid fa-key"></i> <strong style="color:var(--color-white);">Comptes démo :</strong></p>
-          <p style="font-size:0.7rem;color:var(--color-text-muted);line-height:1.6;">
-            étudiant : <strong style="color:var(--color-beige);">ahmed@univ.tn</strong> / student123<br>
-            Partenaire : <strong style="color:var(--color-beige);">contact@baguettedoree.tn</strong> / partner123<br>
-            Admin : <strong style="color:var(--color-beige);">admin@caremeal.tn</strong> / admin123
-          </p>
         </div>
       </div>
     </div>
@@ -154,8 +144,8 @@
         <div class="face-modal-icon">
           <i class="fa-solid fa-user-shield"></i>
         </div>
-        <h2>Connexion par reconnaissance faciale</h2>
-        <p>Placez votre visage dans le cadre pour vous connecter instantanement</p>
+        <h2>Face ID</h2>
+        <p>Regardez l'écran pour vous connecter de manière sécurisée.</p>
       </div>
       <div class="face-video-container">
         <video id="face-video" autoplay muted playsinline></video>

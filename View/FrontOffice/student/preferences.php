@@ -1,4 +1,4 @@
-<?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
+﻿<?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -21,11 +21,9 @@
       <nav class="sidebar-nav">
         <div class="sidebar-section">
           <div class="sidebar-section-title">Menu</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Accueil</a>
-          <a href="profile.php" class="sidebar-link"><span class="link-icon">👤</span> Mon Profil</a>
+                    <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-line"></i></span> Mon Dashboard</a>
           <a href="preferences.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences</a>
           <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Commandes</a>
-          <a href="points.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-star"></i></span> Mes Points</a>
         </div>
         <div class="sidebar-section">
           <div class="sidebar-section-title">Paramètres</div>
@@ -52,6 +50,9 @@
           <div class="page-title"><h2>Préférences alimentaires</h2><p>Personnalisez vos recommandations</p></div>
         </div>
         <div class="header-right">
+                    <a href="/projet2a22/View/FrontOffice/feed.php" title="Retour au Feed" style="display: flex; align-items: center; color: #FE5516; background: rgba(254,85,22,0.1); border-radius: 20px; padding: 6px 16px; font-size: 0.95rem; font-weight: 600; text-decoration: none; margin-right: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-house" style="margin-right: 8px;"></i> Retour au Feed
+          </a>
           <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar">AA</div>
         </div>
@@ -110,3 +111,10 @@
   <script>document.addEventListener('DOMContentLoaded', () => Student.initPreferences());</script>
 </body>
 </html>
+
+
+
+
+
+
+

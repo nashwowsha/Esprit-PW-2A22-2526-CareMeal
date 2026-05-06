@@ -7,15 +7,15 @@
 .card {
   background: var(--color-dark-card);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-dark-border);
   padding: var(--space-8);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   transition: all var(--transition-base);
 }
 
 .card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  border-color: rgba(254, 85, 22, 0.15);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
@@ -28,15 +28,15 @@
 .card-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 /* Stat Card */
 .stat-card {
   background: var(--color-dark-card);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   padding: var(--space-8);
   position: relative;
   overflow: hidden;
@@ -45,8 +45,8 @@
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: rgba(254, 85, 22, 0.2);
 }
 
 .stat-card::before {
@@ -94,7 +94,7 @@
 .stat-card .stat-value {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
-  color: var(--color-white);
+  color: var(--color-text);
   margin-bottom: var(--space-1);
 }
 
@@ -171,7 +171,7 @@
   display: flex;
   align-items: center;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
+  background: #FFFFFF;
   border: 1px solid var(--color-dark-border);
   overflow: hidden;
   transition: all var(--transition-fast);
@@ -179,7 +179,7 @@
 
 .input-wrapper:focus-within {
   border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: #FFFFFF;
 }
 
 .input-wrapper .input-icon {
@@ -194,7 +194,7 @@
   padding: 12px 40px 12px 40px;
   background: transparent;
   border: none;
-  color: var(--color-white);
+  color: var(--color-text);
   font-size: 0.9rem;
   outline: none;
 }
@@ -202,10 +202,10 @@
 .form-textarea {
   width: 100%;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: #FFFFFF;
   border: 1px solid var(--color-dark-border);
   border-radius: var(--radius-md);
-  color: var(--color-white);
+  color: var(--color-text);
   font-size: 0.9rem;
   outline: none;
   resize: vertical;
@@ -216,12 +216,12 @@
 
 .form-textarea:focus {
   border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: #FFFFFF;
 }
 
 .form-input::placeholder,
 .form-textarea::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-muted);
 }
 
 .password-toggle {
@@ -237,7 +237,7 @@
 }
 
 .password-toggle:hover {
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 .password-toggle i {
@@ -284,14 +284,14 @@
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-white);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text);
+  border: 1px solid var(--color-dark-border);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
@@ -385,9 +385,9 @@
   border-radius: var(--radius-full);
   font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  border: 1px solid var(--color-dark-border);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text-muted);
   cursor: pointer;
   transition: all var(--transition-base);
   user-select: none;
@@ -453,7 +453,7 @@
 }
 
 .data-table thead {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .data-table th {
@@ -481,7 +481,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .data-table tbody tr:last-child td {
@@ -502,7 +502,7 @@
 
 .table-user-name {
   font-weight: var(--font-weight-medium);
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 .table-user-email {
@@ -577,8 +577,8 @@
 }
 
 .pagination-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-white);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text);
 }
 
 .pagination-btn.active {
@@ -610,17 +610,17 @@
   width: 100%;
   padding: var(--space-3) var(--space-4);
   padding-left: 44px;
-  background: rgba(255, 255, 255, 0.05);
+  background: #FFFFFF;
   border: 1px solid var(--color-dark-border);
   border-radius: var(--radius-md);
-  color: var(--color-white);
+  color: var(--color-text);
   font-size: var(--font-size-sm);
   height: 44px;
   transition: all var(--transition-base);
 }
 
 .search-bar input:focus {
-  background: rgba(255, 255, 255, 0.08);
+  background: #FFFFFF;
   border-color: var(--color-primary);
 }
 
@@ -648,8 +648,8 @@
 }
 
 .filter-btn:hover {
-  color: var(--color-white);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .filter-btn.active {
@@ -680,9 +680,10 @@
 }
 
 .modal {
-  background: var(--color-dark-lighter);
+  background: #FFFFFF;
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12);
   box-shadow: 0 12px 60px rgba(0, 0, 0, 0.6);
   width: 100%;
   max-width: 500px;
@@ -724,8 +725,8 @@
 }
 
 .modal-close:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-white);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-text);
 }
 
 .modal-body {
@@ -757,9 +758,9 @@
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-xl);
-  background: var(--color-dark-lighter);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  background: #FFFFFF;
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   min-width: 320px;
   max-width: 440px;
   animation: fadeInRight 0.3s ease, fadeOut 0.3s ease 3.7s forwards;
@@ -782,7 +783,7 @@
 .toast-title {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 .toast-message {
@@ -885,7 +886,7 @@
 }
 
 .timeline-content strong {
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 /* --- Toolbar (search + filters + actions) --- */
@@ -934,7 +935,7 @@
 }
 
 .tab:hover {
-  color: var(--color-white);
+  color: var(--color-text);
 }
 
 .tab.active {
@@ -1041,9 +1042,9 @@
 /* --- Reward Card --- */
 .reward-card {
   background: var(--color-dark-card);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-dark-border);
   border-radius: var(--radius-xl);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   padding: var(--space-8);
   display: flex;
   align-items: center;
@@ -1054,8 +1055,8 @@
 
 .reward-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  border-color: rgba(254, 85, 22, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .reward-card .reward-icon {
@@ -1084,21 +1085,21 @@
 .offer-card {
   background: var(--color-dark-card);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-dark-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   transition: all var(--transition-base);
 }
 
 .offer-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: rgba(254, 85, 22, 0.2);
 }
 
 .offer-card-image {
   height: 160px;
-  background: linear-gradient(135deg, #1a2940, #0D1B2A);
+  background: linear-gradient(135deg, #F5F7FA, #EEF0F3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1183,7 +1184,7 @@
   padding: 12px 40px 12px 40px;
   background: transparent;
   border: none;
-  color: var(--color-white);
+  color: var(--color-text);
   font-size: 0.9rem;
   outline: none;
   height: 48px;
@@ -1192,8 +1193,8 @@
 }
 
 .form-select option {
-  background: #0d121c;
-  color: #fff;
+  background: #FFFFFF;
+  color: var(--color-text);
 }
 
 .select-arrow {

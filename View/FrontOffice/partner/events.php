@@ -3,35 +3,35 @@
 session_start();
 require_once __DIR__ . '/../../../Model/Event.php';
 
-// Si pas connecté, redirigez normalement (ici on simule avec user_id = 3 par défaut si non défini)
+// Si pas connect?, redirigez normalement (ici on simule avec user_id = 3 par d?faut si non d?fini)
 $user_id = $_SESSION['user_id'] ?? 3; 
 $eventModel = new Event();
 $message = '';
 $eventToEdit = null;
 
-// Gérer la suppression
+// G?rer la suppression
 if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
     $id_to_delete = intval($_GET['id']);
     if ($eventModel->deleteEvent($id_to_delete, $user_id)) {
-        $message = "<div class='alert alert-success' style='background: #4caf50; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-check'></i> Événement supprimé avec succès.</div>";
+        $message = "<div class='alert alert-success' style='background: #4caf50; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-check'></i> ?v?nement supprim? avec succ?s.</div>";
     }
 }
 
-// Récupérer un événement pour la modification
+// R?cup?rer un ?v?nement pour la modification
 if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
     $eventToEdit = $eventModel->getEventById(intval($_GET['id']), $user_id);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sauvegarder_evenement'])) {
     
-    // Récupération des données du formulaire
+    // R?cup?ration des donn?es du formulaire
     $data = [
         'titre' => $_POST['titre'] ?? '',
         'description' => $_POST['description'] ?? '',
         'date_evenement' => $_POST['date_evenement'] ?? '',
         'heure_debut' => $_POST['heure_debut'] ?? '',
         'heure_fin' => $_POST['heure_fin'] ?? '',
-        'type_evenement' => $_POST['type_evenement'] ?? 'Présentiel',
+        'type_evenement' => $_POST['type_evenement'] ?? 'Pr?sentiel',
         'lieu' => $_POST['lieu'] ?? '',
         'lien_online' => $_POST['lien_online'] ?? '',
         'capacite_max' => intval($_POST['capacite_max'] ?? 0),
@@ -39,23 +39,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sauvegarder_evenement
         'createur_id' => $user_id
     ];
 
-    if (!empty($_POST['id_evenement'])) {
+    // Validation PHP backend (remplace required HTML5)
+    if (empty(trim($data['titre'])) || empty($data['date_evenement']) || empty($data['heure_debut']) || empty($data['heure_fin']) || empty($data['capacite_max'])) {
+        $message = "<div class='alert alert-danger' style='background: #f44336; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-triangle-exclamation'></i> Erreur : Veuillez remplir tous les champs obligatoires (Titre, Date, Horaires, Capacit?).</div>";
+    } elseif (!empty($_POST['id_evenement'])) {
         // Mode Edition
         if ($eventModel->updateEvent(intval($_POST['id_evenement']), $user_id, $data)) {
-            $message = "<div class='alert alert-success' style='background: #4caf50; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-check'></i> Événement mis à jour avec succès. Il repasse en attente de validation.</div>";
+            $message = "<div class='alert alert-success' style='background: #4caf50; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-check'></i> ?v?nement mis ? jour avec succ?s. Il repasse en attente de validation.</div>";
             $eventToEdit = null;
         }
     } else {
-        // Mode Création
+        // Mode Cr?ation
         if ($eventModel->create($data)) {
-            $message = "<div class='alert alert-success' style='background: #4caf50; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-check'></i> Événement soumis avec succès ! Il est en attente de validation.</div>";
+            $message = "<div class='alert alert-success' style='background: #4caf50; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'><i class='fa-solid fa-check'></i> ?v?nement soumis avec succ?s ! Il est en attente de validation.</div>";
         } else {
-            $message = "<div class='alert alert-danger' style='background: #f44336; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'>Erreur lors de la création de l'événement.</div>";
+            $message = "<div class='alert alert-danger' style='background: #f44336; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;'>Erreur lors de la cr?ation de l'?v?nement.</div>";
         }
     }
 }
 
-// Récupérer la liste des événements
+// R?cup?rer la liste des ?v?nements
 $events = $eventModel->getPartnerEvents($user_id);
 
 $totalEvents = count($events);
@@ -63,14 +66,14 @@ $pendingEvents = 0;
 $validatedEvents = 0;
 foreach($events as $e) {
     if ($e["statut_validation"] === "En attente") $pendingEvents++;
-    if ($e["statut_validation"] === "Validé") $validatedEvents++;
+    if ($e["statut_validation"] === "Valid?") $validatedEvents++;
 }
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Mes Événements — CareMeal</title>
+  <title>Mes ?v?nements ? CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="/projet2a22/css/main.css">
   <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
@@ -142,11 +145,11 @@ foreach($events as $e) {
       <nav class="sidebar-nav">
         <div class="sidebar-section">
           <div class="sidebar-section-title">Partenaire</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Mon Établissement</a>
+                    <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Mon ?tablissement</a>
           <a href="offers.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Offres</a>
-          <a href="events.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-calendar-alt"></i></span> Événements</a>
+          <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-alt"></i></span> Mes ?v?nements</a>
           <a href="stats.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-simple"></i></span> Statistiques</a>
-          <a href="settings.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
+          <a href="settings.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Param?tres</a>
         </div>
       </nav>
     </aside>
@@ -155,13 +158,13 @@ foreach($events as $e) {
       <header class="top-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div class="header-left">
           <div class="page-title">
-            <h2 style="margin-bottom: 5px;">Mes Événements</h2>
-            <p style="margin: 0; color: #aaa;">Gérez vos ateliers et distributions</p>
+            <h2 style="margin-bottom: 5px;">Mes ?v?nements</h2>
+            <p style="margin: 0; color: #aaa;">G?rez vos ateliers et distributions</p>
           </div>
         </div>
         <div class="header-right">
             <button type="button" class="btn-submit" onclick="document.getElementById('form-section').style.display='block'; window.scrollTo(0,0);">
-                <i class="fa-solid fa-plus"></i> Créer un événement
+                <i class="fa-solid fa-plus"></i> Cr?er un ?v?nement
             </button>
         </div>
       </header>
@@ -169,16 +172,16 @@ foreach($events as $e) {
       <div class="page-content">
         <?= $message ?>
 
-        <!-- Formulaire caché sauf en édition -->
+        <!-- Formulaire cach? sauf en ?dition -->
         <div class="form-container" id="form-section" style="display: <?= $eventToEdit ? 'block' : 'none' ?>;">
-            <h3 style="margin-top: 0;"><i class="fa-solid <?= $eventToEdit ? 'fa-pen' : 'fa-plus' ?>"></i> <?= $eventToEdit ? 'Modifier l\'événement' : 'Nouvel Événement' ?></h3>
+            <h3 style="margin-top: 0;"><i class="fa-solid <?= $eventToEdit ? 'fa-pen' : 'fa-plus' ?>"></i> <?= $eventToEdit ? 'Modifier l\'?v?nement' : 'Nouvel ?v?nement' ?></h3>
             
-            <form method="POST" action="events.php">
+            <form method="POST" action="events.php" novalidate>
                 <input type="hidden" name="id_evenement" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['id_evenement']) : '' ?>">
                 
                 <div class="form-group">
-                    <label>Titre de l'événement *</label>
-                    <input type="text" name="titre" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['titre']) : '' ?>" required>
+                    <label>Titre de l'?v?nement *</label>
+                    <input type="text" name="titre" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['titre']) : '' ?>">
                 </div>
                 <div class="form-group">
                     <label>Description</label>
@@ -187,39 +190,39 @@ foreach($events as $e) {
                 <div style="display:flex; gap: 15px; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 1; min-width: 150px;">
                         <label>Date *</label>
-                        <input type="date" name="date_evenement" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['date_evenement']) : '' ?>" required>
+                        <input type="date" name="date_evenement" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['date_evenement']) : '' ?>">
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 120px;">
-                        <label>Heure de début *</label>
-                        <input type="time" name="heure_debut" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['heure_debut']) : '' ?>" required>
+                        <label>Heure de d?but *</label>
+                        <input type="time" name="heure_debut" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['heure_debut']) : '' ?>">
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 120px;">
                         <label>Heure de fin *</label>
-                        <input type="time" name="heure_fin" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['heure_fin']) : '' ?>" required>
+                        <input type="time" name="heure_fin" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['heure_fin']) : '' ?>">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Type d'événement *</label>
-                    <select name="type_evenement" required>
-                        <option value="Présentiel" <?= ($eventToEdit && $eventToEdit['type_evenement'] == 'Présentiel') ? 'selected' : '' ?>>Présentiel</option>
+                    <label>Type d'?v?nement *</label>
+                    <select name="type_evenement">
+                        <option value="Pr?sentiel" <?= ($eventToEdit && $eventToEdit['type_evenement'] == 'Pr?sentiel') ? 'selected' : '' ?>>Pr?sentiel</option>
                         <option value="En ligne" <?= ($eventToEdit && $eventToEdit['type_evenement'] == 'En ligne') ? 'selected' : '' ?>>En ligne</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Lieu (si présentiel)</label>
+                    <label>Lieu (si pr?sentiel)</label>
                     <input type="text" name="lieu" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lieu']) : '' ?>">
                 </div>
                 <div class="form-group">
                     <label>Lien online (si en ligne)</label>
-                    <input type="url" name="lien_online" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lien_online']) : '' ?>">
+                    <input type="text" name="lien_online" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['lien_online']) : '' ?>">
                 </div>
                 <div class="form-group">
-                    <label>Capacité maximale *</label>
-                    <input type="number" name="capacite_max" required min="1" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['capacite_max']) : '' ?>">
+                    <label>Capacit? maximale *</label>
+                    <input type="text" name="capacite_max" value="<?= $eventToEdit ? htmlspecialchars($eventToEdit['capacite_max']) : '' ?>">
                 </div>
                 <div style="margin-top: 20px;">
                     <button type="submit" name="sauvegarder_evenement" class="btn-submit" style="border-radius: 8px;">
-                        <?= $eventToEdit ? 'Mettre à jour' : 'Soumettre l\'événement' ?>
+                        <?= $eventToEdit ? 'Mettre ? jour' : 'Soumettre l\'?v?nement' ?>
                     </button>
                     <button type="button" class="btn-submit" style="background:#555; border-radius: 8px; margin-left:10px;" onclick="<?= $eventToEdit ? "window.location.href='events.php';" : "document.getElementById('form-section').style.display='none';" ?>">Annuler</button>
                 </div>
@@ -230,7 +233,7 @@ foreach($events as $e) {
         <div class="stats-grid">
             <div class="stat-box">
                 <h3><?= $totalEvents ?></h3>
-                <p>Total événements créés</p>
+                <p>Total ?v?nements cr??s</p>
             </div>
             <div class="stat-box">
                 <h3 style="color: #ff9800;"><?= $pendingEvents ?></h3>
@@ -238,10 +241,10 @@ foreach($events as $e) {
             </div>
             <div class="stat-box green">
                 <h3><?= $validatedEvents ?></h3>
-                <p>Événements validés</p>
+                <p>?v?nements valid?s</p>
             </div>
             <div class="stat-box white">
-                <h3>0</h3> <!-- Mettre à jour avec une requête plus tard -->
+                <h3>0</h3> <!-- Mettre ? jour avec une requ?te plus tard -->
                 <p>Total participants inscrits</p>
             </div>
         </div>
@@ -249,15 +252,15 @@ foreach($events as $e) {
         <!-- Events Grid -->
         <div class="events-grid">
             <?php if(empty($events)): ?>
-                <p style="grid-column: 1 / -1; color: #aaa;">Vous n'avez créé aucun événement pour le moment.</p>
+                <p style="grid-column: 1 / -1; color: #aaa;">Vous n'avez cr?? aucun ?v?nement pour le moment.</p>
             <?php else: ?>
                 <?php foreach($events as $event): ?>
                     <?php
                         $isEnAttente = $event['statut_validation'] === 'En attente';
-                        $isValide = $event['statut_validation'] === 'Validé';
-                        $isRefuse = $event['statut_validation'] === 'Rejeté';
+                        $isValide = $event['statut_validation'] === 'Valid?';
+                        $isRefuse = $event['statut_validation'] === 'Rejet?';
                         
-                        $badgeTypeClass = $event['type_evenement'] === 'Présentiel' ? 'badge-presentiel' : 'badge-online';
+                        $badgeTypeClass = $event['type_evenement'] === 'Pr?sentiel' ? 'badge-presentiel' : 'badge-online';
                         
                         $badgeStatusClass = 'badge-attente';
                         if ($isValide) $badgeStatusClass = 'badge-valide';
@@ -271,7 +274,7 @@ foreach($events as $e) {
                             </div>
                             <div class="actions">
                                 <a href="?action=edit&id=<?= $event['id_evenement'] ?>" class="btn-icon" title="Modifier"><i class="fa-solid fa-pen"></i></a>
-                                <a href="?action=delete&id=<?= $event['id_evenement'] ?>" class="btn-icon delete" onclick="return confirm('àŠtes-vous sûr de vouloir supprimer cet événement ?');" title="Supprimer"><i class="fa-solid fa-trash"></i></a>
+                                <a href="?action=delete&id=<?= $event['id_evenement'] ?>" class="btn-icon delete" onclick="return confirm('?tes-vous s?r de vouloir supprimer cet ?v?nement -');" title="Supprimer"><i class="fa-solid fa-trash"></i></a>
                             </div>
                         </div>
                         
@@ -283,11 +286,11 @@ foreach($events as $e) {
                         <?php endif; ?>
                         <div class="event-detail">
                             <i class="fa-regular fa-calendar"></i>
-                            <?= htmlspecialchars($event['date_evenement']) ?> — <?= htmlspecialchars(substr($event['heure_debut'], 0, 5)) ?> â†’ <?= htmlspecialchars(substr($event['heure_fin'], 0, 5)) ?>
+                            <?= htmlspecialchars($event['date_evenement']) ?> ? <?= htmlspecialchars(substr($event['heure_debut'], 0, 5)) ?> ? <?= htmlspecialchars(substr($event['heure_fin'], 0, 5)) ?>
                         </div>
                         <div class="event-detail">
                             <i class="fa-solid fa-location-dot"></i>
-                            <?= htmlspecialchars($event['lieu'] ?: $event['lien_online'] ?: 'Non renseigné') ?>
+                            <?= htmlspecialchars($event['lieu'] ?: $event['lien_online'] ?: 'Non renseign?') ?>
                         </div>
                         <div class="event-detail" style="margin-top: 8px;">
                             <i class="fa-solid fa-users"></i>
@@ -309,3 +312,14 @@ foreach($events as $e) {
   </div>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
