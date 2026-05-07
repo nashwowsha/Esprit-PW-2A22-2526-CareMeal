@@ -16,16 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $raw_input = file_get_contents('php://input');
-$data = json_decode($raw_input, true);
+$input = json_decode($raw_input, true);
 
-if (!is_array($data)) {
+if (!is_array($input)) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid JSON']);
     exit;
 }
 
-$score = isset($data['score']) ? (int)$data['score'] : null;
-$products = $data['product'] ?? [];
+$score = isset($input['score']) ? (int)$input['score'] : null;
+$products = $input['product'] ?? [];
 
 if ($score === null || $score < 0 || $score > 100) {
     http_response_code(400);
@@ -39,7 +39,7 @@ if (!is_array($products) || empty($products)) {
     exit;
 }
 
-$api_key = getenv("OPENAI_API_KEY");
+$api_key = getenv("GEMINI_API_KEY");
 
 if (!$api_key) {
     http_response_code(500);
@@ -48,45 +48,41 @@ if (!$api_key) {
 }
 
 $product_list = implode(', ', array_map('trim', $products));
-$prompt = "Explain briefly why this order has a waste reduction score of $score/100. Products: $product_list";
+$prompt = "You are an expert in food waste reduction. Explain briefly why this order has a waste reduction score of $score/100. Products: $product_list. Keep it under 2 sentences.";
 
 $request_body = json_encode([
-    'model' => 'gpt-3.5-turbo',
-    'messages' => [
-        ['role' => 'system', 'content' => 'You are an expert in food waste reduction.'],
-        ['role' => 'user',   'content' => $prompt]
+    'contents' => [
+        [
+            'parts' => [
+                ['text' => $prompt]
+            ]
+        ]
     ],
-    'temperature' => 0.7,
-    'max_tokens'  => 150
+    'generationConfig' => [
+        'temperature' => 0.7,
+        'maxOutputTokens' => 150
+    ]
 ]);
 
+$url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $api_key;
+
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL,            'https://api.openai.com/v1/chat/completions');
+curl_setopt($ch, CURLOPT_URL,            $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST,           true);
 curl_setopt($ch, CURLOPT_POSTFIELDS,     $request_body);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json',
-    'Authorization: Bearer ' . $api_key
-]);
-
-// ✅ FIX 1: Add timeout so the request doesn't hang forever
+curl_setopt($ch, CURLOPT_HTTPHEADER,     ['Content-Type: application/json']);
 curl_setopt($ch, CURLOPT_TIMEOUT,        15);
 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-
-// ✅ FIX 2: SSL verification (set to true in production, false only for local XAMPP)
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Change to true on a real server
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
 $response  = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-// ✅ FIX 3: Catch curl-level failures (SSL, DNS, timeout, etc.)
 if ($response === false) {
     $curl_error = curl_error($ch);
     $curl_errno = curl_errno($ch);
     curl_close($ch);
-
     http_response_code(502);
     echo json_encode([
         'error'      => 'curl failed',
@@ -96,15 +92,14 @@ if ($response === false) {
     exit;
 }
 
-// ✅ FIX 4: Always close the curl handle
 curl_close($ch);
 
 $response_data = json_decode($response, true);
 
-if ($http_code !== 200 || !isset($response_data['choices'][0]['message']['content'])) {
+if ($http_code !== 200 || !isset($response_data['candidates'][0]['content']['parts'][0]['text'])) {
     http_response_code($http_code ?: 502);
     echo json_encode([
-        'error'   => 'OpenAI error',
+        'error'   => 'Gemini error',
         'details' => $response_data
     ]);
     exit;
@@ -112,6 +107,6 @@ if ($http_code !== 200 || !isset($response_data['choices'][0]['message']['conten
 
 echo json_encode([
     'score'       => $score,
-    'explanation' => trim($response_data['choices'][0]['message']['content'])
+    'explanation' => trim($response_data['candidates'][0]['content']['parts'][0]['text'])
 ]);
 ?>
