@@ -6,6 +6,7 @@
 const Admin = {
   categoriesFilter: 'all',
   productsFilter: 'all',
+  currentSearch: '',
 
   init() {
     if (!App.requireAuth(['admin'])) return;
@@ -541,9 +542,19 @@ const Admin = {
         products = App.getProducts();
       }
 
-      if (this.productsFilter !== 'all') {
-        products = products.filter(p => p.categoryId === this.productsFilter);
-      }
+          if (this.productsFilter !== 'all') {
+            products = products.filter(p => String(p.categoryId) === String(this.productsFilter));
+          }
+
+          // Apply admin-side search filter (by name, category or partner)
+          if (this.currentSearch && this.currentSearch.length > 0) {
+            const q = this.currentSearch.toLowerCase();
+            products = products.filter(p => (
+              (p.name && String(p.name).toLowerCase().includes(q)) ||
+              (p.categoryName && String(p.categoryName).toLowerCase().includes(q)) ||
+              (p.partnerName && String(p.partnerName).toLowerCase().includes(q))
+            ));
+          }
 
     const totalEl = document.getElementById('products-total');
     const activeEl = document.getElementById('products-active');
@@ -580,6 +591,11 @@ const Admin = {
 
   setProductsFilter(categoryId) {
     this.productsFilter = categoryId;
+    this.loadProducts();
+  },
+
+  setProductsSearch(query) {
+    this.currentSearch = String(query || '').trim();
     this.loadProducts();
   },
 
@@ -734,9 +750,32 @@ const Admin = {
   toggleProduct(productId) {
     const product = App.getProductById(productId);
     if (!product) return;
-    App.updateProduct(productId, { active: !product.active });
-    App.addLog(`Produit ${!product.active ? 'activé' : 'désactivé'}: ${product.name}`);
-    this.loadProducts();
+    const newActive = !product.active;
+    (async () => {
+      try {
+        const resp = await fetch(App.apiUrl(`api/products.php?id=${encodeURIComponent(productId)}`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ active: newActive })
+        });
+        if (resp.ok) {
+          App.updateProduct(productId, { active: newActive });
+          App.addLog(`Produit ${newActive ? 'activé' : 'désactivé'}: ${product.name}`);
+          Components.showToast('Succès', `Produit ${newActive ? 'activé' : 'désactivé'}.`, 'success');
+          this.loadProducts();
+          return;
+        } else {
+          Components.showToast('Erreur', 'Impossible de mettre à jour le produit.', 'error');
+        }
+      } catch (e) {
+        // fallback to local
+        App.updateProduct(productId, { active: newActive });
+        App.addLog(`Produit ${newActive ? 'activé' : 'désactivé'} (local): ${product.name}`);
+        Components.showToast('Succès (local)', `Produit ${newActive ? 'activé' : 'désactivé'} localement.`, 'success');
+      } finally {
+        this.loadProducts();
+      }
+    })();
   },
 
   confirmDeleteProduct(productId) {

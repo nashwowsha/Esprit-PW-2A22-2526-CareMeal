@@ -49,6 +49,7 @@
           <div class="page-title"><h2>Produits</h2><p>Gestion du catalogue commande</p></div>
         </div>
         <div class="header-right" style="display:flex;gap:12px;align-items:center;">
+          <input id="products-search" class="form-input" placeholder="Rechercher..." style="min-width:220px;" oninput="Admin.setProductsSearch(this.value)">
           <select id="products-filter-category" class="form-select no-icon" style="min-width:220px;" onchange="Admin.setProductsFilter(this.value)"></select>
           <button class="btn btn-primary btn-sm" onclick="Admin.openProductModal()"><i class="fa-solid fa-plus"></i> Nouveau produit</button>
         </div>

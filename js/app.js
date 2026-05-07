@@ -3,6 +3,27 @@
    app.js — Auth State, RBAC, Helpers
    ============================================ */
 
+// Global fetch wrapper: if any request returns 401 Unauthorized,
+// immediately redirect user to the login page and reject the promise
+// so current request chains stop executing.
+(function(){
+  const _fetch = window.fetch.bind(window);
+
+  window.fetch = async function(input, init) {
+    const resp = await _fetch(input, init);
+
+    if (resp.status === 401) {
+      // optional: clear local state if you use it
+      // localStorage.clear();
+
+      window.location.href = window.location.origin + '/projet2a22/login.html';
+      throw new Error('Unauthorized');
+    }
+
+    return resp;
+  };
+})();
+
 const App = {
   // --- Storage Keys ---
   KEYS: {
