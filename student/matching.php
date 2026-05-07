@@ -41,6 +41,7 @@ if ($idPref > 0) {
 $statusMessages = [
     'success' => ['class' => 'success', 'text' => 'Matching completed successfully.'],
     'no_match' => ['class' => 'error', 'text' => 'No restaurant matches this preference right now.'],
+    'analysis_required' => ['class' => 'error', 'text' => 'Matching indisponible: des meals sont en attente d analyse IA.'],
     'error_invalid_user' => ['class' => 'error', 'text' => 'Invalid user.'],
     'error_invalid_preference' => ['class' => 'error', 'text' => 'Select a preference first before launching matching.'],
     'error_preference_not_found' => ['class' => 'error', 'text' => 'Selected preference was not found.'],
@@ -49,6 +50,7 @@ $statusMessages = [
 
 $selectedPreference = $matchingResult['preference'] ?? null;
 $matchedRestaurants = $matchingResult['restaurants'] ?? [];
+$analysisSummary = is_array($matchingResult['analysis_summary'] ?? null) ? $matchingResult['analysis_summary'] : null;
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -241,6 +243,29 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
         <?php if (isset($statusMessages[$status])): ?>
           <div class="alert-box <?= htmlspecialchars((string)$statusMessages[$status]['class'], ENT_QUOTES, 'UTF-8') ?>">
             <?= htmlspecialchars((string)$statusMessages[$status]['text'], ENT_QUOTES, 'UTF-8') ?>
+            <?php if ($status === 'analysis_required' && is_array($analysisSummary)): ?>
+              <br>
+              <span style="display:inline-block;margin-top:6px;">
+                Pending: <?= (int)($analysisSummary['pending_meals_count'] ?? 0) ?> |
+                Unknown: <?= (int)($analysisSummary['unknown_meals_count'] ?? 0) ?> |
+                Total meals: <?= (int)($analysisSummary['total_meals_count'] ?? 0) ?>
+              </span>
+              <?php $pendingSamples = is_array($analysisSummary['pending_samples'] ?? null) ? $analysisSummary['pending_samples'] : []; ?>
+              <?php if (!empty($pendingSamples)): ?>
+                <br>
+                <span style="display:inline-block;margin-top:4px;">
+                  Exemples en attente:
+                  <?php
+                    $sampleTexts = [];
+                    foreach ($pendingSamples as $sample) {
+                        if (!is_array($sample)) continue;
+                        $sampleTexts[] = trim((string)($sample['restaurant'] ?? '')) . ' / ' . trim((string)($sample['meal_name'] ?? ''));
+                    }
+                    echo htmlspecialchars(implode(' | ', array_slice($sampleTexts, 0, 4)), ENT_QUOTES, 'UTF-8');
+                  ?>
+                </span>
+              <?php endif; ?>
+            <?php endif; ?>
           </div>
         <?php endif; ?>
 
@@ -296,7 +321,11 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
           </form>
 
           <?php if (!$matchingResult['ok'] || empty($matchedRestaurants)): ?>
-            <p class="match-meta">Aucun restaurant compatible pour le moment.</p>
+            <?php if ($status === 'analysis_required'): ?>
+              <p class="match-meta">Le matching est bloque tant que les meals en attente ne sont pas analyses.</p>
+            <?php else: ?>
+              <p class="match-meta">Aucun restaurant compatible pour le moment.</p>
+            <?php endif; ?>
           <?php else: ?>
             <div class="matching-layout">
               <div class="matching-grid">
@@ -349,11 +378,17 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
                         <?php if (!empty($restaurant['ai_potential_conflict_meals'])): ?>
                           <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i> IA risk <?= (int)$restaurant['ai_potential_conflict_meals'] ?></span>
                         <?php endif; ?>
+                        <?php if (!empty($restaurant['regime_warning_meals'])): ?>
+                          <span class="badge badge-info"><i class="fa-solid fa-circle-exclamation"></i> Regime warning <?= (int)$restaurant['regime_warning_meals'] ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($restaurant['unknown_meals_count'])): ?>
+                          <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i> Unknown meals <?= (int)$restaurant['unknown_meals_count'] ?></span>
+                        <?php endif; ?>
                       </div>
                       <?php if (!empty($restaurant['matching_brief']['score_reasons']) && is_array($restaurant['matching_brief']['score_reasons'])): ?>
                         <p class="match-meta"><strong>IA insight:</strong> <?= htmlspecialchars(implode(' | ', $restaurant['matching_brief']['score_reasons']), ENT_QUOTES, 'UTF-8') ?></p>
                       <?php endif; ?>
-                      <a class="btn btn-primary btn-sm" href="matching_restaurant.php?id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&id_restaurant=<?= (int)$restaurant['id_restaurant'] ?>&safety_mode=<?= urlencode($safetyMode) ?>">
+                      <a class="btn btn-primary btn-sm" href="matching_restaurant.php?id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&id_restaurant=<?= (int)$restaurant['id_restaurant'] ?>&safety_mode=<?= urlencode($safetyMode) ?>&price_mode=<?= urlencode($priceMode) ?>&sort_by=<?= urlencode($sortBy) ?>">
                         Voir meals
                       </a>
                     </div>
@@ -367,7 +402,11 @@ $matchedRestaurants = $matchingResult['restaurants'] ?? [];
                 <p class="ai-assistant-meta" id="ai-restaurant-summary">Le scoring prend en compte le regime, la securite allergenes, et la proximite.</p>
                 <ul class="ai-assistant-list" id="ai-reasons-list">
                   <li>Regime prioritaire</li>
-                  <li>Conflits allergenes exclus</li>
+                  <?php if ($safetyMode === 'strict'): ?>
+                    <li>Conflits allergenes exclus</li>
+                  <?php else: ?>
+                    <li>Conflits allergenes visibles en warning</li>
+                  <?php endif; ?>
                   <li>Distance utilisee pour le tri proximite</li>
                 </ul>
               </aside>

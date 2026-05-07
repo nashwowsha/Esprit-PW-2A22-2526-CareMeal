@@ -8,17 +8,28 @@ if ($idUser <= 0) {
 $idPref = isset($_GET['id_pref']) ? (int)$_GET['id_pref'] : 0;
 $idRestaurant = isset($_GET['id_restaurant']) ? (int)$_GET['id_restaurant'] : 0;
 $safetyMode = isset($_GET['safety_mode']) ? strtolower(trim((string)$_GET['safety_mode'])) : 'strict';
+$priceMode = isset($_GET['price_mode']) ? strtolower(trim((string)$_GET['price_mode'])) : 'all';
+$sortBy = isset($_GET['sort_by']) ? strtolower(trim((string)$_GET['sort_by'])) : 'score';
 if (!in_array($safetyMode, ['strict', 'souple'], true)) {
     $safetyMode = 'strict';
+}
+if (!in_array($priceMode, ['all', 'free', 'paid'], true)) {
+    $priceMode = 'all';
+}
+if (!in_array($sortBy, ['score', 'location', 'name'], true)) {
+    $sortBy = 'score';
 }
 
 $matchingController = new MatchingController();
 $detailResult = $matchingController->getMatchedRestaurantForPreference($idUser, $idPref, $idRestaurant, [
     'safety_mode' => $safetyMode,
+    'price_mode' => $priceMode,
+    'sort_by' => $sortBy,
 ]);
 
 $statusMessages = [
     'success' => ['class' => 'success', 'text' => 'Restaurant loaded from matching results.'],
+    'analysis_required' => ['class' => 'error', 'text' => 'Matching indisponible: des meals sont en attente d analyse IA.'],
     'error_invalid_user' => ['class' => 'error', 'text' => 'Invalid user.'],
     'error_invalid_preference' => ['class' => 'error', 'text' => 'Invalid preference.'],
     'error_preference_not_found' => ['class' => 'error', 'text' => 'Preference not found.'],
@@ -295,7 +306,7 @@ $restaurant = $detailResult['restaurant'] ?? null;
         <div class="card" style="margin-bottom:16px;">
           <div class="card-header" style="justify-content:space-between;align-items:center;">
             <h3 class="card-title"><i class="fa-solid fa-arrow-left"></i> Navigation</h3>
-            <a class="btn btn-outline btn-sm" href="matching.php?id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&safety_mode=<?= urlencode($safetyMode) ?>">Back to matching list</a>
+            <a class="btn btn-outline btn-sm" href="matching.php?id_user=<?= (int)$idUser ?>&id_pref=<?= (int)$idPref ?>&safety_mode=<?= urlencode($safetyMode) ?>&price_mode=<?= urlencode($priceMode) ?>&sort_by=<?= urlencode($sortBy) ?>">Back to matching list</a>
           </div>
           <?php if ($selectedPreference): ?>
             <p style="color:var(--color-text-muted);font-size:.86rem;margin:0;">
@@ -347,31 +358,6 @@ $restaurant = $detailResult['restaurant'] ?? null;
                   <tbody>
                     <?php foreach (($restaurant['matched_meals'] ?? []) as $meal): ?>
                       <?php
-                        $iaTooltipParts = [];
-                        $iaTooltipParts[] = 'Source: ' . (string)($meal['ai_origin_badge'] ?? 'Vendor declared');
-                        if (!empty($meal['missing_ingredients']) && is_array($meal['missing_ingredients'])) {
-                            $iaTooltipParts[] = 'Ingredients possiblement manquants: ' . implode(', ', array_slice((array)$meal['missing_ingredients'], 0, 8));
-                        }
-                        if (!empty($meal['inferred_allergens_semantic']) && is_array($meal['inferred_allergens_semantic'])) {
-                            $iaTooltipParts[] = 'Allergenes possibles: ' . implode(', ', (array)$meal['inferred_allergens_semantic']);
-                        }
-                        if (!empty($meal['ai_allergen_sources']) && is_array($meal['ai_allergen_sources'])) {
-                            foreach ($meal['ai_allergen_sources'] as $allergenName => $srcTokens) {
-                                if (!is_array($srcTokens) || empty($srcTokens)) {
-                                    continue;
-                                }
-                                $iaTooltipParts[] = (string)$allergenName . ' possible via: ' . implode(', ', array_values($srcTokens));
-                            }
-                        }
-                        if (isset($meal['ai_confidence'])) {
-                            $iaTooltipParts[] = 'Confiance IA: ' . number_format((float)$meal['ai_confidence'] * 100, 0) . '%';
-                        }
-                        if (!empty($meal['ai_explanation'])) {
-                            $iaTooltipParts[] = 'Explication IA: ' . (string)$meal['ai_explanation'];
-                        }
-                        if (!empty($meal['ai_legal_warning'])) {
-                            $iaTooltipParts[] = (string)$meal['ai_legal_warning'];
-                        }
                         $originRaw = (string)($meal['ai_origin_badge'] ?? 'Vendor declared');
                         $originLower = strtolower($originRaw);
                         if (strpos($originLower, 'vendor') !== false) {
@@ -384,35 +370,7 @@ $restaurant = $detailResult['restaurant'] ?? null;
                             $originLabel = 'IA: depuis ingredients';
                             $originClass = 'source-ingredients';
                         }
-                        $iaTooltipParts[0] = 'Source: ' . $originLabel;
-                        $iaTooltip = implode(' | ', $iaTooltipParts);
-                        $mealAiPayload = [
-                          'meal_name' => (string)($meal['meal_name'] ?? ''),
-                          'semantic_allergens' => array_values((array)($meal['semantic_allergens'] ?? [])),
-                          'trace_risk' => !empty($meal['trace_risk']),
-                          'ingredients' => (string)($meal['ingredients'] ?? ''),
-                          'origin_badge' => $originLabel,
-                          'source' => (string)($meal['ai_source'] ?? ''),
-                          'confidence' => (float)($meal['ai_confidence'] ?? 0),
-                          'data_quality_confidence' => (float)($meal['ai_data_quality_confidence'] ?? 0),
-                          'allergen_inference_confidence' => (float)($meal['ai_allergen_inference_confidence'] ?? 0),
-                          'ingredient_completeness_score' => (int)($meal['ai_ingredient_completeness_score'] ?? 0),
-                          'explanation' => (string)($meal['ai_explanation'] ?? ''),
-                          'inferred_ingredients' => array_values((array)($meal['inferred_ingredients'] ?? [])),
-                          'missing_ingredients' => array_values((array)($meal['missing_ingredients'] ?? [])),
-                          'inferred_allergens' => array_values((array)($meal['inferred_allergens_semantic'] ?? [])),
-                          'legal_warning' => (string)($meal['ai_legal_warning'] ?? ''),
-                          'allergen_sources' => (array)($meal['ai_allergen_sources'] ?? []),
-                          'causal_allergen_details' => array_values((array)($meal['ai_causal_allergen_details'] ?? [])),
-                          'possible_missing_ingredients' => !empty($meal['ai_possible_missing_ingredients']),
-                          'basic_recipe_ingredients' => array_values((array)($meal['ai_basic_recipe_ingredients'] ?? [])),
-                          'basic_recipe_allergens' => array_values((array)($meal['ai_basic_recipe_allergens'] ?? [])),
-                          'ai_check_passed' => !empty($meal['ai_check_passed']),
-                          'potential_conflict' => !empty($meal['ai_potential_conflict']),
-                          'conflict_tokens' => array_values((array)($meal['ai_conflict_tokens'] ?? [])),
-                          'user_allergies_raw' => $userAllergiesRaw,
-                          'user_allergy_input_map' => $userAllergyInputMap,
-                        ];
+                        $iaTooltip = 'Source: ' . $originLabel . ' | Cliquez sur le meal pour charger les details IA.';
                       ?>
                       <tr
                         class="js-meal-row"
@@ -420,7 +378,7 @@ $restaurant = $detailResult['restaurant'] ?? null;
                         data-stock="<?= (int)$meal['quantity'] ?>"
                         data-price="<?= number_format((float)$meal['price'], 2, '.', '') ?>"
                         data-mode="<?= htmlspecialchars((string)$meal['pricing_mode'], ENT_QUOTES, 'UTF-8') ?>"
-                        data-ai='<?= htmlspecialchars(json_encode($mealAiPayload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), ENT_QUOTES, 'UTF-8') ?>'
+                        tabindex="0"
                       >
                         <td><?= htmlspecialchars((string)$meal['meal_name'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string)$meal['ingredients'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -432,10 +390,22 @@ $restaurant = $detailResult['restaurant'] ?? null;
                           <?php if (!empty($meal['ai_warning'])): ?>
                             <span class="badge badge-warning"><i class="fa-solid fa-triangle-exclamation"></i></span>
                           <?php endif; ?>
-                          <?php if (!empty($meal['ai_potential_conflict'])): ?>
-                            <span class="badge badge-danger">
-                              <?= $safetyMode === 'strict' ? 'Bloque en mode strict' : 'Risque (mode souple)' ?>
-                            </span>
+                          <?php if (!empty($meal['warning_unknown'])): ?>
+                            <span class="badge badge-danger">Meal inconnu (IA non certaine)</span>
+                          <?php endif; ?>
+                          <?php if (!empty($meal['conflict_hard'])): ?>
+                            <?php if ($safetyMode === 'strict'): ?>
+                              <span class="badge badge-danger">Bloque (factuel)</span>
+                            <?php else: ?>
+                              <span class="badge badge-danger">Risque allergene (fort)</span>
+                            <?php endif; ?>
+                          <?php elseif (!empty($meal['conflict_soft'])): ?>
+                            <span class="badge badge-warning">Risque IA</span>
+                          <?php else: ?>
+                            <span class="badge badge-success">Safe</span>
+                          <?php endif; ?>
+                          <?php if (!empty($meal['warning_regime'])): ?>
+                            <span class="badge badge-info">Regime non compatible</span>
                           <?php endif; ?>
                         </td>
                         <td><?= (int)$meal['quantity'] ?></td>
@@ -455,13 +425,12 @@ $restaurant = $detailResult['restaurant'] ?? null;
 
               <aside class="meal-ai-panel" id="meal-ai-panel">
                 <h4 class="meal-ai-title"><i class="fa-solid fa-robot"></i> Meal AI assistant</h4>
-                <p class="meal-ai-text" id="meal-ai-summary">Survole un meal pour voir l'analyse IA.</p>
+                <p class="meal-ai-text" id="meal-ai-summary">Clique sur un meal pour charger l'analyse IA detaillee.</p>
                 <div class="meal-ai-content" id="meal-ai-content">
                   <div class="meal-ai-block">
-                    <p class="meal-ai-block-title">Comment lire ce panneau</p>
-                    <p class="meal-ai-line">1) Le vendeur reste la source principale.</p>
-                    <p class="meal-ai-line">2) L IA complete seulement les informations manquantes.</p>
-                    <p class="meal-ai-line">3) Chaque allergene possible est lie a son ingredient responsable.</p>
+                    <p class="meal-ai-block-title">Analyse a la demande</p>
+                    <p class="meal-ai-line">L analyse IA n est pas chargee au refresh pour accelerer la page.</p>
+                    <p class="meal-ai-line">Selectionne une ligne meal pour lancer l analyse detaillee.</p>
                   </div>
                 </div>
               </aside>
@@ -489,6 +458,13 @@ $restaurant = $detailResult['restaurant'] ?? null;
       const validateBtn = document.getElementById('matching-validate-btn');
       const aiSummary = document.getElementById('meal-ai-summary');
       const aiContent = document.getElementById('meal-ai-content');
+      const mealAiCache = new Map();
+      const idUser = <?= (int)$idUser ?>;
+      const idPref = <?= (int)$idPref ?>;
+      const idRestaurant = <?= (int)$idRestaurant ?>;
+      const safetyMode = '<?= htmlspecialchars($safetyMode, ENT_QUOTES, 'UTF-8') ?>';
+      const priceMode = '<?= htmlspecialchars($priceMode, ENT_QUOTES, 'UTF-8') ?>';
+      const sortBy = '<?= htmlspecialchars($sortBy, ENT_QUOTES, 'UTF-8') ?>';
 
       function parseNum(value) {
         const n = Number(value);
@@ -544,8 +520,58 @@ $restaurant = $detailResult['restaurant'] ?? null;
           .replace(/'/g, '&#039;');
       }
 
+      function renderMealAiLoading(mealLabel) {
+        if (!aiSummary || !aiContent) return;
+        aiSummary.textContent = `${mealLabel || 'Meal'} - chargement IA...`;
+        aiContent.innerHTML = `
+          <div class="meal-ai-block">
+            <p class="meal-ai-block-title">Chargement IA...</p>
+            <p class="meal-ai-line">Analyse en cours. Merci de patienter quelques secondes.</p>
+          </div>
+        `;
+      }
+
+      function renderMealAiError(message) {
+        if (!aiSummary || !aiContent) return;
+        aiSummary.textContent = 'Meal AI assistant';
+        aiContent.innerHTML = `
+          <div class="meal-ai-block">
+            <p class="meal-ai-block-title">Analyse indisponible</p>
+            <p class="meal-ai-line">${escHtml(message || 'Impossible de charger l analyse pour ce meal.')}</p>
+          </div>
+        `;
+      }
+
       function renderMealAssistant(payload) {
         if (!aiSummary || !aiContent || !payload) return;
+        const originLabelMap = {
+          text_direct: 'Correspondance preference',
+          vendor_declared: 'Declare par vendeur',
+          ai_from_ingredients: 'Inference IA (ingredients)',
+          ai_from_basic_recipe: 'Inference IA (recette de base)',
+          ai_unknown: 'Meal inconnu pour l IA',
+          ai_pending: 'Analyse IA en attente',
+          fallback_local: 'Analyse locale',
+          ai_precomputed: 'Analyse IA pre-calculee'
+        };
+        const formatOriginLabel = (origin, originLabelRaw) => {
+          const byPayload = String(originLabelRaw || '').trim();
+          if (byPayload) return byPayload;
+          const key = String(origin || '').trim().toLowerCase();
+          return originLabelMap[key] || 'Inference IA';
+        };
+        const scopeLabelMap = {
+          vendor_declared: 'declaration vendeur',
+          vendor_ingredients: 'ingredients vendeur',
+          basic_missing_ingredients: 'ingredient manquant estime par l IA',
+          text_direct: 'Correspondance preference'
+        };
+        const formatScopeLabels = (scopes) => {
+          const labels = (Array.isArray(scopes) ? scopes : [])
+            .map((scope) => scopeLabelMap[String(scope || '').trim()] || '')
+            .filter(Boolean);
+          return labels.length ? labels.join(' + ') : 'source non precisee';
+        };
         const allergens = Array.isArray(payload.semantic_allergens)
           ? payload.semantic_allergens
           : (Array.isArray(payload.inferred_allergens) ? payload.inferred_allergens : []);
@@ -554,11 +580,11 @@ $restaurant = $detailResult['restaurant'] ?? null;
         const dataQualityPct = Math.round((Number(payload.data_quality_confidence || 0) * 100));
         const allergenInferencePct = Math.round((Number(payload.allergen_inference_confidence || 0) * 100));
         const completenessScore = Number(payload.ingredient_completeness_score || 0);
+        const hardConflicts = Array.isArray(payload.conflict_hard) ? payload.conflict_hard : [];
+        const softConflicts = Array.isArray(payload.conflict_soft) ? payload.conflict_soft : [];
+        const warningRegime = Boolean(payload.warning_regime);
+        const warningUnknown = Boolean(payload.warning_unknown);
         aiSummary.textContent = String(payload.meal_name || 'Meal') + ' - lecture simplifiee IA';
-
-        const vendorPart = String(payload.origin_badge || '').toLowerCase().indexOf('vendor') !== -1
-          ? 'Le vendeur a deja fourni les allergenes. L IA a fait une verification de coherence.'
-          : 'Le vendeur n a pas liste clairement les allergenes. L assistant IA a complete l analyse.';
 
         const missingIngredients = Array.isArray(payload.missing_ingredients) ? payload.missing_ingredients : [];
         const basicRecipeIngredients = Array.isArray(payload.basic_recipe_ingredients) ? payload.basic_recipe_ingredients : [];
@@ -573,8 +599,11 @@ $restaurant = $detailResult['restaurant'] ?? null;
           if (!row || typeof row !== 'object') return '';
           const allergen = String(row.allergen || '').trim();
           const triggers = Array.isArray(row.trigger_ingredients) ? row.trigger_ingredients.filter(Boolean) : [];
-          const triggerText = triggers.length ? triggers.join(', ') : 'source incertaine';
-          return `<p class="meal-ai-line"><strong>${escHtml(allergen || 'allergene')}</strong> -> ingredients responsables: ${escHtml(triggerText)}</p>`;
+          const scopes = Array.isArray(row.source_scopes) ? row.source_scopes : [];
+          const triggerText = triggers.length
+            ? triggers.join(', ')
+            : (scopes.indexOf('vendor_declared') !== -1 ? 'allergene declare par le vendeur' : 'source non precisee');
+          return `<p class="meal-ai-line"><strong>${escHtml(allergen || 'allergene')}</strong> -> ingredients responsables: ${escHtml(triggerText)} | source: ${escHtml(formatScopeLabels(scopes))}</p>`;
         }).filter(Boolean);
         const qualityChip = completenessScore >= 80
           ? '<span class="meal-ai-chip success">donnees vendeur claires</span>'
@@ -582,69 +611,156 @@ $restaurant = $detailResult['restaurant'] ?? null;
         const riskChip = payload.potential_conflict
           ? '<span class="meal-ai-chip risk">risque pour votre profil</span>'
           : '<span class="meal-ai-chip success">pas de conflit direct detecte</span>';
+        const regimeChip = warningRegime
+          ? '<span class="meal-ai-chip warn">regime non compatible</span>'
+          : '<span class="meal-ai-chip success">regime compatible</span>';
+        const unknownChip = warningUnknown
+          ? '<span class="meal-ai-chip risk">meal inconnu (IA non certaine)</span>'
+          : '';
 
         const conflictTokens = Array.isArray(payload.conflict_tokens) ? payload.conflict_tokens : [];
-        const userAllergyMap = (payload.user_allergy_input_map && typeof payload.user_allergy_input_map === 'object')
-          ? payload.user_allergy_input_map
-          : {};
-        const conflictMapLines = [];
-        Object.keys(userAllergyMap).forEach((rawKey) => {
-          const mapped = Array.isArray(userAllergyMap[rawKey]) ? userAllergyMap[rawKey] : [];
-          if (!mapped.length || !conflictTokens.length) return;
-          const hasOverlap = mapped.some((t) => conflictTokens.indexOf(String(t)) !== -1);
-          if (hasOverlap) {
-            conflictMapLines.push(`${rawKey} -> ${mapped.join(', ')}`);
-          }
-        });
+        const userInputMapping = Array.isArray(payload.user_input_mapping) ? payload.user_input_mapping : [];
+        const userInputLines = userInputMapping
+          .map((entry) => {
+            if (!entry || typeof entry !== 'object') return '';
+            const raw = String(entry.raw_term || '').trim();
+            const mapped = Array.isArray(entry.mapped_allergens) ? entry.mapped_allergens : [];
+            if (!raw || !mapped.length) return '';
+            return `${raw} -> ${mapped.join(', ')}`;
+          })
+          .filter(Boolean);
+
+        const conflictLine = (row) => {
+          if (!row || typeof row !== 'object') return '';
+          const allergen = String(row.allergen || '').trim() || '-';
+          const origin = formatOriginLabel(row.origin, row.origin_label);
+          const triggers = Array.isArray(row.trigger_ingredients) ? row.trigger_ingredients.filter(Boolean) : [];
+          const scopes = Array.isArray(row.source_scopes) ? row.source_scopes : [];
+          const scopeLabel = formatScopeLabels(scopes);
+          const ingredientText = triggers.length ? triggers.join(', ') : (scopes.indexOf('vendor_declared') !== -1 ? 'allergene declare par le vendeur' : 'source non precisee');
+          return `<p class="meal-ai-line"><strong>${escHtml(allergen)}</strong> | source: ${escHtml(origin)} (${escHtml(scopeLabel)}) | ingredient responsable: ${escHtml(ingredientText)}</p>`;
+        };
+        const hardLines = hardConflicts.map(conflictLine).filter(Boolean);
+        const softLines = softConflicts.map(conflictLine).filter(Boolean);
+        const aiMode = String(payload.analysis_mode || 'fallback').toLowerCase();
+        const aiModeLabel = aiMode === 'ai_live'
+          ? 'ai_live'
+          : (aiMode === 'pending' ? 'pending' : (aiMode === 'fallback_local' ? 'fallback_local' : 'fallback'));
+        const aiModeChip = aiModeLabel === 'ai_live'
+          ? '<span class="badge badge-success">ai_live</span>'
+          : (aiModeLabel === 'pending'
+              ? '<span class="badge badge-warning">pending</span>'
+              : '<span class="badge badge-danger">fallback_local</span>');
+        const confidenceSummary = `Confiance ${confidence}% | Donnees ${dataQualityPct}% | Allerg. ${allergenInferencePct}%`;
+        const recipeIndicator = hasMissingSignal ? '<span style="color:#ffe7a8;">&#9650;</span> ' : '';
+        const hardBlock = hardLines.length ? `
+          <div class="meal-ai-block">
+            <p class="meal-ai-block-title">Conflits bloquants</p>
+            ${hardLines.join('')}
+          </div>
+        ` : '';
+        const softBlock = softLines.length ? `
+          <div class="meal-ai-block">
+            <p class="meal-ai-block-title">Risques IA (non bloquants en strict)</p>
+            ${softLines.join('')}
+          </div>
+        ` : '';
+        const warningParts = [];
+        if (warningUnknown) {
+          warningParts.push(payload.warning_unknown_message || 'Meal inconnu: l IA n a pas pu cerner clairement cet aliment.');
+        }
+        if (hasMissingSignal) {
+          warningParts.push('Des details semblent incomplets; verification manuelle recommandee.');
+        }
+        if (warningText) {
+          warningParts.push(warningText);
+        }
+        warningParts.push('Aide decisionnelle: verifier les informations sensibles avant validation.');
+        const mergedWarning = warningParts.join(' ');
 
         aiContent.innerHTML = `
           <div class="meal-ai-block">
             <p class="meal-ai-block-title">Resume</p>
-            <p class="meal-ai-line">${escHtml(vendorPart)}</p>
             <p class="meal-ai-line"><strong>Source:</strong> ${escHtml(payload.origin_badge || 'Vendor declared')}</p>
-            <p class="meal-ai-line"><strong>Confiance globale:</strong> ${confidence}%</p>
-            <p class="meal-ai-line"><strong>Qualite des donnees vendeur:</strong> ${dataQualityPct}% (score completude ${Math.max(0, Math.min(100, completenessScore))}/100)</p>
-            <p class="meal-ai-line"><strong>Confiance inference allergenes:</strong> ${allergenInferencePct}%</p>
-            ${payload.ai_check_passed ? '<p class="meal-ai-line"><strong>AI check passed:</strong> donnees vendeur claires, pas de manque detecte.</p>' : ''}
+            <p class="meal-ai-line"><strong>Confiance:</strong> ${escHtml(confidenceSummary)}</p>
+            <p class="meal-ai-line"><strong>Mode analyse:</strong> ${aiModeChip}</p>
             <div class="meal-ai-chip-row">
               ${qualityChip}
               ${riskChip}
+              ${regimeChip}
+              ${unknownChip}
             </div>
           </div>
+          ${hardBlock}
+          ${softBlock}
           <div class="meal-ai-block">
             <p class="meal-ai-block-title">Allergenes possibles</p>
             <p class="meal-ai-line">${allergens.length ? escHtml(allergens.join(', ')) : 'Aucun allergene probable detecte.'}</p>
-            ${causalLines.length ? causalLines.join('') : '<p class="meal-ai-line">Source ingredient non determinee avec certitude.</p>'}
+            ${causalLines.length ? causalLines.join('') : '<p class="meal-ai-line">Aucune source fiable (ingredients vendeur ou ingredient manquant estime par l IA) n a ete confirmee.</p>'}
             ${payload.trace_risk ? '<p class="meal-ai-line">Risque de traces detecte (cross-contamination possible).</p>' : ''}
             ${payload.potential_conflict ? `<p class="meal-ai-line"><strong>Conflit avec votre profil:</strong> ${escHtml(conflictTokens.join(', '))}</p>` : ''}
-            ${payload.potential_conflict && conflictMapLines.length ? `<p class="meal-ai-line"><strong>Interpretation de votre saisie:</strong> ${escHtml(conflictMapLines.join(' | '))}</p>` : ''}
+            ${userInputLines.length ? `<p class="meal-ai-line"><strong>Interpretation de votre saisie:</strong> ${escHtml(userInputLines.join(' | '))}</p>` : ''}
           </div>
           <div class="meal-ai-block">
-            <p class="meal-ai-block-title">Ingredients responsables</p>
+            <p class="meal-ai-block-title">${recipeIndicator}Recette de base probable</p>
             <p class="meal-ai-line"><strong>Indiques par le vendeur:</strong> ${escHtml(payload.ingredients || '-')}</p>
             ${missingIngredients.length ? `<p class="meal-ai-line"><strong>Ingredients possiblement manquants:</strong> ${escHtml(missingIngredients.join(', '))}</p>` : ''}
-            ${hasMissingSignal ? `<p class="meal-ai-line"><strong>Description possiblement incomplete:</strong> le descriptif vendeur semble partiel.</p>` : ''}
             ${showBasicRecipe && basicRecipeIngredients.length ? `<p class="meal-ai-line"><strong>Recette de base probable:</strong> ${escHtml(basicRecipeIngredients.join(', '))}</p>` : ''}
+            ${Array.isArray(payload.recipe_variants) && payload.recipe_variants.length ? `<p class="meal-ai-line"><strong>Variantes courantes:</strong> ${escHtml(payload.recipe_variants.join(', '))}</p>` : ''}
           </div>
-          <div class="meal-ai-block">
-            <p class="meal-ai-block-title">Avertissement</p>
-            <p class="meal-ai-line">${hasMissingSignal ? 'Le vendeur n a pas donne assez de details. L IA a complete avec prudence.' : 'Donnees vendeur plutot claires, verification IA de securite appliquee.'}</p>
-            <p class="meal-ai-line">Ce resultat est une aide decisionnelle et non une verite medicale.</p>
-          </div>
-          <p class="meal-ai-warning"><i class="fa-solid fa-triangle-exclamation"></i> ${escHtml(warningText)}</p>
+          <p class="meal-ai-warning"><i class="fa-solid fa-triangle-exclamation"></i> ${escHtml(mergedWarning)}</p>
         `;
       }
 
+      async function fetchMealAssistant(mealId, mealLabel) {
+        if (!mealId) return;
+        if (mealAiCache.has(mealId)) {
+          renderMealAssistant(mealAiCache.get(mealId));
+          return;
+        }
+        renderMealAiLoading(mealLabel);
+        try {
+          const url = new URL('../Controller/MatchingController.php', window.location.href);
+          url.searchParams.set('action', 'student_meal_ai_detail');
+          url.searchParams.set('id_user', String(idUser));
+          url.searchParams.set('id_pref', String(idPref));
+          url.searchParams.set('id_restaurant', String(idRestaurant));
+          url.searchParams.set('meal_id', String(mealId));
+          url.searchParams.set('safety_mode', String(safetyMode));
+          url.searchParams.set('price_mode', String(priceMode));
+          url.searchParams.set('sort_by', String(sortBy));
+          const resp = await fetch(url.toString(), {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+          });
+          if (!resp.ok) {
+            throw new Error('Reponse serveur invalide');
+          }
+          const data = await resp.json();
+          if (!data || !data.ok || !data.meal) {
+            throw new Error((data && data.status) ? data.status : 'analyse indisponible');
+          }
+          mealAiCache.set(mealId, data.meal);
+          renderMealAssistant(data.meal);
+        } catch (err) {
+          renderMealAiError(err && err.message ? err.message : 'Erreur de chargement IA');
+        }
+      }
+
       document.querySelectorAll('.js-meal-row').forEach((row) => {
-        row.addEventListener('mouseenter', () => {
-          try {
-            renderMealAssistant(JSON.parse(row.getAttribute('data-ai') || '{}'));
-          } catch (e) {}
+        row.addEventListener('click', (e) => {
+          if (e.target && e.target.closest('.qty-btn')) return;
+          const mealId = String(row.getAttribute('data-meal-id') || '');
+          const mealLabel = String(row.querySelector('td')?.textContent || 'Meal').trim();
+          fetchMealAssistant(mealId, mealLabel);
         });
-        row.addEventListener('focusin', () => {
-          try {
-            renderMealAssistant(JSON.parse(row.getAttribute('data-ai') || '{}'));
-          } catch (e) {}
+        row.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          const mealId = String(row.getAttribute('data-meal-id') || '');
+          const mealLabel = String(row.querySelector('td')?.textContent || 'Meal').trim();
+          fetchMealAssistant(mealId, mealLabel);
         });
       });
 

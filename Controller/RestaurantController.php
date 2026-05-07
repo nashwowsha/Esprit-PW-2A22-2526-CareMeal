@@ -1,8 +1,19 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/MatchingSnapshotStore.php';
 
 class RestaurantController
 {
+    private function invalidateMatchingSnapshots($reason = '')
+    {
+        try {
+            MatchingSnapshotStore::bumpSourceVersion((string)$reason);
+        } catch (Exception $e) {
+            // Keep user flow stable if invalidation fails.
+        }
+    }
+
     private function db()
     {
         return config::getConnexion();
@@ -448,6 +459,7 @@ class RestaurantController
                 );
                 $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'localisation_lat' => $p['localisation_lat'], 'localisation_lng' => $p['localisation_lng'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'actif' => $p['actif'], 'id_restaurant' => $idRestaurant]);
                 if ($valid['has_new_image'] && $imgPath !== (string)$existing['image_path']) { $this->deleteImage((string)$existing['image_path']); }
+                $this->invalidateMatchingSnapshots('restaurant_updated');
                 return ['ok' => true, 'status' => 'success_restaurant_updated', 'id_owner' => (int)$p['id_owner'], 'selected_id' => $idRestaurant];
             }
 
@@ -457,6 +469,7 @@ class RestaurantController
             );
             $q->execute(['id_owner' => $p['id_owner'], 'nom' => $p['nom'], 'localisation' => $p['localisation'], 'localisation_lat' => $p['localisation_lat'], 'localisation_lng' => $p['localisation_lng'], 'image_path' => $imgPath, 'description' => $p['description'], 'telephone' => $p['telephone'], 'horaires' => $p['horaires'], 'meals_json' => '[]', 'actif' => $p['actif']]);
             $id = (int)$this->db()->lastInsertId();
+            $this->invalidateMatchingSnapshots('restaurant_created');
             return ['ok' => true, 'status' => 'success_restaurant_created', 'id_owner' => (int)$p['id_owner'], 'selected_id' => $id];
         } catch (Exception $e) {
             return ['ok' => false, 'status' => 'error_db', 'id_owner' => (int)$p['id_owner']];
@@ -478,7 +491,10 @@ class RestaurantController
         try {
             $q = $this->db()->prepare("DELETE FROM restaurant WHERE id_restaurant = :id");
             $q->execute(['id' => $idRestaurant]);
-            if ($q->rowCount() > 0) { $this->deleteImage((string)$existing['image_path']); }
+            if ($q->rowCount() > 0) {
+                $this->deleteImage((string)$existing['image_path']);
+                $this->invalidateMatchingSnapshots('restaurant_deleted');
+            }
             return ['ok' => true, 'status' => 'success_restaurant_deleted', 'id_owner' => (int)$existing['id_owner']];
         } catch (Exception $e) {
             return ['ok' => false, 'status' => 'error_db', 'id_owner' => (int)$existing['id_owner']];
@@ -492,6 +508,87 @@ class RestaurantController
     {
         $q = $this->db()->prepare("UPDATE restaurant SET meals_json = :meals_json WHERE id_restaurant = :id");
         $q->execute(['meals_json' => $this->mealsEncode($meals), 'id' => (int)$idRestaurant]);
+        $this->invalidateMatchingSnapshots('meal_mutation');
+    }
+
+    private function asyncMealAiEnabled()
+    {
+        $flag = strtolower((string)caremeal_env('CAREMEAL_ASYNC_MEAL_AI_ENABLED', '1'));
+        return in_array($flag, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function phpCliBinary()
+    {
+        $configured = trim((string)caremeal_env('CAREMEAL_PHP_BIN', ''));
+        if ($configured !== '' && is_file($configured)) {
+            return $configured;
+        }
+
+        if (defined('PHP_BINARY') && is_string(PHP_BINARY) && PHP_BINARY !== '' && is_file(PHP_BINARY)) {
+            return PHP_BINARY;
+        }
+
+        $xamppPhp = 'C:\\xampp\\php\\php.exe';
+        if (is_file($xamppPhp)) {
+            return $xamppPhp;
+        }
+
+        return 'php';
+    }
+
+    private function queueMealAiAnalysis($idRestaurant, $mealId)
+    {
+        if (!$this->asyncMealAiEnabled()) {
+            return;
+        }
+
+        $idRestaurant = (int)$idRestaurant;
+        $mealId = preg_replace('/[^A-Za-z0-9_\-]/', '', (string)$mealId);
+        if ($idRestaurant <= 0 || $mealId === '') {
+            return;
+        }
+
+        $script = realpath(__DIR__ . '/AnalyzeMealJob.php');
+        if ($script === false || !is_file($script)) {
+            return;
+        }
+
+        $phpBin = $this->phpCliBinary();
+        $argRestaurant = '--restaurant_id=' . $idRestaurant;
+        $argMeal = '--meal_id=' . $mealId;
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            $phpEscaped = str_replace('"', '\"', $phpBin);
+            $scriptEscaped = str_replace('"', '\"', $script);
+            $command = 'cmd /c start "" /B "' . $phpEscaped . '" "' . $scriptEscaped . '" ' . $argRestaurant . ' ' . $argMeal . ' >NUL 2>&1';
+            @pclose(@popen($command, 'r'));
+            return;
+        }
+
+        $command = escapeshellcmd($phpBin)
+            . ' ' . escapeshellarg($script)
+            . ' ' . escapeshellarg($argRestaurant)
+            . ' ' . escapeshellarg($argMeal)
+            . ' > /dev/null 2>&1 &';
+        @exec($command);
+    }
+
+    private function buildPendingMealAiPayload($meal)
+    {
+        if (!is_array($meal)) {
+            return [];
+        }
+
+        $meal['analyse_ia'] = 0;
+        $meal['analyse_ia_model'] = trim((string)caremeal_env('CAREMEAL_GEMINI_MODEL', 'gemini-3-flash-preview'));
+        $meal['analyse_ia_engine'] = 'queued';
+        $meal['analyse_ia_updated_at'] = date('Y-m-d H:i:s');
+        $meal['analyse_ia_error'] = '';
+        $meal['ingredients_standardises'] = [];
+        $meal['ingredients_manquants_probables'] = [];
+        $meal['allergenes_finaux'] = [];
+
+        return $meal;
     }
 
     private function mealCrud($src, $isAdmin, $mode)
@@ -520,8 +617,10 @@ class RestaurantController
         if ($mode === 'add') {
             $meal['meal_id'] = 'meal_' . date('YmdHis') . '_' . substr(md5(uniqid((string)mt_rand(), true)), 0, 6);
             $meal['created_at'] = date('Y-m-d H:i:s');
+            $meal = $this->buildPendingMealAiPayload($meal);
             $meals[] = $meal;
             $this->saveMeals($idRestaurant, $meals);
+            $this->queueMealAiAnalysis($idRestaurant, (string)$meal['meal_id']);
             return ['ok' => true, 'status' => 'success_meal_added', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant];
         }
 
@@ -530,12 +629,14 @@ class RestaurantController
             if (($m['meal_id'] ?? '') !== $mealId) { continue; }
             $meal['meal_id'] = $mealId;
             $meal['created_at'] = $m['created_at'] ?? date('Y-m-d H:i:s');
+            $meal = $this->buildPendingMealAiPayload($meal);
             $meals[$i] = $meal;
             $updated = true;
             break;
         }
         if (!$updated) { return ['ok' => false, 'status' => 'error_not_found', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant]; }
         $this->saveMeals($idRestaurant, $meals);
+        $this->queueMealAiAnalysis($idRestaurant, $mealId);
         return ['ok' => true, 'status' => 'success_meal_updated', 'id_owner' => (int)$restaurant['id_owner'], 'selected_id' => $idRestaurant];
     }
 

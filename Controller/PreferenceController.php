@@ -1,10 +1,20 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../Model/Preference.php';
+require_once __DIR__ . '/MatchingSnapshotStore.php';
 
 class PreferenceController {
     private function getDb() {
         return config::getConnexion();
+    }
+
+    private function invalidateMatchingSnapshotsForPreference($idUser, $idPref)
+    {
+        try {
+            MatchingSnapshotStore::purgeSnapshotsByPreference((int)$idUser, (int)$idPref);
+        } catch (Exception $e) {
+            // Keep preference flow stable if invalidation fails.
+        }
     }
 
     private function normalizePlainText($value) {
@@ -676,6 +686,8 @@ class PreferenceController {
                     ];
                 }
 
+                $this->invalidateMatchingSnapshotsForPreference((int)$payload->getIdUser(), $idPref);
+
                 return [
                     'ok' => true,
                     'status' => 'success_updated',
@@ -694,6 +706,7 @@ class PreferenceController {
             }
 
             $newId = $this->insertPreference($payload);
+            $this->invalidateMatchingSnapshotsForPreference((int)$payload->getIdUser(), $newId);
 
             return [
                 'ok' => true,
@@ -742,6 +755,7 @@ class PreferenceController {
 
         try {
             $this->deletePreferenceById($idPref);
+            $this->invalidateMatchingSnapshotsForPreference($idUser, $idPref);
 
             return [
                 'ok' => true,
@@ -771,6 +785,7 @@ class PreferenceController {
             }
 
             $idPref = $this->insertPreference($payload);
+            $this->invalidateMatchingSnapshotsForPreference((int)$payload->getIdUser(), $idPref);
 
             return [
                 'ok' => true,
@@ -809,6 +824,9 @@ class PreferenceController {
             }
 
             $updated = $this->updatePreferenceById($idPref, $payload);
+            if ($updated) {
+                $this->invalidateMatchingSnapshotsForPreference((int)$payload->getIdUser(), $idPref);
+            }
 
             return [
                 'ok' => $updated,
@@ -841,6 +859,9 @@ class PreferenceController {
 
         try {
             $deleted = $this->deletePreferenceById($idPref);
+            if ($deleted) {
+                $this->invalidateMatchingSnapshotsForPreference($idUser, $idPref);
+            }
 
             return [
                 'ok' => $deleted,
