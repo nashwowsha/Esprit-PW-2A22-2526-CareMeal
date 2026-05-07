@@ -11,8 +11,11 @@
 
   window.fetch = async function(input, init) {
     const resp = await _fetch(input, init);
+    const requestUrl = typeof input === 'string' ? input : (input && input.url) ? input.url : '';
+    const resolvedUrl = requestUrl ? new URL(requestUrl, window.location.href) : null;
+    const isApiRequest = resolvedUrl ? resolvedUrl.pathname.includes('/api/') : false;
 
-    if (resp.status === 401) {
+    if (resp.status === 401 && !isApiRequest) {
       // optional: clear local state if you use it
       // localStorage.clear();
 
@@ -363,6 +366,31 @@ const App = {
       return { ok: false, message: 'Stock insuffisant pour cette quantité.' };
     }
 
+    const buildAiNote = async (scoreValue) => {
+      const fallbackScore = Number.isFinite(Number(scoreValue)) ? Number(scoreValue) : 75;
+      try {
+        const aiResponse = await fetch(this.apiUrl('api/ai_score.php'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            score: fallbackScore,
+            product: [product.name]
+          })
+        });
+
+        const aiData = await aiResponse.json().catch(() => null);
+        if (!aiResponse.ok || !aiData) {
+          return `🌱 ${fallbackScore}/100 - Commande enregistrée.`;
+        }
+
+        const aiScore = Number.isFinite(Number(aiData.score)) ? Number(aiData.score) : fallbackScore;
+        const explanation = String(aiData.explanation || '').trim() || 'Commande enregistrée.';
+        return `🌱 ${aiScore}/100 - ${explanation}`;
+      } catch (e) {
+        return `🌱 ${fallbackScore}/100 - Commande enregistrée.`;
+      }
+    };
+
     try {
       const response = await fetch(this.apiUrl('api/commandes.php'), {
         method: 'POST',
@@ -386,6 +414,10 @@ const App = {
       }
 
       const created = await response.json();
+      
+      // Generate AI note FIRST before creating order
+      const aiNote = await buildAiNote(created.score ?? 75);
+      
       const order = {
         id: created.id_commande || created.id || this.generateId(),
         userId: user.id,
@@ -399,7 +431,8 @@ const App = {
         quantity: qty,
         status: 'pending',
         date: created.date_commande || new Date().toISOString(),
-        rating: null
+        rating: null,
+        note: aiNote
       };
 
       const orders = this.getOrders();
@@ -416,6 +449,10 @@ const App = {
       return { ok: true, order };
     } catch (e) {
       // fallback to local mock storage if API is unreachable
+      
+      // Generate AI note FIRST before creating order
+      const aiNote = await buildAiNote(75);
+      
       const orders = this.getOrders();
       const order = {
         id: this.generateId(),
@@ -430,7 +467,8 @@ const App = {
         quantity: qty,
         status: 'pending',
         date: new Date().toISOString(),
-        rating: null
+        rating: null,
+        note: aiNote
       };
 
       orders.unshift(order);

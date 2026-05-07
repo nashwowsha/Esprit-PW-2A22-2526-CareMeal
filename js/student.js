@@ -300,7 +300,7 @@ const Student = {
           </td>
           <td>${App.formatDate(order.date)}</td>
           <td>${statusMap[order.status] || order.status}</td>
-          <td>${order.rating ? '<i class="fa-solid fa-star"></i>'.repeat(order.rating) : '\u2014'}</td>
+          <td>${order.note || (order.rating ? '<i class="fa-solid fa-star"></i>'.repeat(order.rating) : '\u2014')}</td>
           <td>
             <div class="table-actions">
               ${order.status === 'pending' ? ('<button class="table-action-btn" title="Annuler" onclick="Student.confirmCancelOrder(\'' + order.id + '\')"><i class="fa-solid fa-times-circle"></i></button>') : ''}
@@ -321,11 +321,17 @@ const Student = {
         const resp = await fetch(App.apiUrl('api/commandes.php?user_id=' + encodeURIComponent(user.id)));
         if (!resp.ok) return;
         const raw = await resp.json();
+        const localOrders = App.getOrders().filter(o => String(o.userId) === String(user.id));
+        const localById = new Map(localOrders.map(o => [String(o.id), o]));
         const apiOrders = raw
           .map(o => this._normalizeOrder(o, user.id))
-          .filter(o => String(o.userId) === String(user.id));
+          .filter(o => String(o.userId) === String(user.id))
+          .map(order => {
+            const localOrder = localById.get(String(order.id));
+            return localOrder && localOrder.note ? { ...order, note: localOrder.note } : order;
+          });
         const dbIds = new Set(apiOrders.map(o => String(o.id)));
-        const localOnly = App.getOrders().filter(o => !dbIds.has(String(o.id)) && String(o.userId) === String(user.id));
+        const localOnly = localOrders.filter(o => !dbIds.has(String(o.id)) && String(o.userId) === String(user.id));
         const merged = [...apiOrders, ...localOnly];
         const otherOrders = App.getOrders().filter(o => String(o.userId) !== String(user.id));
         App.saveOrders([...otherOrders, ...merged]);
