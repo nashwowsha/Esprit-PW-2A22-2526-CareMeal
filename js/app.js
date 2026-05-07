@@ -161,7 +161,7 @@ const App = {
     if (window.location.protocol === 'file:') {
       return 'http://localhost/projet2a22/' + cleanPath;
     }
-    return this.getBasePath() + cleanPath;
+    return window.location.origin + '/projet2a22/' + cleanPath;
   },
 
   // --- Users CRUD ---
