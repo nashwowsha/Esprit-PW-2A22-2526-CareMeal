@@ -1,19 +1,45 @@
-Ôªøconst EventsPartner = {
+const EventsPartner = {
     events: [],
     currentEvent: null,
 
-    init() {
+    normalizedStatus(rawStatus) {
+        const status = String(rawStatus || '').toLowerCase();
+        if (status.includes('attente')) return 'En attente';
+        if (status.includes('valid') || status.includes('planifi')) return 'ValidÈ / PlanifiÈ';
+        if (status.includes('rejet')) return 'RejetÈ';
+        if (status.includes('cours')) return 'En cours';
+        if (status.includes('term')) return 'TerminÈ';
+        return String(rawStatus || 'N/A');
+    },
+
+    async init() {
         if (!App.getCurrentUser() || App.getCurrentUser().role !== 'partner') {
             window.location.href = "../login.php";
             return;
         }
-        this.loadEvents();
-        this.renderStats();
-        this.renderList();
+        await this.loadEvents();
     },
 
-    loadEvents() {
-        this.events = App.getEvents().filter(e => e.partnerId === App.getCurrentUser().id);
+    async loadEvents() {
+        try {
+            const user = App.getCurrentUser();
+            const response = await fetch(App.apiUrl('Controller/EventController.php'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get_partner_events', partner_id: user.id })
+            });
+            const result = await response.json();
+            if(result.success && result.events) {
+                this.events = result.events;
+            } else {
+                this.events = [];
+            }
+        } catch(e) {
+            console.error('Erreur chargement des ÈvÈnements', e);
+            this.events = [];
+        }
+        this.renderStats();
+        this.renderList();
     },
 
     saveAllEvents() {
@@ -24,12 +50,12 @@
 
     renderStats() {
         const total = this.events.length;
-        const pending = this.events.filter(e => e.status === 'En attente').length;
-        const validated = this.events.filter(e => e.status === 'Valid√© / Planifi√©').length;
+        const pending = this.events.filter(e => this.normalizedStatus(e.status || e.statut_validation) === 'En attente').length;
+        const validated = this.events.filter(e => this.normalizedStatus(e.status || e.statut_validation) === 'ValidÈ / PlanifiÈ').length;
         
         let participants = 0;
         this.events.forEach(e => {
-            if (e.participants) participants += e.participants.length;
+            participants += parseInt(e.inscrits || (e.participants ? e.participants.length : 0));
         });
 
         document.getElementById('stat-total').textContent = total;
@@ -45,43 +71,46 @@
         document.getElementById('event-detail-view').style.display = 'none';
 
         if (this.events.length === 0) {
-            container.innerHTML = '<p class="text-center text-muted" style="grid-column:1/-1; padding:2rem;">Aucun √©v√©nement cr√©√©.</p>';
+            container.innerHTML = '<p class="text-center text-muted" style="grid-column:1/-1; padding:2rem;">Aucun ÈvÈnement crÈÈ.</p>';
             return;
         }
 
         const statsColors = {
             'En attente': 'var(--color-warning)',
-            'Valid√© / Planifi√©': 'var(--color-success)',
+            'ValidÈ / PlanifiÈ': 'var(--color-success)',
             'En cours': 'var(--color-primary)',
-            'Termin√©': 'var(--color-text-muted)'
+            'TerminÈ': 'var(--color-text-muted)'
         };
 
         this.events.forEach(ev => {
-            const regCount = ev.participants ? ev.participants.length : 0;
+            const regCount = ev.inscrits || (ev.participants ? ev.participants.length : 0);
             const progress = ev.capacity ? ((regCount / ev.capacity) * 100) : 0;
             const isOnline = ev.type === 'En ligne';
-            const iconBadge = isOnline ? '<i class="fa-solid fa-video"></i> En ligne' : '<i class="fa-solid fa-location-dot"></i> Pr√©sentiel';
+            const iconBadge = isOnline ? '<i class="fa-solid fa-video"></i> En ligne' : '<i class="fa-solid fa-location-dot"></i> PrÈsentiel';
 
             let buttonsHtml = '';
             let bottomWarning = '';
 
-            if (ev.status === 'En attente') {
+            const normalizedStatus = this.normalizedStatus(ev.status || ev.statut_validation);
+            ev.status = normalizedStatus;
+
+            if (normalizedStatus === 'En attente') {
                 buttonsHtml = `
                     <button class="btn btn-secondary btn-sm" onclick="EventsPartner.showDetails(${ev.id})"><i class="fa-solid fa-eye"></i> Voir</button>
                     <button class="btn btn-primary btn-sm" onclick="EventsPartner.editEvent(${ev.id})"><i class="fa-solid fa-pen"></i> Modifier</button>
                     <button class="btn btn-danger btn-sm" onclick="EventsPartner.cancelEvent(${ev.id})"><i class="fa-solid fa-trash"></i> Annuler</button>
                 `;
-                bottomWarning = '<div style="margin-top:12px; font-size:0.8rem; color:var(--color-warning); text-align:center;"><i class="fa-solid fa-triangle-exclamation"></i> ‚ö†Ô∏è Votre √©v√©nement n\'est pas encore visible...</div>';
-            } else if (ev.status === 'Valid√© / Planifi√©') {
+                bottomWarning = '<div style="margin-top:12px; font-size:0.8rem; color:var(--color-warning); text-align:center;"><i class="fa-solid fa-triangle-exclamation"></i> ?? Votre ÈvÈnement n\'est pas encore visible...</div>';
+            } else if (normalizedStatus === 'ValidÈ / PlanifiÈ') {
                 buttonsHtml = `
                     <button class="btn btn-secondary btn-sm" onclick="EventsPartner.showDetails(${ev.id})"><i class="fa-solid fa-eye"></i> Voir</button>
                     <button class="btn btn-primary btn-sm" onclick="EventsPartner.editEvent(${ev.id})"><i class="fa-solid fa-pen"></i> Modifier</button>
                     <button class="btn btn-danger btn-sm" onclick="EventsPartner.cancelEvent(${ev.id})"><i class="fa-solid fa-trash"></i> Annuler</button>
                 `;
-            } else if (ev.status === 'En cours') {
+            } else if (normalizedStatus === 'En cours') {
                 buttonsHtml = `
                     <button class="btn btn-secondary btn-sm" onclick="EventsPartner.showDetails(${ev.id})"><i class="fa-solid fa-eye"></i> Voir</button>
-                    <button class="btn btn-success btn-sm" onclick="EventsPartner.markPresence(${ev.id})"><i class="fa-solid fa-check-double"></i> Pr√©sences</button>
+                    <button class="btn btn-success btn-sm" onclick="EventsPartner.markPresence(${ev.id})"><i class="fa-solid fa-check-double"></i> PrÈsences</button>
                 `;
             } else {
                 buttonsHtml = `
@@ -101,7 +130,7 @@
                     <span class="badge" style="background:${statsColors[ev.status]}; color:white; flex-shrink:0;">${ev.status}</span>
                 </div>
                 <div style="font-size:0.85rem; color:var(--color-text-muted);"><span class="badge badge-primary">${iconBadge}</span></div>
-                <div style="font-size:0.9rem; margin-top:8px;"><i class="fa-regular fa-calendar"></i> ${ev.date} de ${ev.startTime} √† ${ev.endTime}</div>
+                <div style="font-size:0.9rem; margin-top:8px;"><i class="fa-regular fa-calendar"></i> ${ev.date} de ${ev.startTime} ‡ ${ev.endTime}</div>
                 <div style="font-size:0.9rem;"><i class="fa-solid ${isOnline ? 'fa-link' : 'fa-map-pin'}"></i> ${ev.location}</div>
                 
                 <div style="margin-top:8px;">
@@ -131,7 +160,7 @@
         document.getElementById('event-detail-view').style.display = 'block';
 
         const ev = this.currentEvent;
-        const regCount = ev.participants ? ev.participants.length : 0;
+        const regCount = ev.inscrits || (ev.participants ? ev.participants.length : 0);
         
         const container = document.getElementById('event-detail-content');
         
@@ -147,7 +176,7 @@
                     <td>
                         <select class="form-select no-icon" onchange="EventsPartner.updateParticipantStatus(${ev.id}, ${p.id}, this.value)">
                             <option value="Inscrit" ${p.status === 'Inscrit' ? 'selected' : ''}>Inscrit</option>
-                            <option value="Pr√©sent" ${p.status === 'Pr√©sent' ? 'selected' : ''}>Pr√©sent</option>
+                            <option value="PrÈsent" ${p.status === 'PrÈsent' ? 'selected' : ''}>PrÈsent</option>
                             <option value="Absent" ${p.status === 'Absent' ? 'selected' : ''}>Absent</option>
                         </select>
                     </td>
@@ -177,7 +206,7 @@
                             <li><strong><i class="fa-regular fa-calendar"></i> Date:</strong> ${ev.date}</li>
                             <li><strong><i class="fa-regular fa-clock"></i> Heure:</strong> ${ev.startTime} - ${ev.endTime}</li>
                             <li><strong><i class="fa-solid fa-location-dot"></i> Lieu/Lien:</strong> ${ev.location}</li>
-                            <li><strong><i class="fa-solid fa-users"></i> Capacit√©:</strong> ${regCount} / ${ev.capacity}</li>
+                            <li><strong><i class="fa-solid fa-users"></i> CapacitÈ:</strong> ${regCount} / ${ev.capacity}</li>
                             <li><strong><i class="fa-solid fa-shield-halved"></i> Statut validation:</strong> ${ev.status}</li>
                         </ul>
                     </div>
@@ -195,7 +224,7 @@
                     <h3><i class="fa-solid fa-users-line"></i> Participants inscrits</h3>
                     <div style="display:flex; flex-wrap:wrap; gap:8px;">
                         <button class="btn btn-secondary btn-sm" onclick="EventsPartner.exportCSV()"><i class="fa-solid fa-file-csv"></i> Exporter la liste</button>
-                        <button class="btn btn-success btn-sm" onclick="EventsPartner.markAllPresent()"><i class="fa-solid fa-check-double"></i> Marquer tous pr√©sents</button>
+                        <button class="btn btn-success btn-sm" onclick="EventsPartner.markAllPresent()"><i class="fa-solid fa-check-double"></i> Marquer tous prÈsents</button>
                     </div>
                 </div>
                 <div class="table-container" style="overflow-x:auto;">
@@ -216,7 +245,7 @@
     openCreateModal() {
         document.getElementById('eventForm').reset();
         document.getElementById('eventId').value = '';
-        document.getElementById('eventModalTitle').innerHTML = '<i class="fa-solid fa-plus"></i> Cr√©er un √©v√©nement';
+        document.getElementById('eventModalTitle').innerHTML = '<i class="fa-solid fa-plus"></i> CrÈer un ÈvÈnement';
         Components.openModal('eventModal');
         this.toggleLocationField();
     },
@@ -230,11 +259,11 @@
         document.getElementById('evDate').value = ev.date;
         document.getElementById('evStart').value = ev.startTime;
         document.getElementById('evEnd').value = ev.endTime;
-        document.getElementById('evType').value = ev.type || 'Pr√©sentiel';
+        document.getElementById('evType').value = ev.type || 'PrÈsentiel';
         document.getElementById('evCapacity').value = ev.capacity;
         document.getElementById('evLocation').value = ev.location;
 
-        document.getElementById('eventModalTitle').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier √©v√©nement';
+        document.getElementById('eventModalTitle').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier ÈvÈnement';
         Components.openModal('eventModal');
         this.toggleLocationField();
     },
@@ -252,63 +281,88 @@
         }
     },
 
-    saveEvent() {
+    async saveEvent() {
         const title = document.getElementById('evTitle').value.trim();
+        const description = document.getElementById('evDesc').value.trim();
         const date = document.getElementById('evDate').value;
         const start = document.getElementById('evStart').value;
         const end = document.getElementById('evEnd').value;
+        const type = document.getElementById('evType').value;
         const capacity = parseInt(document.getElementById('evCapacity').value);
         const location = document.getElementById('evLocation').value.trim();
 
-        if (!title || !date || !start || !end || !capacity || !location) {
-            Components.showToast('Veuillez remplir tous les champs obligatoires.', 'error');
-            return;
-        }
-
         const id = document.getElementById('eventId').value;
         
-        let targetEvent;
-        if (id) {
-            targetEvent = this.events.find(e => e.id == id);
+        const action = id ? 'update' : 'add';
+        const payload = {
+            action: action,
+            id_evenement: id,
+            titre: title,
+            description: description,
+            date_evenement: date,
+            heure_debut: start,
+            heure_fin: end,
+            type_evenement: type,
+            capacite_max: capacity,
+            createur_type: 'Partenaire',
+            createur_id: App.getCurrentUser().id
+        };
+
+        if (type === 'En ligne') {
+            payload.lien_online = location;
+            payload.lieu = null;
         } else {
-            targetEvent = {
-                id: Date.now(),
-                partnerId: App.getCurrentUser().id,
-                partnerName: App.getCurrentUser().name,
-                createdAt: new Date().toLocaleDateString('fr-FR'),
-                participants: [],
-                status: 'En attente'
-            };
-            this.events.unshift(targetEvent);
+            payload.lieu = location;
+            payload.lien_online = null;
         }
 
-        if(targetEvent) {
-            targetEvent.title = title;
-            targetEvent.description = document.getElementById('evDesc').value;
-            targetEvent.date = date;
-            targetEvent.startTime = start;
-            targetEvent.endTime = end;
-            targetEvent.type = document.getElementById('evType').value;
-            targetEvent.capacity = capacity;
-            targetEvent.location = location;
+        try {
+            const btn = document.querySelector('#eventModal .modal-footer .btn-primary');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sauvegarde...';
+            btn.disabled = true;
 
-            this.saveAllEvents();
-            Components.closeModal('eventModal');
-            Components.showToast('Soumis avec succ√®s !', 'success');
-            this.renderStats();
-            this.renderList();
+            const response = await fetch(App.apiUrl('Controller/EventController.php'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            if (result.success) {
+                Components.showToast(result.message || '…vÈnement sauvegardÈ', 'success');
+                Components.closeModal('eventModal');
+                await this.loadEvents();
+            } else {
+                Components.showToast(result.message || 'Erreur de sauvegarde', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            Components.showToast('Erreur serveur.', 'error');
         }
     },
 
-    cancelEvent(id) {
-        if (confirm('Voulez-vous vraiment annuler cet √©v√©nement ?')) {
-            const index = this.events.findIndex(e => e.id === id);
-            if(index > -1) {
-                this.events.splice(index, 1);
-                this.saveAllEvents();
-                Components.showToast('√âv√©nement annul√©', 'success');
-                this.renderStats();
-                this.renderList();
+    async cancelEvent(id) {
+        if (confirm('Voulez-vous vraiment annuler cet ÈvÈnement ?')) {
+            try {
+                const response = await fetch(App.apiUrl('Controller/EventController.php'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete', id_evenement: id, partner_id: App.getCurrentUser().id })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    Components.showToast('…vÈnement annulÈ', 'success');
+                    await this.loadEvents();
+                } else {
+                    Components.showToast(result.message || 'Erreur lors de l\'annulation', 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                Components.showToast('Erreur serveur', 'error');
             }
         }
     },
@@ -324,16 +378,16 @@
              if(p) {
                  p.status = newStatus;
                  this.saveAllEvents();
-                 Components.showToast('Statut mis √† jour', 'success');
+                 Components.showToast('Statut mis ‡ jour', 'success');
              }
         }
     },
 
     markAllPresent() {
         if(!this.currentEvent || !this.currentEvent.participants) return;
-        this.currentEvent.participants.forEach(p => p.status = 'Pr√©sent');
+        this.currentEvent.participants.forEach(p => p.status = 'PrÈsent');
         this.saveAllEvents();
-        Components.showToast('Tous les participants ont √©t√© marqu√©s pr√©sents', 'success');
+        Components.showToast('Tous les participants ont ÈtÈ marquÈs prÈsents', 'success');
         this.showDetails(this.currentEvent.id);
     },
 
@@ -358,6 +412,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     EventsPartner.init();
 });
+
+
+
 
 
 

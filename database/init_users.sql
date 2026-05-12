@@ -3,8 +3,8 @@ DROP TABLE IF EXISTS `profiles`;
 DROP TABLE IF EXISTS `users`;
 
 -- Creation de la base de donnees
-CREATE DATABASE IF NOT EXISTS `projet2a22` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `projet2a22`;
+CREATE DATABASE IF NOT EXISTS `caremeal` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `caremeal`;
 
 -- --------------------------------------------------------
 

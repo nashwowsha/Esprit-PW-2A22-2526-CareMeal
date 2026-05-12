@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Legacy student HTML routes -> functional student PHP routes
+RewriteRule ^View/FrontOffice/student/(dashboard|profile|preferences|events|orders|settings|points)\.html$ View/FrontOffice/student/$1.php [R=302,L,NC]
+RewriteRule ^student/(dashboard|profile|preferences|events|orders|settings|points)\.html$ View/FrontOffice/student/$1.php [R=302,L,NC]
+
+# Legacy student PHP entrypoints are handled directly by /student/*.php files.

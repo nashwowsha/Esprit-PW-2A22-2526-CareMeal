@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "Bash(python -c \"import ftfy; print\\('OK'\\)\")",
+      "Bash(python)"
+    ]
+  }
+}

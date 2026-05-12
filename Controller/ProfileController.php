@@ -76,6 +76,12 @@ class ProfileController {
     // ================================================================
     public function updatePartnerProfile($userId, $nomEntreprise, $nom, $prenom, $telephone, $description, $linkedin, $facebook, $instagram, $twitter, $github) {
         try {
+            $check = $this->conn->prepare("SELECT user_id FROM profiles WHERE user_id = :user_id LIMIT 1");
+            $check->execute([':user_id' => $userId]);
+            if (!$check->fetch(PDO::FETCH_ASSOC)) {
+                return ["success" => false, "message" => "Profil partenaire introuvable."];
+            }
+
             $stmt = $this->conn->prepare("
                 UPDATE profiles 
                 SET nom_entreprise = :nom_entreprise, 

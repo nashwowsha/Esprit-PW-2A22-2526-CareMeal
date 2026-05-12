@@ -187,101 +187,131 @@ const Student = {
   },
 
   // --- Orders ---
-  initOrders() {
+  async initOrders() {
+    await App.refreshCurrentUser();
     if (!App.requireAuth(['student'])) return;
+
+    // Load products grid
+    this.loadOrderProducts();
+
+    // Load order history
     const user = App.getCurrentUser();
-    const orders = App.getOrders().filter(o => o.userId === user.id);
+    let orders = [];
+    try {
+      const resp = await fetch(App.apiUrl(`api/commandes.php?user_id=${encodeURIComponent(user.id)}`));
+      orders = await resp.json();
+    } catch(e) {
+      orders = [];
+    }
 
     const container = document.getElementById('orders-table-body');
     if (!container) return;
 
-    if (orders.length === 0) {
-      container.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;"><div class="empty-state" style="padding:16px;"><div class="empty-icon"><i class="fa-solid fa-box"></i></div><h3>Aucune commande</h3><p>Votre historique est vide. Commencez à sauver des repas !</p></div></td></tr>';
-      return;
-    }
+    // Store all orders for search functionality
+    this._currentOrders = orders;
 
-    container.innerHTML = orders.map(order => {
+    // Render function with optional search filter
+    const renderOrders = (searchText = '') => {
+      let filtered = orders;
+      
+      if (searchText.trim().length > 0) {
+        const q = searchText.toLowerCase();
+        filtered = orders.filter(o => (
+          (o.product_name && o.product_name.toLowerCase().includes(q)) ||
+          (o.partnerName && o.partnerName.toLowerCase().includes(q)) ||
+          (o.date_commande && o.date_commande.toLowerCase().includes(q))
+        ));
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;"><div class="empty-state" style="padding:16px;"><div class="empty-icon"><i class="fa-solid fa-box"></i></div><h3>Aucune commande</h3><p>Votre historique est vide. Commencez à sauver des repas !</p></div></td></tr>';
+        return;
+      }
+
       const statusMap = {
-        completed: '<span class="badge badge-success badge-dot">Terminée</span>',
-        pending: '<span class="badge badge-warning badge-dot">En cours</span>',
-        cancelled: '<span class="badge badge-danger badge-dot">Annulée</span>'
+        en_attente: '<span class="badge badge-warning badge-dot">En attente</span>',
+        validee: '<span class="badge badge-success badge-dot">Validée</span>',
+        retiree: '<span class="badge badge-success badge-dot">Retirée</span>',
+        annulee: '<span class="badge badge-danger badge-dot">Annulée</span>'
       };
-      return `
-        <tr>
-          <td><strong style="color:var(--color-white)">${order.items}</strong></td>
-          <td>${order.partnerName}</td>
-          <td>
-            <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:0.8rem;">${order.originalPrice.toFixed(1)} DT</span>
-            <strong style="color:var(--color-primary);margin-left:4px;">${order.price.toFixed(1)} DT</strong>
-          </td>
-          <td>${App.formatDate(order.date)}</td>
-          <td>${statusMap[order.status] || order.status}</td>
-          <td>${order.rating ? '<i class="fa-solid fa-star"></i>'.repeat(order.rating) : '—'}</td>
-        </tr>
-      `;
-    }).join('');
-  },
 
-  // --- Points ---
-  async initPoints() {
-    await App.refreshCurrentUser();
-    if (!App.requireAuth(['student'])) return;
-    const user = App.getCurrentUser();
-    
-    // Total points and level
-    const totalPointsNode = document.getElementById('total-points');
-    if (totalPointsNode) totalPointsNode.textContent = user.points_accumules || 0;
-    
-    const levelNameNode = document.getElementById('level-name');
-    const currentLevelNode = document.getElementById('current-level');
-    const pointsNextNode = document.getElementById('points-next');
-    const levelProgressNode = document.getElementById('level-progress');
-    
-    const pts = user.points_accumules || 0;
-    let level = 1, levelName = "Débutant 🌱", maxPts = 100;
-    
-    if (pts >= 1000) { level = 4; levelName = "Légende Anti-Gaspi 👑"; maxPts = 1000; }
-    else if (pts >= 500) { level = 3; levelName = "Héros 🦸"; maxPts = 1000; }
-    else if (pts >= 100) { level = 2; levelName = "Initié 🌟"; maxPts = 500; }
+      // Render orders with AI scores (throttled to avoid rate limit)
+      (async () => {
+        const rows = [];
+        
+        for (const order of filtered) {
+          // Calculate waste reduction score from discount
+          const normal = Number(order.prix_normal_snapshot || 0);
+          const paid = Number(order.total || 0);
+          const score = normal > 0 ? Math.round(((normal - paid) / normal) * 100) : 50;
 
-    if (levelNameNode) levelNameNode.textContent = levelName;
-    if (currentLevelNode) currentLevelNode.textContent = level;
-    
-    if (level < 4) {
-      if (pointsNextNode) pointsNextNode.textContent = (maxPts - pts) + ' points pour le niveau suivant';
-      if (levelProgressNode) levelProgressNode.style.width = Math.min(100, (pts / maxPts) * 100) + '%';
-    } else {
-      if (pointsNextNode) pointsNextNode.textContent = 'Niveau Maximum Atteint !';
-      if (levelProgressNode) levelProgressNode.style.width = '100%';
-    }
+          // Get AI explanation (sequential to avoid rate limit)
+          let aiNote = '—';
+          try {
+            const aiResp = await fetch(App.apiUrl('api/ai_score.php'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                score: score,
+                product: [order.product_name || 'produit']
+              })
+            });
+            if (aiResp.ok) {
+              const aiData = await aiResp.json();
+              aiNote = `<span title="${aiData.explanation}" style="cursor:help;">
+                <strong style="color:var(--color-primary)">${aiData.score}/100</strong>
+                <i class="fa-solid fa-circle-info" style="margin-left:4px;color:var(--color-text-muted);"></i>
+              </span>`;
+            } else if (aiResp.status === 429) {
+              aiNote = `<span title="API rate limited, try again in a moment" style="cursor:help;color:var(--color-text-muted);">
+                ${score}/100 <i class="fa-solid fa-hourglass-end"></i>
+              </span>`;
+            }
+          } catch(e) {
+            // keep aiNote as '—'
+          }
 
-    // Referral Code
-    const refCodeNode = document.getElementById('user-referral-code');
-    if (refCodeNode) {
-      refCodeNode.textContent = user.referral_code || 'NON-DISPONIBLE';
-    }
-  },
+          // Small delay between requests to avoid rate limit
+          await new Promise(r => setTimeout(r, 300));
 
-  copyReferralCode() {
-    const code = document.getElementById('user-referral-code')?.textContent.trim();
-    if (code && code !== 'NON-DISPONIBLE' && code !== 'CHARGEMENT...') {
-      navigator.clipboard.writeText(code).then(() => {
-        const btn = document.getElementById('btn-copy-code');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copié !';
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-outline');
-        setTimeout(() => {
-          btn.innerHTML = originalHtml;
-          btn.classList.remove('btn-primary');
-          btn.classList.add('btn-outline');
-        }, 2000);
-        Components.showToast('Succès', 'Code copié dans le presse-papiers !', 'success');
-      }).catch(() => {
-        Components.showToast('Erreur', 'Impossible de copier le code', 'error');
+          rows.push(`
+            <tr>
+              <td><strong>${order.product_name || '—'}</strong></td>
+              <td>${order.partnerName || '—'}</td>
+              <td>
+                <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:0.8rem;">${normal.toFixed(1)} DT</span>
+                <strong style="color:var(--color-primary);margin-left:4px;">${paid.toFixed(1)} DT</strong>
+              </td>
+              <td>${order.date_commande ? order.date_commande.substring(0, 10) : '—'}</td>
+              <td>${statusMap[order.statut] || order.statut}</td>
+              <td>${aiNote}</td>
+              <td>
+                <div class="table-actions">
+                  ${order.statut === 'en_attente' ? `<button class="table-action-btn danger" title="Annuler" onclick="Student.cancelOrder(${order.id_commande})"><i class="fa-solid fa-ban"></i></button>` : ''}
+                  <button class="table-action-btn danger" title="Supprimer" onclick="Student.deleteOrder(${order.id_commande})"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          `);
+        }
+
+        container.innerHTML = rows.join('');
+      })();
+    };
+
+    // Initial render
+    renderOrders();
+
+    // Attach search listener
+    const searchInput = document.getElementById('orders-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        renderOrders(e.target.value);
       });
     }
   },
+
+
 
   // --- Settings ---
   async initSettings() {
@@ -376,7 +406,7 @@ const Student = {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enregistrement...';
     btn.disabled = true;
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -459,7 +489,7 @@ const Student = {
 
     
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -491,6 +521,61 @@ const Student = {
     });
   },
 
+  // --- Points ---
+  async initPoints() {
+    await App.refreshCurrentUser();
+    if (!App.requireAuth(['student'])) return;
+    const user = App.getCurrentUser() || {};
+
+    const points = Number(user.points ?? user.totalPoints ?? 0);
+    const levels = [
+      { name: 'Débutant', min: 0, next: 100 },
+      { name: 'Bronze', min: 100, next: 250 },
+      { name: 'Argent', min: 250, next: 500 },
+      { name: 'Or', min: 500, next: 1000 },
+      { name: 'Platine', min: 1000, next: null }
+    ];
+
+    let current = levels[0];
+    for (const level of levels) {
+      if (points >= level.min) current = level;
+    }
+
+    const totalPointsEl = document.getElementById('total-points');
+    const levelNameEl = document.getElementById('level-name');
+    const currentLevelEl = document.getElementById('current-level');
+    const pointsNextEl = document.getElementById('points-next');
+    const progressEl = document.getElementById('level-progress');
+
+    if (totalPointsEl) totalPointsEl.textContent = points;
+    if (levelNameEl) levelNameEl.innerHTML = `${current.name} <i class="fa-solid fa-star"></i>`;
+    if (currentLevelEl) currentLevelEl.textContent = String(levels.indexOf(current) + 1);
+
+    let progress = 100;
+    if (current.next !== null) {
+      const pointsInLevel = points - current.min;
+      const span = current.next - current.min;
+      progress = Math.max(0, Math.min(100, Math.round((pointsInLevel / span) * 100)));
+      if (pointsNextEl) pointsNextEl.textContent = `${Math.max(0, current.next - points)} points pour le niveau suivant`;
+    } else if (pointsNextEl) {
+      pointsNextEl.textContent = 'Niveau maximum atteint';
+    }
+
+    if (progressEl) progressEl.style.width = `${progress}%`;
+  },
+
+  copyReferralCode() {
+    const codeEl = document.getElementById('referral-code');
+    if (!codeEl) return;
+
+    const code = codeEl.textContent.trim();
+    if (!code) return;
+
+    navigator.clipboard.writeText(code)
+      .then(() => Components.showToast('Succès', 'Code copié dans le presse-papiers.', 'success'))
+      .catch(() => Components.showToast('Erreur', 'Impossible de copier le code.', 'error'));
+  },
+
   // ================================================================
   // CRUD - DELETE : Supprimer son propre compte
   // ================================================================
@@ -501,7 +586,7 @@ const Student = {
       const btn = document.getElementById('btn-delete-account');
       if(btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Suppression...'; btn.disabled = true; }
 
-      fetch('/projet2a22/Controller/AuthController.php', {
+      fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -513,7 +598,7 @@ const Student = {
       .then(data => {
         if (data.success) {
           localStorage.removeItem('caremeal_user');
-          window.location.href = '/projet2a22/View/FrontOffice/index.php';
+          window.location.href = App.apiUrl('View/FrontOffice/index.php');
         } else {
             if(btn) { btn.innerHTML = 'Supprimer'; btn.disabled = false; }
             Components.showToast('Erreur', data.message || 'Erreur lors de la suppression.', 'error');
@@ -524,5 +609,324 @@ const Student = {
          Components.showToast('Erreur', 'Erreur serveur', 'error');
       });
     });
+  },
+
+  _normalizeProduct(p) {
+    return {
+      id: p.id_produit != null ? p.id_produit : p.id,
+      name: p.nom || p.name || '',
+      description: p.description || '',
+      categoryId: p.id_categorie != null ? p.id_categorie : p.categoryId,
+      categoryName: p.category_name || p.categoryName || '',
+      originalPrice: parseFloat(p.prix_normal != null ? p.prix_normal : (p.originalPrice || 0)),
+      price: parseFloat(p.prix_commande != null ? p.prix_commande : (p.price || 0)),
+      stock: Number(p.stock != null ? p.stock : 0),
+      active: Number(p.actif != null ? p.actif : (p.active != null ? p.active : 1)) ? true : false,
+      partnerName: p.partnerName || 'CareMeal',
+      partnerId: p.partnerId || null,
+      createdAt: p.created_at || p.createdAt || null
+    };
+  },
+
+  _normalizeOrder(o, userId) {
+    const statMap = { en_attente: 'pending', validee: 'completed', retiree: 'completed', annulee: 'cancelled' };
+    const stat = statMap[o.statut] || o.status || 'pending';
+    const productName = o.product_name || o.nom_produit || o.items || 'Produit';
+    const qty = Number(o.quantite != null ? o.quantite : (o.quantity || 1));
+    return {
+      id: o.id_commande != null ? o.id_commande : o.id,
+      userId: o.id_user || o.userId || userId,
+      productId: o.id_produit != null ? o.id_produit : o.productId,
+      items: productName.includes(' x') ? productName : `${productName} x${qty}`,
+      partnerName: o.partnerName || 'CareMeal',
+      originalPrice: parseFloat(o.prix_normal_snapshot != null ? o.prix_normal_snapshot : (o.originalPrice || 0)),
+      price: parseFloat(o.total != null ? o.total : (o.price || 0)),
+      quantity: qty,
+      status: stat,
+      date: o.date_commande || o.date || new Date().toISOString(),
+      rating: o.rating || null
+    };
+  },
+
+  loadOrderProducts() {
+    (async () => {
+      try {
+        const resp = await fetch(App.apiUrl('api/products.php'));
+        const raw = await resp.json();
+        const products = raw.map(p => ({
+          id: String(p.id_produit || p.id),
+          name: p.nom || p.name,
+          description: p.description || '',
+          categoryName: p.category_name || p.categoryName || '',
+          originalPrice: parseFloat(p.prix_normal || p.originalPrice || 0),
+          price: parseFloat(p.prix_commande || p.price || 0),
+          stock: Number(p.stock || 0),
+          active: Number(p.actif ?? p.active ?? 0) === 1
+        })).filter(p => p.active && p.stock > 0);
+
+        const grid = document.getElementById('products-grid');
+        if (!grid) return;
+
+        if (products.length === 0) {
+          grid.innerHTML = '<p style="color:var(--color-text-muted);padding:16px;">Aucun produit disponible.</p>';
+          return;
+        }
+
+        grid.innerHTML = products.map(p => `
+          <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px;">
+            <h4 style="margin:0;color:var(--color-text)">${p.name}</h4>
+            <p style="margin:0;font-size:0.85rem;color:var(--color-text-muted)">${p.categoryName}</p>
+            <p style="margin:0;font-size:0.82rem;color:var(--color-text-muted)">${p.description}</p>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:0.8rem;">${p.originalPrice.toFixed(1)} DT</span>
+              <strong style="color:var(--color-primary)">${p.price.toFixed(1)} DT</strong>
+            </div>
+            <p style="margin:0;font-size:0.8rem;color:var(--color-text-muted);">Stock: ${p.stock}</p>
+            <button class="btn btn-primary" onclick="Student.placeOrder('${p.id}')">
+              <i class="fa-solid fa-cart-shopping"></i> Commander
+            </button>
+          </div>
+        `).join('');
+      } catch(e) {
+        console.error('Erreur chargement produits:', e);
+      }
+    })();
+  },
+
+  placeOrder(productId) {
+    (async () => {
+      try {
+        const user = App.getCurrentUser();
+        const payload = { product_id: productId, user_id: user.id, quantity: 1 };
+        const resp = await fetch(App.apiUrl('api/commandes.php'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          Components.showToast('Succès', 'Commande passée avec succès!', 'success');
+          Student.initOrders();
+        } else {
+          Components.showToast('Erreur', data.error || 'Erreur lors de la commande.', 'error');
+        }
+      } catch(e) {
+        console.error('placeOrder error:', e);
+        Components.showToast('Erreur', 'Impossible de passer la commande.', 'error');
+      }
+    })();
+  },
+
+  placeOfferOrder(offerId) {
+    (async () => {
+      try {
+        await App.refreshCurrentUser();
+        const user = App.getCurrentUser();
+        if (!user) {
+          Components.showToast('Erreur', 'Session utilisateur introuvable.', 'error');
+          return;
+        }
+
+        const fullName = String(user.name || '').trim();
+        const nameParts = fullName.split(/\s+/).filter(Boolean);
+        const prenom = String(user.prenom || nameParts[0] || '').trim();
+        const nom = String(user.nom || nameParts.slice(1).join(' ') || prenom || 'Etudiant').trim();
+        const email = String(user.email || '').trim();
+        const telephone = String(user.phone || user.telephone || '').trim();
+
+        if (!email || !telephone) {
+          Components.showToast('Erreur', 'Votre email et votre téléphone sont requis pour commander.', 'error');
+          return;
+        }
+
+        const resp = await fetch(App.apiUrl('api/commander.php'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_offre: offerId,
+            nom,
+            prenom,
+            email,
+            telephone,
+            quantite: 1,
+            statut: 'en_attente'
+          })
+        });
+        const data = await resp.json();
+
+        if (resp.ok && data.success) {
+          Components.showToast('Succès', 'Commande envoyée avec succès.', 'success');
+        } else {
+          Components.showToast('Erreur', data.error || 'Erreur lors de la commande.', 'error');
+        }
+      } catch (e) {
+        console.error('placeOfferOrder error:', e);
+        Components.showToast('Erreur', 'Impossible de passer la commande.', 'error');
+      }
+    })();
+  },
+
+  loadOrdersTable(search = '') {
+    const user = App.getCurrentUser();
+    const container = document.getElementById('orders-table-body');
+    if (!container) return;
+
+    const renderOrders = (orders) => {
+      let filtered = orders;
+      if (search && search.length > 0) {
+        const q = search.toLowerCase();
+        filtered = orders.filter(o => (
+          (o.items && o.items.toLowerCase().includes(q)) ||
+          (o.partnerName && o.partnerName.toLowerCase().includes(q)) ||
+          (o.date && o.date.toLowerCase().includes(q))
+        ));
+      }
+      if (filtered.length === 0) {
+        container.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;"><div class="empty-state" style="padding:16px;"><div class="empty-icon"><i class="fa-solid fa-box"></i></div><h3>Aucune commande</h3><p>Votre historique est vide. Commencez \u00e0 sauver des repas !</p></div></td></tr>';
+        return;
+      }
+      const statusMap = {
+        en_attente: '<span class="badge badge-warning badge-dot">En attente</span>',
+        validee: '<span class="badge badge-success badge-dot">Validée</span>',
+        retiree: '<span class="badge badge-success badge-dot">Retirée</span>',
+        annulee: '<span class="badge badge-danger badge-dot">Annulée</span>'
+      };
+
+      // Render orders with AI scores
+      (async () => {
+        const rows = await Promise.all(filtered.map(async (order) => {
+          // Calculate waste reduction score from discount
+          const normal = Number(order.prix_normal_snapshot || 0);
+          const paid = Number(order.total || 0);
+          const score = normal > 0 ? Math.round(((normal - paid) / normal) * 100) : 50;
+
+          // Get AI explanation
+          let aiNote = '—';
+          try {
+            const aiResp = await fetch(App.apiUrl('api/ai_score.php'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                score: score,
+                product: [order.product_name || 'produit']
+              })
+            });
+            if (aiResp.ok) {
+              const aiData = await aiResp.json();
+              aiNote = `<span title="${aiData.explanation}" style="cursor:help;">
+                <strong style="color:var(--color-primary)">${aiData.score}/100</strong>
+                <i class="fa-solid fa-circle-info" style="margin-left:4px;color:var(--color-text-muted);"></i>
+              </span>`;
+            }
+          } catch(e) {
+            // keep aiNote as '—'
+          }
+
+          return `
+            <tr>
+              <td><strong>${order.product_name || '—'}</strong></td>
+              <td>${order.partnerName || '—'}</td>
+              <td>
+                <span style="text-decoration:line-through;color:var(--color-text-muted);font-size:0.8rem;">${normal.toFixed(1)} DT</span>
+                <strong style="color:var(--color-primary);margin-left:4px;">${paid.toFixed(1)} DT</strong>
+              </td>
+              <td>${order.date_commande ? order.date_commande.substring(0, 10) : '—'}</td>
+              <td>${statusMap[order.statut] || order.statut}</td>
+              <td>${aiNote}</td>
+              <td>
+                <div class="table-actions">
+                  ${order.statut === 'en_attente' ? `<button class="table-action-btn danger" title="Annuler" onclick="Student.cancelOrder(${order.id_commande})"><i class="fa-solid fa-ban"></i></button>` : ''}
+                </div>
+              </td>
+            </tr>
+          `;
+        }));
+
+        container.innerHTML = rows.join('');
+      })();
+    };
+
+    // Show local data immediately while API loads
+    const localOrders = App.getOrders().filter(o => String(o.userId) === String(user.id));
+    renderOrders(localOrders);
+
+    // Always fetch fresh from API (commande JOIN produit gives us product_name)
+    (async () => {
+      try {
+        const resp = await fetch(App.apiUrl('api/commandes.php?user_id=' + encodeURIComponent(user.id)));
+        if (!resp.ok) return;
+        const raw = await resp.json();
+        const localOrders = App.getOrders().filter(o => String(o.userId) === String(user.id));
+        const localById = new Map(localOrders.map(o => [String(o.id), o]));
+        const apiOrders = raw
+          .map(o => this._normalizeOrder(o, user.id))
+          .filter(o => String(o.userId) === String(user.id))
+          .map(order => {
+            const localOrder = localById.get(String(order.id));
+            return localOrder && localOrder.note ? { ...order, note: localOrder.note } : order;
+          });
+        const dbIds = new Set(apiOrders.map(o => String(o.id)));
+        const localOnly = localOrders.filter(o => !dbIds.has(String(o.id)) && String(o.userId) === String(user.id));
+        const merged = [...apiOrders, ...localOnly];
+        const otherOrders = App.getOrders().filter(o => String(o.userId) !== String(user.id));
+        App.saveOrders([...otherOrders, ...merged]);
+        renderOrders(merged);
+      } catch (e) { /* already showing local */ }
+    })();
+  },
+
+  confirmDeleteOrder(orderId) {
+    const order = App.getOrders().find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    Components.confirm('Supprimer la commande', `Supprimer définitivement la commande <strong>${order.product_name || order.items || 'cette commande'}</strong> ?`, () => this.deleteOrder(orderId));
+  },
+
+  async deleteOrder(orderId) {
+    // Attempt server delete first
+    try {
+      const resp = await fetch(App.apiUrl(`api/commandes.php?id=${encodeURIComponent(orderId)}`), { method: 'DELETE' });
+      if (resp.ok) {
+        // remove from local cache
+        const orders = App.getOrders().filter(o => String(o.id) !== String(orderId));
+        App.saveOrders(orders);
+        Components.showToast('Supprimé', 'Commande supprimée.', 'success');
+        this.loadOrderProducts();
+        Student.initOrders();
+        return;
+      }
+    } catch (e) {
+      // ignore and fallback to local
+    }
+
+    // Fallback: remove locally
+    const orders = App.getOrders().filter(o => String(o.id) !== String(orderId));
+    App.saveOrders(orders);
+    Components.showToast('Supprimé (local)', 'Commande supprimée localement.', 'success');
+    this.loadOrderProducts();
+    Student.initOrders();
+  },
+
+  cancelOrder(orderId) {
+    (async () => {
+      try {
+        const resp = await fetch(App.apiUrl(`api/commandes.php?id=${orderId}`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel' })
+        });
+        if (resp.ok) {
+          Components.showToast('Succès', 'Commande annulée.', 'success');
+          Student.initOrders();
+        } else {
+          const data = await resp.json();
+          Components.showToast('Erreur', data.error || 'Impossible d\'annuler.', 'error');
+        }
+      } catch(e) {
+        Components.showToast('Erreur', 'Impossible d\'annuler la commande.', 'error');
+      }
+    })();
   }
+
 };
+
+

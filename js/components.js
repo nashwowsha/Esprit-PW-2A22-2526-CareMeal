@@ -62,6 +62,10 @@ const Components = {
     // Header avatar
     const headerAvatar = document.getElementById('header-avatar');
     if (headerAvatar) headerAvatar.textContent = App.getInitials(displayName);
+
+    // Reveal sidebar user (prevents flash of placeholder text)
+    const sidebarUser = document.querySelector('.sidebar-user');
+    if (sidebarUser) sidebarUser.classList.add('ready');
   },
 
   // --- Logout ---
@@ -69,10 +73,49 @@ const Components = {
     document.querySelectorAll('[data-action="logout"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
+        // Reset one-time assistant greeting flags on explicit logout.
+        try {
+          Object.keys(sessionStorage).forEach((key) => {
+            if (key.startsWith('caremeal_student_briefing_once_')) {
+              sessionStorage.removeItem(key);
+            }
+          });
+        } catch (_e) {}
         App.addLog('Déconnexion');
         App.logout();
       });
     });
+  },
+
+  // --- Notifications ---
+  initNotifications() {
+    const bell = document.querySelector('.header-notification, #btn-notif');
+    if (!bell) return;
+
+    const user = (typeof App !== 'undefined' && typeof App.getCurrentUser === 'function')
+      ? App.getCurrentUser()
+      : null;
+    const role = user?.role || (window.location.pathname.includes('/admin/') ? 'admin' : 'student');
+
+    const boot = () => {
+      if (typeof window.CareMealNotifications === 'undefined') return;
+      window.CareMealNotifications.init(role);
+    };
+
+    if (typeof window.CareMealNotifications !== 'undefined') {
+      boot();
+      return;
+    }
+
+    if (document.getElementById('caremeal-notifications-script')) return;
+
+    const script = document.createElement('script');
+    script.id = 'caremeal-notifications-script';
+    script.src = (typeof window.caremealPath === 'function')
+      ? window.caremealPath('assets/js/notifications.js')
+      : '/assets/js/notifications.js';
+    script.onload = boot;
+    document.body.appendChild(script);
   },
 
   // --- Modal ---
@@ -256,8 +299,15 @@ const Components = {
     this.initUserInfo();
     this.initLogout();
     this.initModals();
+    this.initNotifications();
+    // Fallback: always reveal sidebar user even if no user data in storage
+    const sidebarUser = document.querySelector('.sidebar-user');
+    if (sidebarUser && !sidebarUser.classList.contains('ready')) {
+      sidebarUser.classList.add('ready');
+    }
   }
 };
 
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => Components.init());
+

@@ -16,13 +16,14 @@ const Partner = {
     if (!user) return;
 
     // The display name can be from the database explicit fields, or fallback to name
-    const displayName = user.nomEntreprise || user.secteur_activite ? user.nomEntreprise || user.name : user.name || 'Partenaire';
+    const displayName = (user.nom_entreprise || user.nomEntreprise || user.name || 'Partenaire').trim();
+    const phone = user.telephone || user.phone || '';
 
     // Profile info
     this.setField('partner-name', displayName);
     this.setField('partner-type', user.secteur_activite || 'Non renseigné (Secteur)');
     this.setField('partner-address', user.site_web || 'Non renseigné (Site web)');
-    this.setField('partner-phone', user.phone || 'Non renseigné');
+    this.setField('partner-phone', phone || 'Non renseigne');
     this.setField('partner-email', user.email);
     this.setField('partner-description', user.description || 'Aucune description');
     this.setField('partner-avatar', App.getInitials(displayName));
@@ -164,15 +165,17 @@ const Partner = {
     await App.refreshCurrentUser();
     if (!App.requireAuth(['partner'])) return;
     const user = App.getCurrentUser();
+    const companyName = user.nom_entreprise || user.nomEntreprise || user.name || '';
+    const phone = user.telephone || user.phone || '';
 
     // Pre-fill form
     const fields = { 
       'edit-prenom': 'prenom', 
       'edit-nom': 'nom', 
-      'edit-name': 'name', 
+      'edit-name': 'nom_entreprise', 
       'edit-secteur': 'secteur_activite', 
       'edit-website': 'site_web', 
-      'edit-phone': 'phone', 
+      'edit-phone': 'telephone', 
       'edit-description': 'description',
       'edit-linkedin': 'linkedin',
       'edit-facebook': 'facebook',
@@ -183,6 +186,10 @@ const Partner = {
       const input = document.getElementById(inputId);
       if (input) input.value = user[key] || '';
     });
+    const nameInput = document.getElementById('edit-name');
+    if (nameInput) nameInput.value = companyName;
+    const phoneInput = document.getElementById('edit-phone');
+    if (phoneInput) phoneInput.value = phone;
   },
 
     // ================================================================
@@ -233,7 +240,7 @@ const Partner = {
     btn.disabled = true;
 
     try {
-      const response = await fetch('/projet2a22/Controller/AuthController.php', {
+      const response = await fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -262,6 +269,7 @@ const Partner = {
 
       if (data.success) {
         user.name = nom_entreprise;
+        user.nomEntreprise = nom_entreprise;
         user.nom_entreprise = nom_entreprise;
         user.nom = nom;
         user.prenom = prenom;
@@ -274,6 +282,7 @@ const Partner = {
         user.twitter = twitter;
         user.github = github;
         App.setCurrentUser(user);
+        await App.refreshCurrentUser();
         
         Components.showToast('Succès', 'Profil mis à jour avec succès.', 'success');
         
@@ -318,7 +327,7 @@ const Partner = {
 
     
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -360,7 +369,7 @@ const Partner = {
       const btn = document.getElementById('btn-delete-account');
       if(btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Suppression...'; btn.disabled = true; }
 
-      fetch('/projet2a22/Controller/AuthController.php', {
+      fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -372,7 +381,7 @@ const Partner = {
       .then(data => {
         if (data.success) {
           localStorage.removeItem('caremeal_user');
-          window.location.href = '/projet2a22/View/FrontOffice/index.php';
+          window.location.href = App.apiUrl('View/FrontOffice/index.php');
         } else {
             if(btn) { btn.innerHTML = 'Supprimer'; btn.disabled = false; }
             Components.showToast('Erreur', data.message || 'Erreur lors de la suppression.', 'error');
@@ -391,3 +400,6 @@ const Partner = {
     if (el) el.textContent = value;
   }
 };
+
+
+

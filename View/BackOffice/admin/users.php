@@ -3,42 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Gestion des utilisateurs CareMeal - Liste, filtre, actions.">
-  <title>Gestion Utilisateurs - CareMeal Admin</title>
+  <meta name="description" content="Gestion des utilisateurs CareMeal - Liste, filtre, actions.">
+  <title>Gestion Utilisateurs - CareMeal Admin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/projet2a22/css/main.css">
-  <link rel="stylesheet" href="/projet2a22/css/components.css">
-  <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/theme-fix.css">
 </head>
 <body>
   <div class="dashboard-layout">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-logo"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
-        <div class="sidebar-brand">Care<span>Meal</span></div>
-      </div>
-      <nav class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Administration</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
-          <a href="users.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
-          <a href="partners.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-                      <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
-            <a href="logs.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
-        </div>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
-            <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
-          </div>
-          <button class="sidebar-logout" data-action="logout" title="Déconnexion">
-              <i class="fa-solid fa-door-open"></i></button>
-        </div>
-      </div>
-    </aside>
+    <?php
+      $activePage = 'users';
+      require dirname(__DIR__, 3) . '/admin/_admin_sidebar.php';
+    ?>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="main-content">
@@ -49,6 +27,10 @@
           <div class="page-title"><h2>Gestion Utilisateurs</h2><p id="users-count">0 utilisateurs</p></div>
         </div>
         <div class="header-right">
+          <a href="/View/FrontOffice/feed.php" title="Fil d'actualité" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:1.1rem;text-decoration:none;transition:background .15s;" onmouseover="this.style.background='rgba(254,85,22,0.1)';this.style.color='#FE5516'" onmouseout="this.style.background='none';this.style.color='var(--color-text-muted)'">
+            <i class="fa-solid fa-house"></i>
+          </a>
+          <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
         </div>
       </header>
@@ -100,6 +82,135 @@
             </table>
           </div>
         </div>
+
+        <!-- User Statistics Panel -->
+        <div class="card animate-fade-in-up stagger-2" style="margin-top:1.5rem; overflow:hidden;">
+
+          <!-- Header -->
+          <div style="padding:1.25rem 1.75rem; border-bottom:1px solid var(--color-border); display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:32px;height:32px;border-radius:8px;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid fa-chart-pie" style="color:#ef4444; font-size:0.9rem;"></i>
+              </div>
+              <span style="font-size:0.95rem; font-weight:700; color:var(--color-text);">Statistiques des utilisateurs</span>
+            </div>
+            <span style="font-size:0.75rem; color:var(--color-text-muted); background:var(--color-bg-secondary); padding:4px 10px; border-radius:20px; border:1px solid var(--color-border);">Temps réel</span>
+          </div>
+
+          <div style="padding:1.75rem; display:grid; grid-template-columns:auto 1fr 1fr; gap:1.25rem; align-items:stretch;">
+
+            <!-- Total card -->
+            <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:150px; border-radius:16px; padding:1.75rem 1.5rem; gap:10px;
+              background: linear-gradient(135deg, rgba(239,68,68,0.15) 0%, rgba(239,68,68,0.05) 100%);
+              border:1px solid rgba(239,68,68,0.25);">
+              <div style="width:56px; height:56px; border-radius:50%; background:rgba(239,68,68,0.2); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 8px rgba(239,68,68,0.07);">
+                <i class="fa-solid fa-users" style="color:#ef4444; font-size:1.4rem;"></i>
+              </div>
+              <div style="font-size:2.6rem; font-weight:900; color:var(--color-text); line-height:1; letter-spacing:-1px;" id="ustat-total">—</div>
+              <div style="font-size:0.78rem; font-weight:500; color:var(--color-text-muted); text-align:center; text-transform:uppercase; letter-spacing:.06em;">Total utilisateurs</div>
+            </div>
+
+            <!-- Donut Rôle -->
+            <div style="border-radius:16px; padding:1.5rem; border:1px solid var(--color-border); background:var(--color-bg-secondary); display:flex; flex-direction:column; gap:1rem;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+                <span style="font-size:0.72rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.08em;">Par rôle</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:1.5rem;">
+                <!-- SVG Donut Rôle -->
+                <div style="position:relative; flex-shrink:0; width:120px; height:120px;">
+                  <svg viewBox="0 0 36 36" style="width:120px;height:120px;transform:rotate(-90deg);filter:drop-shadow(0 2px 8px rgba(0,0,0,0.25));">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+                    <circle id="donut-role-student" cx="18" cy="18" r="15.9" fill="none" stroke="#3b82f6" stroke-width="3"
+                      stroke-dasharray="0 100" stroke-linecap="butt" style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1);"/>
+                    <circle id="donut-role-partner" cx="18" cy="18" r="15.9" fill="none" stroke="#f97316" stroke-width="3"
+                      stroke-dasharray="0 100" stroke-linecap="butt" style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1);"/>
+                    <circle id="donut-role-admin"   cx="18" cy="18" r="15.9" fill="none" stroke="#a855f7" stroke-width="3"
+                      stroke-dasharray="0 100" stroke-linecap="butt" style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1);"/>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
+                    <span style="font-size:1.25rem;font-weight:900;color:var(--color-text);line-height:1;" id="donut-role-center">—</span>
+                    <span style="font-size:0.58rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.05em;">total</span>
+                  </div>
+                </div>
+                <!-- Légende rôle -->
+                <div style="display:flex; flex-direction:column; gap:10px; flex:1;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="display:flex;align-items:center;gap:8px;font-size:0.83rem;color:var(--color-text-muted);">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#3b82f6;flex-shrink:0;"></span> Étudiants
+                    </span>
+                    <span style="font-size:0.9rem;font-weight:800;color:var(--color-text);" id="ustat-student-val">—</span>
+                  </div>
+                  <div style="height:1px;background:var(--color-border);opacity:.5;"></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="display:flex;align-items:center;gap:8px;font-size:0.83rem;color:var(--color-text-muted);">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#f97316;flex-shrink:0;"></span> Partenaires
+                    </span>
+                    <span style="font-size:0.9rem;font-weight:800;color:var(--color-text);" id="ustat-partner-val">—</span>
+                  </div>
+                  <div style="height:1px;background:var(--color-border);opacity:.5;"></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="display:flex;align-items:center;gap:8px;font-size:0.83rem;color:var(--color-text-muted);">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#a855f7;flex-shrink:0;"></span> Admins
+                    </span>
+                    <span style="font-size:0.9rem;font-weight:800;color:var(--color-text);" id="ustat-admin-val">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Donut Statut -->
+            <div style="border-radius:16px; padding:1.5rem; border:1px solid var(--color-border); background:var(--color-bg-secondary); display:flex; flex-direction:column; gap:1rem;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+                <span style="font-size:0.72rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.08em;">Par statut</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:1.5rem;">
+                <!-- SVG Donut Statut -->
+                <div style="position:relative; flex-shrink:0; width:120px; height:120px;">
+                  <svg viewBox="0 0 36 36" style="width:120px;height:120px;transform:rotate(-90deg);filter:drop-shadow(0 2px 8px rgba(0,0,0,0.25));">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+                    <circle id="donut-status-active"  cx="18" cy="18" r="15.9" fill="none" stroke="#22c55e" stroke-width="3"
+                      stroke-dasharray="0 100" stroke-linecap="butt" style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1);"/>
+                    <circle id="donut-status-pending" cx="18" cy="18" r="15.9" fill="none" stroke="#eab308" stroke-width="3"
+                      stroke-dasharray="0 100" stroke-linecap="butt" style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1);"/>
+                    <circle id="donut-status-banned"  cx="18" cy="18" r="15.9" fill="none" stroke="#ef4444" stroke-width="3"
+                      stroke-dasharray="0 100" stroke-linecap="butt" style="transition:stroke-dasharray .7s cubic-bezier(.4,0,.2,1);"/>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
+                    <span style="font-size:1.25rem;font-weight:900;color:var(--color-text);line-height:1;" id="donut-status-center">—</span>
+                    <span style="font-size:0.58rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.05em;">total</span>
+                  </div>
+                </div>
+                <!-- Légende statut -->
+                <div style="display:flex; flex-direction:column; gap:10px; flex:1;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="display:flex;align-items:center;gap:8px;font-size:0.83rem;color:var(--color-text-muted);">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#22c55e;flex-shrink:0;"></span> Actifs
+                    </span>
+                    <span style="font-size:0.9rem;font-weight:800;color:var(--color-text);" id="ustat-active-val">—</span>
+                  </div>
+                  <div style="height:1px;background:var(--color-border);opacity:.5;"></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="display:flex;align-items:center;gap:6px;font-size:0.83rem;color:var(--color-text-muted);">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#eab308;flex-shrink:0;"></span> En attente
+                    </span>
+                    <span style="font-size:0.9rem;font-weight:800;color:var(--color-text);" id="ustat-pending-val">—</span>
+                  </div>
+                  <div style="height:1px;background:var(--color-border);opacity:.5;"></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="display:flex;align-items:center;gap:8px;font-size:0.83rem;color:var(--color-text-muted);">
+                      <span style="width:8px;height:8px;border-radius:2px;background:#ef4444;flex-shrink:0;"></span> Bannis
+                    </span>
+                    <span style="font-size:0.9rem;font-weight:800;color:var(--color-text);" id="ustat-banned-val">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
@@ -108,12 +219,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
   
-  <script src="/projet2a22/js/app.js"></script>
-  <script src="/projet2a22/js/components.js"></script>
-  <script src="/projet2a22/js/admin.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/admin.js"></script>
   <script>document.addEventListener('DOMContentLoaded', () => Admin.initUsers());</script>
+  <script src="/js/admin-voice-assistant.js?v=20260508"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
 
 
 

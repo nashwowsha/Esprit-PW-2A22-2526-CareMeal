@@ -12,7 +12,7 @@ class UserController {
     }
 
     // -----------------------------
-    // Requêtes SQL : login / register
+    // RequÃªtes SQL : login / register
     // -----------------------------
     public function login($email, $password) {
         try {
@@ -27,67 +27,94 @@ class UserController {
             $stmt->execute([$email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($user) {
-                // 1. Check Anti Brute-Force Lockout
-                if ($user['lockout_until'] !== null && strtotime($user['lockout_until']) > time()) {
-                    $minutesLeft = ceil((strtotime($user['lockout_until']) - time()) / 60);
-                    return ["success" => false, "message" => "Compte temporairement bloqué suite à trop d'échecs. Réessayez dans $minutesLeft minute(s)."];
-                }
-
-                if (password_verify($password, $user['password'])) {
-                    // Password is correct, check status
-                    if ($user['status'] === 'banned') {
-                        return ["success" => false, "message" => "Votre compte a été suspendu."];
-                    }
-                    if ($user['status'] === 'inactive') {
-                        return ["success" => false, "message" => "Votre compte n'est pas encore actif ou a été désactivé."];
-                    }
-                    
-                    // Reset failed login attempts on success
-                    if ($user['failed_login_attempts'] > 0 || $user['lockout_until'] !== null) {
-                        $resetStmt = $this->conn->prepare("UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?");
-                        $resetStmt->execute([$user['id']]);
-                    }
-
-                    $Profile = new Profile($user);
-                    $User = new User(
-                        $user['id'],
-                        $user['email'],
-                        $user['role'],
-                        $user['status'],
-                        $user['created_at'],
-                        $Profile
-                    );
-                    return [
-                        "success" => true,
-                        "message" => "Connexion reussie.",
-                        "user" => $User->toArray()
-                    ];
-                } else {
-                    // Password incorrect: Increment failed attempts
-                    $attempts = $user['failed_login_attempts'] + 1;
-                    $lockoutTime = null;
-                    $message = "Mot de passe incorrect.";
-
-                    if ($attempts >= 3) {
-                        // Lock account for 15 minutes
-                        $lockoutTime = date('Y-m-d H:i:s', strtotime('+15 minutes'));
-                        $message = "Trop de tentatives échouées. Votre compte est bloqué pour 15 minutes.";
-                    }
-
-                    $updateStmt = $this->conn->prepare("UPDATE users SET failed_login_attempts = ?, lockout_until = ? WHERE id = ?");
-                    $updateStmt->execute([$attempts, $lockoutTime, $user['id']]);
-
-                    return ["success" => false, "message" => $message];
-                }
-            } else {
+            if (!$user) {
                 return ["success" => false, "message" => "Aucun compte trouve avec cet email."];
             }
+
+            $storedPassword = (string)($user['password'] ?? '');
+            $passwordInfo = password_get_info($storedPassword);
+            $algoName = (string)($passwordInfo['algoName'] ?? 'unknown');
+            $isModernHash = !empty($storedPassword) && strtolower($algoName) !== 'unknown';
+            $isLegacyPlain = !empty($storedPassword) && !$isModernHash;
+
+            $passwordOk = false;
+            if ($isModernHash) {
+                $passwordOk = password_verify($password, $storedPassword);
+            } elseif ($isLegacyPlain) {
+                // Compat legacy: anciennes lignes en texte clair.
+                $passwordOk = hash_equals($storedPassword, (string)$password);
+            }
+
+            // UX guard: user pasted a DB hash instead of the real password.
+            // Do not count this as a brute-force attempt.
+            if (!$passwordOk && preg_match('/^\$2[aby]\$\d{2}\$.{53}$/', (string)$password)) {
+                return [
+                    "success" => false,
+                    "message" => "Le mot de passe colle semble etre un hash de base de donnees. Utilisez le vrai mot de passe en clair."
+                ];
+            }
+
+            if (!$passwordOk && $user['lockout_until'] !== null && strtotime((string)$user['lockout_until']) > time()) {
+                $minutesLeft = ceil((strtotime((string)$user['lockout_until']) - time()) / 60);
+                return ["success" => false, "message" => "Compte temporairement bloque suite a trop d echecs. Reessayez dans $minutesLeft minute(s)."];
+            }
+
+            if ($passwordOk) {
+                if ($user['status'] === 'banned') {
+                    return ["success" => false, "message" => "Votre compte a ete suspendu."];
+                }
+                if ($user['status'] === 'inactive') {
+                    return ["success" => false, "message" => "Votre compte n est pas encore actif ou a ete desactive."];
+                }
+
+                if (($user['failed_login_attempts'] ?? 0) > 0 || $user['lockout_until'] !== null) {
+                    $resetStmt = $this->conn->prepare("UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?");
+                    $resetStmt->execute([$user['id']]);
+                }
+
+                if ($isLegacyPlain) {
+                    $rehash = password_hash($password, PASSWORD_DEFAULT);
+                    $rehashStmt = $this->conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                    $rehashStmt->execute([$rehash, $user['id']]);
+                } elseif (password_needs_rehash($storedPassword, PASSWORD_DEFAULT)) {
+                    $rehash = password_hash($password, PASSWORD_DEFAULT);
+                    $rehashStmt = $this->conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                    $rehashStmt->execute([$rehash, $user['id']]);
+                }
+
+                $Profile = new Profile($user);
+                $User = new User(
+                    $user['id'],
+                    $user['email'],
+                    $user['role'],
+                    $user['status'],
+                    $user['created_at'],
+                    $Profile
+                );
+                return [
+                    "success" => true,
+                    "message" => "Connexion reussie.",
+                    "user" => $User->toArray()
+                ];
+            }
+
+            $attempts = ((int)($user['failed_login_attempts'] ?? 0)) + 1;
+            $lockoutTime = null;
+            $message = "Mot de passe incorrect.";
+
+            if ($attempts >= 3) {
+                $lockoutTime = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+                $message = "Trop de tentatives echouees. Votre compte est bloque pour 15 minutes.";
+            }
+
+            $updateStmt = $this->conn->prepare("UPDATE users SET failed_login_attempts = ?, lockout_until = ? WHERE id = ?");
+            $updateStmt->execute([$attempts, $lockoutTime, $user['id']]);
+
+            return ["success" => false, "message" => $message];
         } catch(Exception $e) {
             return ["success" => false, "message" => "Erreur: " . $e->getMessage()];
         }
     }
-
     public function registerStudent($nom, $prenom, $email, $password, $ecole, $annee, $telephone, $quartier, $sponsorCode = '') {
         try {
             $this->conn->beginTransaction();
@@ -103,13 +130,13 @@ class UserController {
             $stmt->execute([$email, $hashedPassword]);
             $userId = $this->conn->lastInsertId();
 
-            // Générer le code de parrainage pour ce nouvel utilisateur
+            // GÃ©nÃ©rer le code de parrainage pour ce nouvel utilisateur
             $stmtCode = $this->conn->prepare("UPDATE users SET referral_code = CONCAT('CARE-', id, '-', UPPER(LEFT(MD5(email), 4))) WHERE id = ?");
             $stmtCode->execute([$userId]);
 
             $pointsInitial = 0;
 
-            // Système de Parrainage (Métier Avancé)
+            // SystÃ¨me de Parrainage (MÃ©tier AvancÃ©)
             if (!empty($sponsorCode)) {
                 $stmtSponsor = $this->conn->prepare("SELECT id FROM users WHERE referral_code = ?");
                 $stmtSponsor->execute([$sponsorCode]);
@@ -215,7 +242,7 @@ class UserController {
     public function getConn() { return $this->conn; }
 
     // ============================================================
-    // MOT DE PASSE OUBLIÉ 
+    // MOT DE PASSE OUBLIÃ‰ 
     // ============================================================
     
     public function forgotPasswordRequest($email) {
@@ -244,11 +271,13 @@ class UserController {
                 $isEmailInput = filter_var($email, FILTER_VALIDATE_EMAIL);
 
                 if ($isEmailInput) {
-                    // L'utilisateur a entré un email, on envoie un email
-                    $this->sendBrevoEmail($user['email'], $code);
+                    $emailResult = $this->sendBrevoEmail($user['email'], $code);
+                    $emailData = json_decode($emailResult, true);
+                    if (isset($emailData['code'])) {
+                        return ["success" => false, "message" => "Erreur d'envoi email : " . ($emailData['message'] ?? $emailData['code'])];
+                    }
                     $methodMsg = "un email a été envoyé.";
                 } else {
-                    // L'utilisateur a entré un numéro de téléphone, on envoie un SMS
                     if (!empty($user['telephone'])) {
                         $phone = trim($user['telephone']);
                         if (preg_match('/^[0-9]{8}$/', $phone)) {
@@ -256,27 +285,29 @@ class UserController {
                         } elseif (!str_starts_with($phone, '+')) {
                             $phone = '+216' . $phone;
                         }
-                        
+
                         $smsResponse = $this->sendBrevoSMS($phone, $code);
                         $smsResult = json_decode($smsResponse, true);
-                        
+
                         if (isset($smsResult['code'])) {
-                            // S'il y a un code d'erreur (ex: unauthorized, not_enough_credits)
                             return ["success" => false, "message" => "Erreur Brevo SMS : " . $smsResult['message'] . " (" . $smsResult['code'] . ")"];
                         }
-                        
+
                         $methodMsg = "un SMS a été envoyé.";
                     } else {
-                        // Secours: si bizarrement le téléphone est vide, on envoie un email
-                        $this->sendBrevoEmail($user['email'], $code);
+                        $emailResult = $this->sendBrevoEmail($user['email'], $code);
+                        $emailData = json_decode($emailResult, true);
+                        if (isset($emailData['code'])) {
+                            return ["success" => false, "message" => "Erreur d'envoi email : " . ($emailData['message'] ?? $emailData['code'])];
+                        }
                         $methodMsg = "un email a été envoyé.";
                     }
                 }
             }
 
-            // Always return success for security
             return ["success" => true, "message" => "Si un compte existe, " . ($methodMsg ?? "un code a été envoyé.")];
         } catch(Exception $e) {
+            error_log("[forgotPasswordRequest] Exception: " . $e->getMessage());
             return ["success" => false, "message" => "Erreur système."];
         }
     }
@@ -358,10 +389,21 @@ class UserController {
             'api-key: ' . $apiKey,
             'content-type: application/json'
         ]);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
         $result = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        
+
+        if ($curlError) {
+            error_log("[Brevo Email] cURL error: $curlError");
+        } elseif ($httpCode >= 400) {
+            error_log("[Brevo Email] HTTP $httpCode response: $result");
+        }
+
         return $result;
     }
 
@@ -386,10 +428,21 @@ class UserController {
             'api-key: ' . $apiKey,
             'content-type: application/json'
         ]);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
         $result = curl_exec($ch);
+        $curlError = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        
+
+        if ($curlError) {
+            error_log("[Brevo SMS] cURL error: $curlError");
+        } elseif ($httpCode >= 400) {
+            error_log("[Brevo SMS] HTTP $httpCode response: $result");
+        }
+
         return $result;
     }
 
@@ -402,7 +455,7 @@ class UserController {
         $action = $_GET["action"] ?? ($data["action"] ?? "");
 
         // ============================================================
-        // CRUD - READ : Récupérer la liste de tous les utilisateurs
+        // CRUD - READ : RÃ©cupÃ©rer la liste de tous les utilisateurs
         // ============================================================
         if ($action === "get_users") {
             $stmt = $this->conn->prepare("SELECT u.id, u.email, u.role, u.status, u.created_at, p.nom, p.prenom, p.nom_entreprise, p.ecole, p.quartier, p.secteur_activite, p.site_web, p.telephone FROM users u LEFT JOIN profiles p ON u.id = p.user_id");
@@ -462,16 +515,16 @@ class UserController {
                 exit;
             }
 
-            // Exemple POO : création User, setStatus, puis usage des getters
+            // Exemple POO : crÃ©ation User, setStatus, puis usage des getters
             $User = new User($userId, '', '', $status, null);
             $User->setStatus($status);
             try {
                 $stmt = $this->conn->prepare("UPDATE users SET status = :status WHERE id = :id");
                 $stmt->execute([':status' => $User->getStatus(), ':id' => $User->getId()]);
 
-                echo json_encode(["success" => true, "message" => "Statut mis à jour"]);
+                echo json_encode(["success" => true, "message" => "Statut mis Ã  jour"]);
             } catch (PDOException $e) {
-                echo json_encode(["success" => false, "message" => "Erreur base de données"]);
+                echo json_encode(["success" => false, "message" => "Erreur base de donnÃ©es"]);
             }
             exit;
         }
@@ -496,7 +549,7 @@ class UserController {
                 $stmtUser = $this->conn->prepare("DELETE FROM users WHERE id = :id");
                 $stmtUser->execute([':id' => $userId]);
 
-                echo json_encode(["success" => true, "message" => "Utilisateur supprimé"]);
+                echo json_encode(["success" => true, "message" => "Utilisateur supprimÃ©"]);
             } catch (PDOException $e) {
                 echo json_encode(["success" => false, "message" => "Erreur suppression"]);
             }
@@ -504,7 +557,7 @@ class UserController {
         }
 
         // ============================================================
-        // CRUD - UPDATE : Modifier le profil partenaire + CONTROLE DE SAISIE côté serveur
+        // CRUD - UPDATE : Modifier le profil partenaire + CONTROLE DE SAISIE cÃ´tÃ© serveur
         // ============================================================
         if ($action === "update_partner_profile") {
             $userId = $data["user_id"] ?? null;
@@ -515,18 +568,18 @@ class UserController {
             }
 
             if (empty(trim($data['nom_entreprise'] ?? ''))) {
-                echo json_encode(["success" => false, "message" => "Le nom de l'établissement est requis."]);
+                echo json_encode(["success" => false, "message" => "Le nom de l'Ã©tablissement est requis."]);
                 exit;
             }
 
             if (empty(trim($data['nom'] ?? '')) || empty(trim($data['prenom'] ?? ''))) {
-                echo json_encode(["success" => false, "message" => "Votre nom et prénom (contact) sont requis."]);
+                echo json_encode(["success" => false, "message" => "Votre nom et prÃ©nom (contact) sont requis."]);
                 exit;
             }
 
             $tel = trim($data['telephone'] ?? '');
             if (!empty($tel) && !preg_match('/^[0-9\+\s\-]{8,15}$/', $tel)) {
-                echo json_encode(["success" => false, "message" => "Le format du numéro de téléphone est invalide."]);
+                echo json_encode(["success" => false, "message" => "Le format du numÃ©ro de tÃ©lÃ©phone est invalide."]);
                 exit;
             }
 
@@ -576,9 +629,9 @@ class UserController {
                     ':user_id' => $userId
                 ]);
 
-                echo json_encode(["success" => true, "message" => "Profil mis à jour avec succès dans la base de données"]);
+                echo json_encode(["success" => true, "message" => "Profil mis Ã  jour avec succÃ¨s dans la base de donnÃ©es"]);
             } catch (PDOException $e) {
-                echo json_encode(["success" => false, "message" => "Erreur lors de la mise à jour: " . $e->getMessage()]);
+                echo json_encode(["success" => false, "message" => "Erreur lors de la mise Ã  jour: " . $e->getMessage()]);
             }
             exit;
         }

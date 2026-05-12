@@ -1,32 +1,34 @@
 <?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
+<?php require_once dirname(__DIR__, 3) . '/config/app.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Vos points de fidélité et récompenses CareMeal.">
-  <title>Mes Points — CareMeal</title>
+  <title>Mes Points �?? CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/projet2a22/css/main.css">
-  <link rel="stylesheet" href="/projet2a22/css/components.css">
-  <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/main.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/components.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/dashboard.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/theme-fix.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
   <div class="dashboard-layout">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo"><i class="fa-solid fa-utensils"></i></div>
+        <div class="sidebar-logo"><img src="<?= htmlspecialchars(caremeal_path('assets/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="CareMeal" style="max-width:100%;max-height:100%;object-fit:contain;"></div>
         <div class="sidebar-brand">Care<span>Meal</span></div>
       </div>
       <nav class="sidebar-nav">
         <div class="sidebar-section">
           <div class="sidebar-section-title">Menu</div>
           <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Accueil</a>
-          <a href="profile.php" class="sidebar-link"><span class="link-icon">👤</span> Mon Profil</a>
-          <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences</a>
-          <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Commandes</a>
-          <a href="points.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-star"></i></span> Mes Points</a>
-        </div>
+          <a href="profile.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-user"></i></span> Mon Profil</a>
+          <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Pr&eacute;f&eacute;rences</a>
+          <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Commandes</a>
+          <a href="mes_collectes.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box-archive"></i></span> Mes Collectes</a>
+</div>
         <div class="sidebar-section">
           <div class="sidebar-section-title">Paramètres</div>
           <a href="settings.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-gear"></i></span> Paramètres</a>
@@ -48,10 +50,13 @@
     <main class="main-content">
       <header class="top-header">
         <div class="header-left">
-          <button class="menu-toggle" id="menu-toggle">☰</button>
+          <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
           <div class="page-title"><h2>Mes Points</h2><p>Programme de fidélité</p></div>
         </div>
         <div class="header-right">
+          <a href="<?= htmlspecialchars(caremeal_path('View/FrontOffice/feed.php'), ENT_QUOTES, 'UTF-8') ?>" title="Retour au Feed" style="display:flex; align-items:center; color:#FE5516; background:rgba(254,85,22,0.1); border-radius:20px; padding:6px 16px; font-size:0.95rem; font-weight:600; text-decoration:none; margin-right:8px; transition:all 0.2s;">
+            <i class="fa-solid fa-house" style="margin-right:8px;"></i> Retour au Feed
+          </a>
           <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar">AA</div>
         </div>
@@ -62,7 +67,7 @@
         <div class="card animate-fade-in-up" style="text-align:center;padding:48px;margin-bottom:32px;position:relative;overflow:hidden;">
           <div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,var(--color-primary-glow),transparent);pointer-events:none;"></div>
           <div style="position:relative;z-index:2;">
-            <div class="level-badge" style="margin-bottom:16px;font-size:1rem;padding:8px 20px;" id="level-name">Débutant 🌱</div>
+            <div class="level-badge" style="margin-bottom:16px;font-size:1rem;padding:8px 20px;" id="level-name">Débutant <i class="fa-solid fa-star"></i></div>
             <div style="font-size:4rem;font-weight:800;color:var(--color-white);margin-bottom:4px;" id="total-points">0</div>
             <div style="color:var(--color-text-muted);font-size:0.9rem;margin-bottom:24px;">points accumulés</div>
 
@@ -78,28 +83,12 @@
           </div>
         </div>
 
-        <!-- Referral Code -->
-        <div class="section animate-fade-in-up stagger-1" style="margin-bottom:32px;">
-          <h3 style="margin-bottom:20px;"><i class="fa-solid fa-share-nodes"></i> Mon Code Parrain</h3>
-          <div class="card" style="display:flex; align-items:center; justify-content:space-between; padding:24px; gap:20px; flex-wrap:wrap;">
-            <div>
-              <p style="color:var(--color-text-muted); margin-bottom:8px;">Partagez ce code avec vos amis lors de leur inscription pour gagner 50 points chacun !</p>
-              <div style="font-family:monospace; font-size:1.5rem; font-weight:bold; color:var(--color-primary); letter-spacing: 2px;" id="user-referral-code">
-                CHARGEMENT...
-              </div>
-            </div>
-            <button class="btn btn-outline" onclick="Student.copyReferralCode()" id="btn-copy-code" style="white-space:nowrap;">
-              <i class="fa-solid fa-copy"></i> Copier le code
-            </button>
-          </div>
-        </div>
-
         <!-- How to earn -->
         <div class="section animate-fade-in-up stagger-1">
-          <h3 style="margin-bottom:20px;"><i class="fa-solid fa-gift"></i> Comment gagner des points</h3>
+          <h3 style="margin-bottom:20px;"><i class="fa-solid fa-star"></i> Comment gagner des points</h3>
           <div class="grid grid-3 gap-4">
             <div class="card" style="text-align:center;">
-              <div style="font-size:2.5rem;margin-bottom:12px;"><i class="fa-solid fa-bag-shopping"></i></div>
+              <div style="font-size:2.5rem;margin-bottom:12px;"><i class="fa-solid fa-cart-shopping"></i></div>
               <h4 style="font-size:0.95rem;margin-bottom:4px;">Commander</h4>
               <p style="font-size:0.8rem;">+20 pts par commande</p>
             </div>
@@ -129,7 +118,7 @@
               <div class="reward-cost">100 pts</div>
             </div>
             <div class="reward-card">
-              <div class="reward-icon"><i class="fa-solid fa-croissant"></i></div>
+              <div class="reward-icon"><i class="fa-solid fa-house"></i> </div>
               <div class="reward-info">
                 <h4>Viennoiserie gratuite</h4>
                 <p>Une viennoiserie offerte à votre prochaine commande</p>
@@ -145,7 +134,7 @@
               <div class="reward-cost">400 pts</div>
             </div>
             <div class="reward-card">
-              <div class="reward-icon"><i class="fa-solid fa-ticket"></i></div>
+              <div class="reward-icon"><i class="fa-solid fa-utensils"></i></div>
               <div class="reward-info">
                 <h4>Repas complet offert</h4>
                 <p>Un repas complet gratuit chez un partenaire au choix</p>
@@ -158,9 +147,26 @@
     </main>
   </div>
 
-  <script src="/projet2a22/js/app.js"></script>
-  <script src="/projet2a22/js/components.js"></script>
-  <script src="/projet2a22/js/student.js"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/components.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/student.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/student-layout.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/student-voice-assistant.js'), ENT_QUOTES, 'UTF-8') ?>?v=20260508"></script>
   <script>document.addEventListener('DOMContentLoaded', () => Student.initPoints());</script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

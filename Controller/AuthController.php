@@ -58,8 +58,10 @@ class AuthController {
         // ============================================================
         if ($action === 'get-me') {
             session_start();
-            $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
-            if (!$userId) {
+            $sessionUserId = $_SESSION['user_id'] ?? null;
+            $userId = $sessionUserId ?: ($data['user_id'] ?? null);
+            $userId = (int)$userId;
+            if ($userId <= 0) {
                 echo json_encode(["success" => false, "message" => "Non connecte."]);
                 return;
             }
@@ -150,8 +152,10 @@ class AuthController {
         // ============================================================
         } elseif ($action === 'update-profile') {
             session_start();
-            $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
-            if (!$userId) {
+            $sessionUserId = $_SESSION['user_id'] ?? null;
+            $userId = $sessionUserId ?: ($data['user_id'] ?? null);
+            $userId = (int)$userId;
+            if ($userId <= 0) {
                 echo json_encode(["success" => false, "message" => "Utilisateur non connecte."]);
                 return;
             }
@@ -178,8 +182,10 @@ class AuthController {
         // ============================================================
         } elseif ($action === 'update-partner-profile') {
             session_start();
-            $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
-            if (!$userId) {
+            $sessionUserId = $_SESSION['user_id'] ?? null;
+            $userId = $sessionUserId ?: ($data['user_id'] ?? null);
+            $userId = (int)$userId;
+            if ($userId <= 0) {
                 echo json_encode(["success" => false, "message" => "Utilisateur non connecte."]);
                 return;
             }
@@ -205,8 +211,10 @@ class AuthController {
         // ============================================================
         } elseif ($action === 'update-password') {
             session_start();
-            $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
-            if (!$userId) {
+            $sessionUserId = $_SESSION['user_id'] ?? null;
+            $userId = $sessionUserId ?: ($data['user_id'] ?? null);
+            $userId = (int)$userId;
+            if ($userId <= 0) {
                 echo json_encode(["success" => false, "message" => "Utilisateur non connecte."]);
                 return;
             }
@@ -222,8 +230,10 @@ class AuthController {
         // ============================================================
         } elseif ($action === 'delete-account') {
             session_start();
-            $userId = $data['user_id'] ?? ($_SESSION['user_id'] ?? null);
-            if (!$userId) {
+            $sessionUserId = $_SESSION['user_id'] ?? null;
+            $userId = $sessionUserId ?: ($data['user_id'] ?? null);
+            $userId = (int)$userId;
+            if ($userId <= 0) {
                 echo json_encode(["success" => false, "message" => "Utilisateur non connecte."]);
                 return;
             }

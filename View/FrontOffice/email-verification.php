@@ -1,3 +1,4 @@
+<?php require_once dirname(__DIR__, 2) . '/config/app.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -6,8 +7,8 @@
   <meta name="description" content="Vérifiez votre adresse email pour activer votre compte CareMeal.">
   <title>Vérification Email - CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/projet2a22/css/main.css">
-  <link rel="stylesheet" href="/projet2a22/css/auth.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/main.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/auth.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
   <div class="auth-page">
@@ -18,15 +19,15 @@
         <div style="font-size:5rem;margin-bottom:24px;animation:float 3s ease-in-out infinite;">
               <i class="fa-solid fa-envelope-circle-check"></i></div>
         <h2>Presque terminé !</h2>
-        <p>Sécurisez votre compte en validant votre adresse email. C'est rapide et à§a nous permet de garder le contact.</p>
+        <p>Sécurisez votre compte en validant votre adresse email. C'est rapide et ça nous permet de garder le contact.</p>
       </div>
     </div>
 
     <div class="auth-form-side">
       <div class="auth-form-container">
         <div class="auth-form-header">
-          <a href="/projet2a22/View/FrontOffice/index.php" class="brand-link">
-            <div class="brand-icon"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
+          <a href="<?= htmlspecialchars(caremeal_path('View/FrontOffice/index.php'), ENT_QUOTES, 'UTF-8') ?>" class="brand-link">
+            <div class="brand-icon"><img src="<?= htmlspecialchars(caremeal_path('assets/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
             Care<span style="color:var(--color-primary)">Meal</span>
           </a>
           <h1>Vérifiez votre email</h1>
@@ -43,13 +44,13 @@
         </button>
 
         <div class="auth-footer" style="margin-top: 2rem; text-align: center;">
-          <p>Pas reà§u l'email ? <a href="#" onclick="resendEmail(event)" style="color: var(--color-primary); font-weight: 500; transition: opacity 0.2s ease;">Renvoyer</a></p>
+          <p>Pas reçu l'email ? <a href="#" onclick="resendEmail(event)" style="color: var(--color-primary); font-weight: 500; transition: opacity 0.2s ease;">Renvoyer</a></p>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="/projet2a22/js/app.js"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
   <script>
     // Show user email
     const user = App.getCurrentUser();
@@ -60,11 +61,11 @@
     function handleContinue() {
       const u = App.getCurrentUser();
       if (u) {
-        if (u.role === 'student') window.location.href = 'student/dashboard.html';
-        else if (u.role === 'partner') window.location.href = 'partner/dashboard.html';
-        else window.location.href = 'login.html';
+        if (u.role === 'student') window.location.href = App.apiUrl('View/FrontOffice/student/dashboard.php');
+        else if (u.role === 'partner') window.location.href = App.apiUrl('View/FrontOffice/partner/dashboard.php');
+        else window.location.href = App.apiUrl('View/FrontOffice/login.php');
       } else {
-        window.location.href = 'login.html';
+        window.location.href = App.apiUrl('View/FrontOffice/login.php');
       }
     }
 
@@ -92,5 +93,6 @@
   </script>
 </body>
 </html>
+
 
 

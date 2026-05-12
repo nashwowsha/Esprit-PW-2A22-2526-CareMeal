@@ -5,11 +5,16 @@ require_once dirname(__DIR__) . '/Model/Profile.php';
 
 class FaceAuthController {
     private $conn;
-    // Seuil strict — 0.4 bloque les visages étrangers
+    // Seuil strict — 0.35 bloque les sosies et visages étrangers
     // tout en tolérant lunettes, lumière faible, coupe de cheveux différente
-    private $THRESHOLD = 0.4;
+    private $THRESHOLD = 0.35;
     // Nombre minimum de descripteurs de login qui doivent matcher le même user
-    private $MIN_CONSENSUS = 2;
+    private $MIN_CONSENSUS = 3;
+    // Écart minimum entre le meilleur et le 2ème meilleur match (anti-sosie)
+    private $MIN_GAP = 0.08;
+    // Anti brute-force : max tentatives avant blocage
+    private $MAX_ATTEMPTS = 5;
+    private $BLOCK_DURATION = 300; // 5 minutes en secondes
 
     public function __construct() {
         $db = new Database();
@@ -97,6 +102,16 @@ class FaceAuthController {
     // Avec consensus : au moins MIN_CONSENSUS descripteurs doivent matcher le même user
     // ================================================================
     private function faceLogin($data) {
+        // Rate limiting — anti brute-force
+        session_start();
+        $now = time();
+        if (isset($_SESSION['face_block_until']) && $now < $_SESSION['face_block_until']) {
+            $remaining = ceil(($_SESSION['face_block_until'] - $now) / 60);
+            echo json_encode(["success" => false, "message" => "Trop de tentatives. Reessayez dans {$remaining} min."]);
+            return;
+        }
+        if (!isset($_SESSION['face_attempts'])) { $_SESSION['face_attempts'] = 0; }
+
         // Support both multi-scan (new) and single-scan (legacy)
         $loginDescriptors = [];
         if (isset($data['descriptors']) && is_array($data['descriptors'])) {
@@ -197,10 +212,27 @@ class FaceAuthController {
                     $avgDistance = array_sum($userDistances[$bestUserId]) / count($userDistances[$bestUserId]);
                     $confidence = round((1 - $avgDistance) * 100, 1);
 
-                    // Minimum confidence check
-                    if ($confidence < 60) {
+                    // Minimum confidence check (72% élimine les matchs faibles de sosies)
+                    if ($confidence < 72) {
                         echo json_encode(["success" => false, "message" => "Confiance trop faible ($confidence%). Visage non reconnu."]);
                         return;
+                    }
+
+                    // Anti-sosie: vérifier l'écart avec le 2ème meilleur utilisateur
+                    $closestCompetitorAvg = PHP_FLOAT_MAX;
+                    foreach ($userDistances as $uid => $dists) {
+                        if ($uid == $bestUserId) continue;
+                        $competitorAvg = array_sum($dists) / count($dists);
+                        if ($competitorAvg < $closestCompetitorAvg) {
+                            $closestCompetitorAvg = $competitorAvg;
+                        }
+                    }
+                    if ($closestCompetitorAvg < PHP_FLOAT_MAX) {
+                        $gap = $closestCompetitorAvg - $avgDistance;
+                        if ($gap < $this->MIN_GAP) {
+                            echo json_encode(["success" => false, "message" => "Identification ambigue. Utilisez email/mot de passe."]);
+                            return;
+                        }
                     }
 
                     $bestMatch = $userData[$bestUserId];
@@ -209,7 +241,9 @@ class FaceAuthController {
                         echo json_encode(["success" => false, "message" => "Compte suspendu."]); return;
                     }
 
-                    session_start();
+                    // Success — reset rate limiter
+                    $_SESSION['face_attempts'] = 0;
+                    unset($_SESSION['face_block_until']);
                     $_SESSION['user_id'] = $bestMatch['id'];
                     $_SESSION['user_role'] = $bestMatch['role'];
 
@@ -224,10 +258,18 @@ class FaceAuthController {
                         "user" => $User->toArray()
                     ]);
                 } else {
-                    echo json_encode(["success" => false, "message" => "Visage non reconnu. Utilisez email/mot de passe."]);
+                    $_SESSION['face_attempts']++;
+                    if ($_SESSION['face_attempts'] >= $this->MAX_ATTEMPTS) {
+                        $_SESSION['face_block_until'] = time() + $this->BLOCK_DURATION;
+                    }
+                    echo json_encode(["success" => false, "message" => "Visage non reconnu."]);
                 }
             } else {
-                echo json_encode(["success" => false, "message" => "Visage non reconnu. Utilisez email/mot de passe."]);
+                $_SESSION['face_attempts']++;
+                if ($_SESSION['face_attempts'] >= $this->MAX_ATTEMPTS) {
+                    $_SESSION['face_block_until'] = time() + $this->BLOCK_DURATION;
+                }
+                echo json_encode(["success" => false, "message" => "Visage non reconnu."]);
             }
         } catch (Exception $e) {
             echo json_encode(["success" => false, "message" => "Erreur serveur."]);

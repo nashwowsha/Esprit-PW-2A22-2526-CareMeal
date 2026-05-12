@@ -3,42 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Gestion des partenaires CareMeal - Validation et suivi.">
-  <title>Gestion Partenaires - CareMeal Admin</title>
+  <meta name="description" content="Gestion des partenaires CareMeal - Validation et suivi.">
+  <title>Gestion Partenaires - CareMeal Admin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/projet2a22/css/main.css">
-  <link rel="stylesheet" href="/projet2a22/css/components.css">
-  <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/theme-fix.css">
 </head>
 <body>
   <div class="dashboard-layout">
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-logo"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
-        <div class="sidebar-brand">Care<span>Meal</span></div>
-      </div>
-      <nav class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Administration</div>
-          <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-chart-column"></i></span> Vue globale</a>
-          <a href="users.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-users"></i></span> Utilisateurs</a>
-          <a href="partners.php" class="sidebar-link active"><span class="link-icon"><i class="fa-solid fa-store"></i></span> Partenaires</a>
-                      <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
-            <a href="logs.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-clipboard-list"></i></span> Logs d'activité</a>
-        </div>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="avatar" id="sidebar-user-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-name" id="sidebar-user-name">Admin</div>
-            <div class="sidebar-user-role" id="sidebar-user-role">Administrateur</div>
-          </div>
-          <button class="sidebar-logout" data-action="logout" title="Déconnexion">
-              <i class="fa-solid fa-door-open"></i></button>
-        </div>
-      </div>
-    </aside>
+    <?php
+      $activePage = 'partners';
+      require dirname(__DIR__, 3) . '/admin/_admin_sidebar.php';
+    ?>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <main class="main-content">
@@ -49,6 +27,10 @@
           <div class="page-title"><h2>Gestion Partenaires</h2><p>Validation et suivi des établissements</p></div>
         </div>
         <div class="header-right">
+          <a href="/View/FrontOffice/feed.php" title="Fil d'actualité" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:1.1rem;text-decoration:none;transition:background .15s;" onmouseover="this.style.background='rgba(254,85,22,0.1)';this.style.color='#FE5516'" onmouseout="this.style.background='none';this.style.color='var(--color-text-muted)'">
+            <i class="fa-solid fa-house"></i>
+          </a>
+          <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar" style="background:linear-gradient(135deg,#EF4444,#F87171);">A</div>
         </div>
       </header>
@@ -58,7 +40,7 @@
         <div id="pending-alert" class="animate-fade-in-up" style="display:none;">
           <div class="auth-alert info" style="margin-bottom:24px;">
             <span>
-              <span class="input-icon"><i class="fa-solid fa-hourglass-half"></i></span> <span id="pending-count">0</span> partenaire(s) en attente de validation.
+              <span class="input-icon"><i class="fa-solid fa-hourglass-half"></i></span> <span id="pending-count">0</span> partenaire(s) en attente de validation.</span>
           </div>
         </div>
 
@@ -72,7 +54,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>-Établissement</th>
+                  <th>Etablissement</th>
                   <th>Type</th>
                   <th>Statut</th>
                   <th>Repas sauvés</th>
@@ -90,9 +72,9 @@
     </main>
   </div>
 
-  <script src="/projet2a22/js/app.js"></script>
-  <script src="/projet2a22/js/components.js"></script>
-  <script src="/projet2a22/js/admin.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/components.js"></script>
+  <script src="/js/admin.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       Admin.initPartners();
@@ -104,8 +86,20 @@
       }
     });
   </script>
+  <script src="/js/admin-voice-assistant.js?v=20260508"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
 
 
 

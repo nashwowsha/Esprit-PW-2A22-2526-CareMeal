@@ -32,7 +32,7 @@ const Auth = {
     // Utiliser l'URL absolue si on est sur Live Server (port 5500), sinon chemin relatif correctement résolu
     
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email: email, password: password })
@@ -42,7 +42,7 @@ const Auth = {
         let result;
         try {
             let startIndex = text.indexOf('{');
-            if (startIndex === -1) throw new Error("Rï¿½ponse serveur invalide ou vide");
+            if (startIndex === -1) throw new Error("RïÃ‚Â¿Ã‚Â½ponse serveur invalide ou vide");
             result = JSON.parse(text.substring(startIndex));
         } catch (e) {
             throw new Error("Erreur de format depuis PHP: " + text);
@@ -83,10 +83,10 @@ const Auth = {
             
             // Redirect based on role
             switch (user.role) {
-                case 'student': window.location.href = '/projet2a22/View/FrontOffice/student/dashboard.php'; break;
-                case 'partner': window.location.href = '/projet2a22/View/FrontOffice/partner/dashboard.php'; break;
-                case 'admin': window.location.href = '/projet2a22/View/BackOffice/admin/dashboard.php'; break;
-                default: window.location.href = '/projet2a22/View/FrontOffice/index.php'; break;
+                case 'student': window.location.href = App.apiUrl('View/FrontOffice/feed.php'); break;
+                case 'partner': window.location.href = App.apiUrl('View/FrontOffice/feed.php'); break;
+                case 'admin': window.location.href = App.apiUrl('View/BackOffice/admin/dashboard.php'); break;
+                default: window.location.href = App.apiUrl('View/FrontOffice/index.php'); break;
             }
         } else {
             // Afficher l'erreur
@@ -106,7 +106,7 @@ const Auth = {
 
   // --- Register Student ---
   currentStep: 1,
-  totalSteps: 3, // Modification dynamique si le form a 3 etapes
+  totalSteps: 2, // Inscription etudiant en 2 etapes
 
   async nextStep() {
     const valid = await this.validateStep(this.currentStep);
@@ -157,7 +157,7 @@ const Auth = {
         const confirm = document.getElementById('reg-confirm')?.value;
 
         if (!nom || nom.length < 2) { Auth.showError('reg-nom', 'Nom requis'); valid = false; }
-        if (!prenom || prenom.length < 2) { Auth.showError('reg-prenom', 'Prï¿½nom requis'); valid = false; }
+        if (!prenom || prenom.length < 2) { Auth.showError('reg-prenom', 'PrïÃ‚Â¿Ã‚Â½nom requis'); valid = false; }
         if (!password || password.length < 6) { Auth.showError('reg-password', 'Minimum 6 caract\u00e8res'); valid = false; }
         if (password !== confirm) { Auth.showError('reg-confirm', 'Les mots de passe ne correspondent pas'); valid = false; }
 
@@ -176,7 +176,7 @@ const Auth = {
             // Determiner l'URL de l'API
             
 
-            fetch('/projet2a22/Controller/AuthController.php', {
+            fetch(App.apiUrl('Controller/AuthController.php'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'check-email', email: email })
@@ -186,7 +186,7 @@ const Auth = {
                 let result;
                 try {
                     let startIndex = text.indexOf('{');
-                    if (startIndex === -1) throw new Error("Rï¿½ponse serveur invalide ou vide");
+                    if (startIndex === -1) throw new Error("RïÃ‚Â¿Ã‚Â½ponse serveur invalide ou vide");
                     result = JSON.parse(text.substring(startIndex));
                 } catch (e) {
                     console.error("Format depuis PHP invalide:", text);
@@ -231,7 +231,7 @@ const Auth = {
   // ================================================================
   async handleStudentRegister(e) {
       e.preventDefault();
-      const valid = await this.validateStep(3); // Force validate final step instead
+      const valid = await this.validateStep(2); // Validation finale sur l'etape campus
       if (!valid) return;
 
       const userNom = document.getElementById('reg-nom')?.value.trim() || '';
@@ -255,7 +255,7 @@ const Auth = {
 
       
 
-      fetch('/projet2a22/Controller/AuthController.php', {
+      fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -277,7 +277,7 @@ const Auth = {
         try {
             // Nettoyer toute balise HTML ou espace ou BOM avant le '{'
             let startIndex = text.indexOf('{');
-            if (startIndex === -1) throw new Error("Rï¿½ponse serveur invalide ou vide");
+            if (startIndex === -1) throw new Error("RïÃ‚Â¿Ã‚Â½ponse serveur invalide ou vide");
             let cleanJson = text.substring(startIndex);
             result = JSON.parse(cleanJson);
         } catch (e) {
@@ -286,16 +286,16 @@ const Auth = {
         
         if(result.success) {
             Auth.showAlert('success', result.message);
-            setTimeout(() => { window.location.href = "/projet2a22/View/FrontOffice/login.php"; }, 2000);
+            setTimeout(() => { window.location.href = App.apiUrl('View/FrontOffice/login.php'); }, 2000);
         } else {
             Auth.showAlert('error', result.message);
-            if(btn) { btn.disabled = false; btn.innerHTML = 'Crï¿½er mon compte ï¿½tudiant <span class="btn-icon"><i class="fa-solid fa-arrow-right"></i></span>'; }
+            if(btn) { btn.disabled = false; btn.innerHTML = 'CrïÃ‚Â¿Ã‚Â½er mon compte ïÃ‚Â¿Ã‚Â½tudiant <span class="btn-icon"><i class="fa-solid fa-arrow-right"></i></span>'; }
         }
     })
     .catch(err => {
         Auth.showAlert('error', 'Erreur serveur: ' + err.message);
         console.error(err);
-        if(btn) { btn.disabled = false; btn.innerHTML = 'Crï¿½er mon compte ï¿½tudiant <span class="btn-icon"><i class="fa-solid fa-arrow-right"></i></span>'; }
+        if(btn) { btn.disabled = false; btn.innerHTML = 'CrïÃ‚Â¿Ã‚Â½er mon compte ïÃ‚Â¿Ã‚Â½tudiant <span class="btn-icon"><i class="fa-solid fa-arrow-right"></i></span>'; }
     });
 
     // Le code en dessous n'est plus utile, on a deja envoye pour public/router.php
@@ -319,7 +319,7 @@ const Auth = {
 
     // Auto-login
     App.setCurrentUser(user);
-    window.location.href = "/projet2a22/View/FrontOffice/email-verification.php";
+    window.location.href = App.apiUrl('View/FrontOffice/email-verification.php');
     */
   },
 
@@ -379,8 +379,8 @@ const Auth = {
         if (!type || type === '') { Auth.showError('partner-type', 'Sélectionnez un type'); valid = false; }
         if (!address) { Auth.showError('partner-address', 'Adresse requise'); valid = false; }
         
-        if (!nom || !/^[a-zA-ZÀ-ÿ\s\-']+$/.test(nom)) { Auth.showError('partner-nom', 'Nom invalide'); valid = false; }
-        if (!prenom || !/^[a-zA-ZÀ-ÿ\s\-']+$/.test(prenom)) { Auth.showError('partner-prenom', 'Prénom invalide'); valid = false; }
+        if (!nom || !/^[a-zA-ZÃƒâ‚¬-ÿ\s\-']+$/.test(nom)) { Auth.showError('partner-nom', 'Nom invalide'); valid = false; }
+        if (!prenom || !/^[a-zA-ZÃƒâ‚¬-ÿ\s\-']+$/.test(prenom)) { Auth.showError('partner-prenom', 'Prénom invalide'); valid = false; }
 
         if (!phone) { 
           Auth.showError('partner-phone', 'Téléphone requis'); 
@@ -401,7 +401,7 @@ const Auth = {
             resolve(valid);
             return;
         } else {
-            fetch('/projet2a22/Controller/AuthController.php', {
+            fetch(App.apiUrl('Controller/AuthController.php'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'check-email', email: email })
@@ -455,7 +455,7 @@ const Auth = {
     const btn = document.getElementById('btn-register-partner');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Inscription...'; }
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -474,7 +474,7 @@ const Auth = {
         let result;
         try {
             let startIndex = text.indexOf('{');
-            if (startIndex === -1) throw new Error("Rï¿½ponse serveur invalide ou vide");
+            if (startIndex === -1) throw new Error("RïÃ‚Â¿Ã‚Â½ponse serveur invalide ou vide");
             result = JSON.parse(text.substring(startIndex));
         } catch (e) {
             throw new Error("Erreur de format depuis PHP: " + text);
@@ -482,7 +482,7 @@ const Auth = {
         
         if(result.success) {
             Auth.showAlert('success', result.message);
-            setTimeout(() => { window.location.href = "/projet2a22/View/FrontOffice/login.php"; }, 2000);
+            setTimeout(() => { window.location.href = App.apiUrl('View/FrontOffice/login.php'); }, 2000);
         } else {
             Auth.showAlert('error', result.message);
             if(btn) { btn.disabled = false; btn.innerHTML = '<span><i class="fa-solid fa-rocket"></i></span> Soumettre candidature'; }
@@ -516,7 +516,7 @@ const Auth = {
     const btn = document.getElementById('btn-forgot-email');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Envoi...'; }
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'forgot-password-request', email: identifier })
@@ -573,7 +573,7 @@ const Auth = {
     const btn = document.getElementById('btn-resend-code');
     if(btn) { btn.disabled = true; btn.textContent = 'Envoi...'; }
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'forgot-password-request', email: Auth.forgotEmailStore })
@@ -610,7 +610,7 @@ const Auth = {
     const btn = document.getElementById('btn-forgot-code');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vérification...'; }
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify-reset-code', email: Auth.forgotEmailStore, code: code })
@@ -650,7 +650,7 @@ const Auth = {
     const btn = document.getElementById('btn-forgot-password');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enregistrement...'; }
 
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(App.apiUrl('Controller/AuthController.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -723,15 +723,32 @@ const Auth = {
   },
 
   // --- Password Toggle ---
+  togglePassword(btn) {
+    if (!btn) return;
+    const targetId = btn.getAttribute('data-target');
+    let input = null;
+    if (targetId) {
+      input = document.getElementById(targetId);
+    }
+    if (!input) {
+      const wrapper = btn.closest('.input-wrapper');
+      input = wrapper ? wrapper.querySelector('input[type="password"], input[type="text"]') : null;
+    }
+    if (!input) return;
+
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    btn.innerHTML = isPassword ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+    btn.setAttribute('aria-label', isPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+    btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+  },
+
   initPasswordToggles() {
     document.querySelectorAll('.password-toggle').forEach(btn => {
+      if (btn.dataset.bound === '1') return;
+      btn.dataset.bound = '1';
       btn.addEventListener('click', () => {
-        const input = btn.parentElement.querySelector('input');
-        if (input) {
-          const isPassword = input.type === 'password';
-          input.type = isPassword ? 'text' : 'password';
-          btn.innerHTML = isPassword ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
-        }
+        this.togglePassword(btn);
       });
     });
   },
@@ -860,6 +877,9 @@ const Auth = {
 
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => Auth.init());
+
+
+
 
 
 

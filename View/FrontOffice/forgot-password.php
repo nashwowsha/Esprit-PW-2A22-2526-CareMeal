@@ -1,3 +1,4 @@
+<?php require_once dirname(__DIR__, 2) . '/config/app.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -6,8 +7,8 @@
   <meta name="description" content="Réinitialisez votre mot de passe CareMeal.">
   <title>Mot de passe oublié - CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/projet2a22/css/main.css">
-  <link rel="stylesheet" href="/projet2a22/css/auth.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/main.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/auth.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
   <div class="auth-page">
@@ -18,15 +19,15 @@
         <div style="font-size:5rem;margin-bottom:24px;animation:float 3s ease-in-out infinite;">
               <i class="fa-solid fa-user-lock"></i></div>
         <h2>Pas de panique !</h2>
-        <p>-!a arrive à tout le monde. Nous allons vous aider à retrouver l'accès à votre compte en quelques secondes.</p>
+        <p>Ça arrive à tout le monde. Nous allons vous aider à retrouver l'accès à votre compte en quelques secondes.</p>
       </div>
     </div>
 
     <div class="auth-form-side">
       <div class="auth-form-container">
         <div class="auth-form-header">
-          <a href="/projet2a22/View/FrontOffice/index.php" class="brand-link">
-            <div class="brand-icon"><img src="/projet2a22/assets/logo.png" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
+          <a href="<?= htmlspecialchars(caremeal_path('View/FrontOffice/index.php'), ENT_QUOTES, 'UTF-8') ?>" class="brand-link">
+            <div class="brand-icon"><img src="<?= htmlspecialchars(caremeal_path('assets/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;"></div>
             Care<span style="color:var(--color-primary)">Meal</span>
           </a>
           <h1>Mot de passe oublié</h1>
@@ -40,7 +41,7 @@
           <div class="form-group">
             <label for="forgot-email">Adresse email ou Numéro de téléphone <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="text" id="forgot-email" class="form-input" placeholder="votre@email.com ou 12345678" required>
+              <input type="text" id="forgot-email" class="form-input" placeholder="votre@email.com ou 12345678">
               <span class="input-icon"><i class="fa-solid fa-envelope"></i></span>
             </div>
             <div class="form-error" id="forgot-email-error"></div>
@@ -56,7 +57,7 @@
           <div class="form-group">
             <label for="forgot-code">Code de vérification <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="text" id="forgot-code" class="form-input" placeholder="123456" maxlength="6" required>
+              <input type="text" id="forgot-code" class="form-input" placeholder="123456">
               <span class="input-icon"><i class="fa-solid fa-key"></i></span>
             </div>
             <div class="form-error" id="forgot-code-error"></div>
@@ -77,7 +78,7 @@
           <div class="form-group">
             <label for="forgot-new-password">Nouveau mot de passe <span class="required">*</span></label>
             <div class="input-wrapper">
-              <input type="password" id="forgot-new-password" class="form-input" placeholder="Min. 6 caractères" required>
+              <input type="password" id="forgot-new-password" class="form-input" placeholder="Min. 6 caractères">
               <span class="input-icon"><i class="fa-solid fa-lock"></i></span>
               <button type="button" class="password-toggle" tabindex="-1"><i class="fa-solid fa-eye"></i></button>
             </div>
@@ -94,19 +95,20 @@
               <i class="fa-solid fa-check-circle"></i></div>
           <h3 style="margin-bottom:8px;">Mot de passe modifié !</h3>
           <p style="margin-bottom:24px;">Votre mot de passe a été réinitialisé avec succès.</p>
-          <a href="/projet2a22/View/FrontOffice/login.php" class="btn btn-primary">Retour à la connexion</a>
+          <a href="<?= htmlspecialchars(caremeal_path('View/FrontOffice/login.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-primary">Retour à la connexion</a>
         </div>
 
         <div class="auth-footer">
-          <p>Vous vous souvenez ? <a href="/projet2a22/View/FrontOffice/login.php">Retour à la connexion</a></p>
+          <p>Vous vous souvenez ? <a href="<?= htmlspecialchars(caremeal_path('View/FrontOffice/login.php'), ENT_QUOTES, 'UTF-8') ?>">Retour à la connexion</a></p>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="/projet2a22/js/app.js"></script>
-  <script src="/projet2a22/js/auth.js"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/auth.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
 </body>
 </html>
+
 
 

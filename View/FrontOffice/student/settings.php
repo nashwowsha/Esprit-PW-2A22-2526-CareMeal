@@ -1,22 +1,25 @@
 <?php require_once dirname(__DIR__, 2) . '/session_check.php'; ?>
+<?php require_once dirname(__DIR__, 3) . '/config/app.php'; ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+  <script>document.documentElement.className += " page-loading";</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Paramètres de votre compte CareMeal.">
   <title>Paramètres — CareMeal</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/projet2a22/css/main.css">
-  <link rel="stylesheet" href="/projet2a22/css/components.css">
-  <link rel="stylesheet" href="/projet2a22/css/dashboard.css">
-  <link rel="stylesheet" href="/projet2a22/css/face-auth.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/main.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/components.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/dashboard.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/theme-fix.css'), ENT_QUOTES, 'UTF-8') ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(caremeal_path('css/face-auth.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
   <div class="dashboard-layout">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo"><i class="fa-solid fa-utensils"></i></div>
+        <div class="sidebar-logo"><img src="<?= htmlspecialchars(caremeal_path('assets/logo.png'), ENT_QUOTES, 'UTF-8') ?>" alt="CareMeal" style="max-width:100%;max-height:100%;object-fit:contain;"></div>
         <div class="sidebar-brand">Care<span>Meal</span></div>
       </div>
       <nav class="sidebar-nav">
@@ -25,8 +28,10 @@
           <a href="dashboard.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-house"></i></span> Accueil</a>
           <a href="profile.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-user"></i></span> Mon Profil</a>
           <a href="preferences.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-utensils"></i></span> Préférences</a>
-          <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-bag-shopping"></i></span> Mes Commandes</a>
-          <a href="points.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-star"></i></span> Mes Points</a>
+          <a href="events.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-calendar-day"></i></span> Événements</a>
+          <a href="orders.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box"></i></span> Mes Commandes</a>
+          <a href="mes_collectes.php" class="sidebar-link"><span class="link-icon"><i class="fa-solid fa-box-archive"></i></span> Mes Collectes</a>
+
         </div>
         <div class="sidebar-section">
           <div class="sidebar-section-title">Paramètres</div>
@@ -49,10 +54,13 @@
     <main class="main-content">
       <header class="top-header">
         <div class="header-left">
-          <button class="menu-toggle" id="menu-toggle">☰</button>
+          <button class="menu-toggle" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
           <div class="page-title"><h2>Paramètres</h2><p>Gérez votre compte</p></div>
         </div>
         <div class="header-right">
+                    <a href="<?= htmlspecialchars(caremeal_path('View/FrontOffice/feed.php'), ENT_QUOTES, 'UTF-8') ?>" title="Retour au Feed" style="display: flex; align-items: center; color: #FE5516; background: rgba(254,85,22,0.1); border-radius: 20px; padding: 6px 16px; font-size: 0.95rem; font-weight: 600; text-decoration: none; margin-right: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-house" style="margin-right: 8px;"></i> Retour au Feed
+          </a>
           <button class="header-notification"><i class="fa-solid fa-bell"></i><span class="notif-dot"></span></button>
           <div class="avatar avatar-sm" id="header-avatar">AA</div>
         </div>
@@ -93,7 +101,7 @@
               <div style="flex:1;">
                 <label for="edit-university">Université / École</label>
                 <div class="input-wrapper">
-                  <select id="edit-university" class="form-input" onchange="document.getElementById('edit-university-other-container').style.display = this.value === 'autre' ? 'block' : 'none'">
+                  <select id="edit-university" class="form-input" onchange="document.getElementById('edit-university-other-container').style.display = this.value === 'autre' - 'block' : 'none'">
                     <option value="">Sélectionnez...</option>
                     <option value="Esprit">Esprit</option>
                     <option value="Sesame">Sesame</option>
@@ -113,7 +121,7 @@
               <div style="flex:1;">
                 <label for="edit-quartier">Quartier</label>
                 <div class="input-wrapper">
-                  <select id="edit-quartier" class="form-input" onchange="document.getElementById('edit-quartier-other-container').style.display = this.value === 'autre' ? 'block' : 'none'">
+                  <select id="edit-quartier" class="form-input" onchange="document.getElementById('edit-quartier-other-container').style.display = this.value === 'autre' - 'block' : 'none'">
                     <option value="">Sélectionnez...</option>
                     <option value="Ariana">Ariana</option>
                     <option value="Cité El Ghazela">Cité El Ghazela</option>
@@ -320,8 +328,8 @@
         <div class="face-modal-icon">
           <i class="fa-solid fa-user-shield"></i>
         </div>
-        <h2>Enregistrement du visage</h2>
-        <p>Regardez la camera et restez immobile pour capturer votre visage</p>
+        <h2>Face ID</h2>
+        <p>Regardez l'écran pour configurer la reconnaissance faciale.</p>
       </div>
       <div class="face-video-container">
         <video id="face-video" autoplay muted playsinline></video>
@@ -338,13 +346,15 @@
     </div>
   </div>
 
-  <script src="/projet2a22/js/app.js"></script>
-  <script src="/projet2a22/js/components.js"></script>
-  <script src="/projet2a22/js/student.js"></script>
-  <script src="/projet2a22/js/auth.js"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/app.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/components.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/student.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/auth.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/student-layout.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
+  <script src="<?= htmlspecialchars(caremeal_path('js/student-voice-assistant.js'), ENT_QUOTES, 'UTF-8') ?>?v=20260508"></script>
   <!-- face-api.js (TensorFlow.js) -->
   <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
-  <script defer src="/projet2a22/js/face-auth.js"></script>
+  <script defer src="<?= htmlspecialchars(caremeal_path('js/face-auth.js'), ENT_QUOTES, 'UTF-8') ?>"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       Student.initSettings();
@@ -355,3 +365,24 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

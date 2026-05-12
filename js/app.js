@@ -1,3 +1,59 @@
+(function initCareMealPathHelpers() {
+  function normalizeBasePath(rawBasePath) {
+    const trimmed = String(rawBasePath || '').trim();
+    if (trimmed === '' || trimmed === '/') return '';
+    return '/' + trimmed.replace(/^\/+|\/+$/g, '');
+  }
+
+  function detectBasePathFromLocation() {
+    const pathname = String(window.location.pathname || '');
+    const markers = [
+      '/View/FrontOffice/',
+      '/View/BackOffice/',
+      '/admin/',
+      '/student/',
+      '/partner/',
+      '/public/',
+      '/api/',
+      '/Controller/',
+    ];
+
+    for (const marker of markers) {
+      const idx = pathname.indexOf(marker);
+      if (idx >= 0) {
+        return normalizeBasePath(pathname.slice(0, idx));
+      }
+    }
+
+    const lastSlash = pathname.lastIndexOf('/');
+    if (lastSlash > 0) {
+      return normalizeBasePath(pathname.slice(0, lastSlash));
+    }
+
+    return normalizeBasePath('');
+  }
+
+  const existingBasePath = normalizeBasePath(window.CAREMEAL_BASE_PATH || '');
+  const basePath = existingBasePath !== '' ? existingBasePath : detectBasePathFromLocation();
+  const publicBaseUrl = (window.CAREMEAL_PUBLIC_BASE_URL || '').trim() !== ''
+    ? String(window.CAREMEAL_PUBLIC_BASE_URL).replace(/\/+$/, '')
+    : window.location.origin + basePath;
+
+  window.CAREMEAL_BASE_PATH = basePath;
+  window.CAREMEAL_PUBLIC_BASE_URL = publicBaseUrl;
+
+  window.caremealUrl = function caremealUrl(path = '') {
+    const clean = String(path || '').replace(/^\/+/, '');
+    if (!clean) return window.CAREMEAL_PUBLIC_BASE_URL;
+    return `${window.CAREMEAL_PUBLIC_BASE_URL}/${clean}`;
+  };
+
+  window.caremealPath = function caremealPath(path = '') {
+    const clean = String(path || '').replace(/^\/+/, '');
+    if (!clean) return window.CAREMEAL_BASE_PATH || '';
+    return `${window.CAREMEAL_BASE_PATH || ''}/${clean}`;
+  };
+})();
 /* ============================================
    CAREMEAL — APP CORE
    app.js — Auth State, RBAC, Helpers
@@ -109,19 +165,56 @@ const App = {
   async refreshCurrentUser() {
     const user = this.getCurrentUser();
     if (!user) return;
+
+    const numericUserId = Number.parseInt(user.id || user.user_id, 10);
+    const payloads = [{ action: 'get-me' }];
+    if (Number.isInteger(numericUserId) && numericUserId > 0) {
+      payloads.push({ action: 'get-me', user_id: numericUserId });
+    }
+
     try {
-      const res = await fetch('/projet2a22/Controller/AuthController.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get-me', user_id: user.id || user.user_id })
-      });
-      const data = await res.json();
-      if (data.success && data.user) {
-        this.setCurrentUser({ ...user, ...data.user });
-        // Rerender sidebar
-        if (typeof Components !== 'undefined' && Components.initSidebarUser) {
-          Components.initSidebarUser(this.getCurrentUser());
+      let data = null;
+      for (const payload of payloads) {
+        const res = await fetch(this.apiUrl('Controller/AuthController.php'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const rawText = await res.text();
+        const jsonStart = rawText.indexOf('{');
+        const jsonPayload = jsonStart >= 0 ? rawText.slice(jsonStart) : rawText;
+        try {
+          const parsed = JSON.parse(jsonPayload);
+          if (parsed && parsed.success && parsed.user) {
+            data = parsed;
+            break;
+          }
+        } catch (_parseError) {
+          console.warn('Failed to parse get-me response', rawText);
         }
+      }
+
+      if (!data || !data.user) {
+        return;
+      }
+
+      const normalizedUser = { ...data.user };
+      // Keep frontend keys consistent with what partner/student pages expect.
+      if (!normalizedUser.phone && normalizedUser.telephone) {
+        normalizedUser.phone = normalizedUser.telephone;
+      }
+      if (!normalizedUser.nomEntreprise && normalizedUser.nom_entreprise) {
+        normalizedUser.nomEntreprise = normalizedUser.nom_entreprise;
+      }
+      if (!normalizedUser.name) {
+        const fullName = `${normalizedUser.prenom || ''} ${normalizedUser.nom || ''}`.trim();
+        normalizedUser.name = normalizedUser.nomEntreprise || normalizedUser.nom_entreprise || fullName || normalizedUser.email || 'Utilisateur';
+      }
+
+      this.setCurrentUser({ ...user, ...normalizedUser });
+      // Rerender sidebar
+      if (typeof Components !== 'undefined' && typeof Components.initUserInfo === 'function') {
+        Components.initUserInfo();
       }
     } catch (e) {
       console.warn('Failed to refresh user from DB', e);
@@ -139,14 +232,21 @@ const App = {
 
   logout() {
     localStorage.removeItem(this.KEYS.CURRENT_USER);
+    try {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith('caremeal_student_briefing_once_')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (_e) {}
     // Vider la session côté backend
-    fetch('/projet2a22/Controller/AuthController.php', {
+    fetch(this.apiUrl('Controller/AuthController.php'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'logout' })
     }).finally(() => {
       // Rediriger de suite et forcer un relancement
-      window.location.replace('/projet2a22/View/FrontOffice/login.php');
+      window.location.replace(this.apiUrl('View/FrontOffice/login.php'));
     });
   },
 
@@ -164,11 +264,11 @@ const App = {
   requireAuth(allowedRoles = []) {
     const user = this.getCurrentUser();
     if (!user) {
-      window.location.href = '/projet2a22/View/FrontOffice/login.php';
+      window.location.href = this.apiUrl('View/FrontOffice/login.php');
       return false;
     }
     if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-      window.location.href = '/projet2a22/View/FrontOffice/login.php';
+      window.location.href = this.apiUrl('View/FrontOffice/login.php');
       return false;
     }
     return true;
@@ -181,6 +281,14 @@ const App = {
       return '../';
     }
     return '';
+  },
+
+  apiUrl(path = '') {
+    const clean = String(path || '').replace(/^\/+/, '');
+    if (typeof window.caremealPath === 'function') {
+      return window.caremealPath(clean);
+    }
+    return '/' + clean;
   },
 
   // --- Users CRUD ---
@@ -330,7 +438,7 @@ const App = {
     const now = new Date();
     const d = new Date(dateStr);
     const diff = Math.floor((now - d) / 1000);
-    if (diff < 60) return "À l'instant";
+    if (diff < 60) return "Ãƒâ‚¬ l'instant";
     if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
     if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)}h`;
     if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)}j`;
@@ -597,3 +705,11 @@ App.init();
 
 
 document.addEventListener('DOMContentLoaded', () => { App.refreshCurrentUser(); });
+
+
+
+
+
+
+
+

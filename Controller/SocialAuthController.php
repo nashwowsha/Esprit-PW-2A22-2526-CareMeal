@@ -1,11 +1,12 @@
 <?php
 /**
  * SocialAuthController.php
- * Gère les callbacks OAuth pour GitHub
- * Google et Facebook sont gérés côté JS via leurs SDK
+ * GÃ¨re les callbacks OAuth pour GitHub
+ * Google et Facebook sont gÃ©rÃ©s cÃ´tÃ© JS via leurs SDK
  */
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/oauth.php';
+require_once dirname(__DIR__) . '/config/app.php';
 require_once dirname(__DIR__) . '/Model/User.php';
 
 class SocialAuthController {
@@ -18,17 +19,17 @@ class SocialAuthController {
     }
 
     // ================================================================
-    // CRUD - CREATE/READ : Connexion ou création via réseau social
-    // Trouve l'utilisateur par email social, ou le crée s'il n'existe pas
+    // CRUD - CREATE/READ : Connexion ou crÃ©ation via rÃ©seau social
+    // Trouve l'utilisateur par email social, ou le crÃ©e s'il n'existe pas
     // ================================================================
     public function loginOrCreate($email, $name, $provider, $providerId, $avatar = null) {
-        // Chercher si l'utilisateur existe déjà
+        // Chercher si l'utilisateur existe dÃ©jÃ 
         $stmt = $this->conn->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            // Créer le compte automatiquement
+            // CrÃ©er le compte automatiquement
             $referralCode = strtoupper(substr(md5(uniqid()), 0, 8));
             $stmt = $this->conn->prepare(
                 "INSERT INTO users (email, password, role, status, referral_code) VALUES (?, '', 'student', 'active', ?)"
@@ -36,7 +37,7 @@ class SocialAuthController {
             $stmt->execute([$email, $referralCode]);
             $userId = $this->conn->lastInsertId();
 
-            // Extraire nom/prénom
+            // Extraire nom/prÃ©nom
             $parts = explode(' ', trim($name), 2);
             $prenom = $parts[0] ?? $name;
             $nom    = $parts[1] ?? '';
@@ -47,14 +48,14 @@ class SocialAuthController {
             $stmt2->execute([$userId, $nom, $prenom, $avatar]);
         } else {
             $userId = $user['id'];
-            // Mettre à jour l'avatar si fourni
+            // Mettre Ã  jour l'avatar si fourni
             if ($avatar) {
                 $stmt = $this->conn->prepare("UPDATE profiles SET avatar = ? WHERE user_id = ? AND (avatar IS NULL OR avatar = '')");
                 $stmt->execute([$avatar, $userId]);
             }
         }
 
-        // Récupérer les infos complètes
+        // RÃ©cupÃ©rer les infos complÃ¨tes
         $stmt = $this->conn->prepare("
             SELECT u.id, u.email, u.role, u.status,
                    p.nom, p.prenom, p.telephone, p.avatar, p.ecole, p.annee_etude,
@@ -72,7 +73,7 @@ class SocialAuthController {
     // CRUD - READ : Callback GitHub OAuth
     // ================================================================
     public function handleGithubCallback() {
-        // Démarrer la session avant tout
+        // DÃ©marrer la session avant tout
         if (session_status() === PHP_SESSION_NONE) session_start();
 
         $clientId     = defined('GITHUB_CLIENT_ID')     ? GITHUB_CLIENT_ID     : ($_ENV['GITHUB_CLIENT_ID'] ?? '');
@@ -81,14 +82,14 @@ class SocialAuthController {
         $code  = $_GET['code']  ?? '';
         $state = $_GET['state'] ?? '';
 
-        // Vérifier le state CSRF
+        // VÃ©rifier le state CSRF
         if (!$code || !isset($_SESSION['github_oauth_state']) || $_SESSION['github_oauth_state'] !== $state) {
-            $this->redirectWithError('Paramètres OAuth invalides. Réessayez.');
+            $this->redirectWithError('ParamÃ¨tres OAuth invalides. RÃ©essayez.');
             return;
         }
         unset($_SESSION['github_oauth_state']);
 
-        // Échanger le code contre un access_token
+        // Ã‰changer le code contre un access_token
         $tokenResponse = $this->httpPost('https://github.com/login/oauth/access_token', [
             'client_id'     => $clientId,
             'client_secret' => $clientSecret,
@@ -103,11 +104,11 @@ class SocialAuthController {
             return;
         }
 
-        // Récupérer les infos utilisateur
+        // RÃ©cupÃ©rer les infos utilisateur
         $userJson  = $this->httpGet('https://api.github.com/user', $accessToken);
         $githubUser = json_decode($userJson, true);
 
-        // GitHub peut ne pas exposer l'email public → appel endpoint emails
+        // GitHub peut ne pas exposer l'email public â†’ appel endpoint emails
         $email = $githubUser['email'] ?? '';
         if (!$email) {
             $emailsJson = $this->httpGet('https://api.github.com/user/emails', $accessToken);
@@ -121,7 +122,7 @@ class SocialAuthController {
         }
 
         if (!$email) {
-            $this->redirectWithError('Aucun email public associé à ce compte GitHub.');
+            $this->redirectWithError('Aucun email public associÃ© Ã  ce compte GitHub.');
             return;
         }
 
@@ -131,16 +132,16 @@ class SocialAuthController {
         $user = $this->loginOrCreate($email, $name, 'github', $githubUser['id'], $avatar);
 
         if (!$user) {
-            $this->redirectWithError('Erreur lors de la création du compte.');
+            $this->redirectWithError('Erreur lors de la crÃ©ation du compte.');
             return;
         }
 
-        // Créer la session
+        // CrÃ©er la session
         $_SESSION['user_id']   = $user['id'];
         $_SESSION['user_role'] = $user['role'];
         session_write_close();
 
-        // Page intermédiaire pour s'assurer que la session est bien persistée
+        // Page intermÃ©diaire pour s'assurer que la session est bien persistÃ©e
         $redirect = $this->getDashboardUrl($user['role']);
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>';
         echo '<script>window.location.href = "' . $redirect . '";</script>';
@@ -150,7 +151,7 @@ class SocialAuthController {
     }
 
     // ================================================================
-    // CRUD - READ : Initier le flow GitHub (générer state + redirect)
+    // CRUD - READ : Initier le flow GitHub (gÃ©nÃ©rer state + redirect)
     // ================================================================
     public function initiateGithub() {
         $clientId = defined('GITHUB_CLIENT_ID') ? GITHUB_CLIENT_ID : ($_ENV['GITHUB_CLIENT_ID'] ?? '');
@@ -163,7 +164,7 @@ class SocialAuthController {
             'client_id'    => $clientId,
             'scope'        => 'user:email',
             'state'        => $state,
-            'redirect_uri' => 'http://localhost/projet2a22/Controller/github_callback.php',
+            'redirect_uri' => caremeal_url('Controller/SocialAuthController.php?action=github-callback'),
         ]);
 
         header('Location: https://github.com/login/oauth/authorize?' . $params);
@@ -171,8 +172,8 @@ class SocialAuthController {
     }
 
     // ================================================================
-    // CRUD - CREATE/READ : Connexion via Google/Facebook (token côté JS)
-    // Reçoit un token JWT (Google) ou access_token (Facebook) et vérifie
+    // CRUD - CREATE/READ : Connexion via Google/Facebook (token cÃ´tÃ© JS)
+    // ReÃ§oit un token JWT (Google) ou access_token (Facebook) et vÃ©rifie
     // ================================================================
     public function handleSocialToken() {
         if (session_status() === PHP_SESSION_NONE) session_start();
@@ -183,7 +184,7 @@ class SocialAuthController {
         $token    = $data['token']    ?? '';
 
         if (!$provider || !$token) {
-            echo json_encode(['success' => false, 'message' => 'Données manquantes.']);
+            echo json_encode(['success' => false, 'message' => 'DonnÃ©es manquantes.']);
             return;
         }
 
@@ -192,7 +193,7 @@ class SocialAuthController {
         $avatar = '';
 
         if ($provider === 'google') {
-            // Vérifier le token Google via leur API
+            // VÃ©rifier le token Google via leur API
             $response = $this->httpGetRaw('https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($token));
             $payload  = json_decode($response, true);
 
@@ -205,7 +206,7 @@ class SocialAuthController {
             $avatar = $payload['picture'] ?? '';
 
         } elseif ($provider === 'facebook') {
-            // Vérifier le token Facebook
+            // VÃ©rifier le token Facebook
             $response = $this->httpGetRaw('https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=' . urlencode($token));
             $fbUser   = json_decode($response, true);
 
@@ -216,20 +217,20 @@ class SocialAuthController {
             $name   = $fbUser['name'] ?? '';
             $avatar = $fbUser['picture']['data']['url'] ?? '';
 
-            // Si pas d'email (compte Facebook sans email vérifié), utiliser un email généré
+            // Si pas d'email (compte Facebook sans email vÃ©rifiÃ©), utiliser un email gÃ©nÃ©rÃ©
             if (empty($email)) {
                 $fbId  = $fbUser['id'] ?? uniqid();
                 $email = 'fb_' . $fbId . '@facebook-user.caremeal.tn';
             }
         } else {
-            echo json_encode(['success' => false, 'message' => 'Provider non supporté.']);
+            echo json_encode(['success' => false, 'message' => 'Provider non supportÃ©.']);
             return;
         }
 
         $user = $this->loginOrCreate($email, trim($name), $provider, '', $avatar);
 
         if (!$user) {
-            echo json_encode(['success' => false, 'message' => 'Erreur lors de la création du compte.']);
+            echo json_encode(['success' => false, 'message' => 'Erreur lors de la crÃ©ation du compte.']);
             return;
         }
 
@@ -296,23 +297,22 @@ class SocialAuthController {
     }
 
     private function getDashboardUrl($role) {
-        $base = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
         switch ($role) {
-            case 'student': return $base . '/projet2a22/View/FrontOffice/student/dashboard.php';
-            case 'partner': return $base . '/projet2a22/View/FrontOffice/partner/dashboard.php';
-            case 'admin':   return $base . '/projet2a22/View/BackOffice/admin/dashboard.php';
-            default:        return $base . '/projet2a22/View/FrontOffice/index.php';
+            case 'student': return caremeal_url('View/FrontOffice/feed.php');
+            case 'partner': return caremeal_url('View/FrontOffice/feed.php');
+            case 'admin':   return caremeal_url('View/BackOffice/admin/dashboard.php');
+            default:        return caremeal_url('View/FrontOffice/index.php');
         }
     }
 
     private function redirectWithError($msg) {
         $encoded = urlencode($msg);
-        header('Location: /projet2a22/View/FrontOffice/login.php?social_error=' . $encoded);
+        header('Location: /View/FrontOffice/login.php?social_error=' . $encoded);
         exit;
     }
 }
 
-// Point d'entrée direct
+// Point d'entrÃ©e direct
 if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
     $ctrl = new SocialAuthController();
@@ -329,3 +329,5 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
     }
 }
 ?>
+
+

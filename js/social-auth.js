@@ -3,7 +3,7 @@
    social-auth.js — Google, Facebook, GitHub
    ============================================ */
 
-// Étend l'objet Auth existant avec les méthodes sociales
+// Ãƒâ€°tend l'objet Auth existant avec les méthodes sociales
 Object.assign(Auth, {
 
   // ================================================================
@@ -96,14 +96,14 @@ Object.assign(Auth, {
   // Connexion GitHub — redirection directe
   // ================================================================
   handleGithubLogin() {
-    window.location.href = '/projet2a22/Controller/SocialAuthController.php?action=github-init';
+    window.location.href = App.apiUrl('Controller/SocialAuthController.php?action=github-init');
   },
 
   // ================================================================
   // Envoi du token social au backend PHP pour vérification
   // ================================================================
   _sendSocialToken(provider, token, btn) {
-    fetch('/projet2a22/Controller/SocialAuthController.php?action=social-token', {
+    fetch(App.apiUrl('Controller/SocialAuthController.php?action=social-token'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, token }),
@@ -140,10 +140,10 @@ Object.assign(Auth, {
 
         // Redirection selon le rôle
         switch (u.role) {
-          case 'student': window.location.href = '/projet2a22/View/FrontOffice/student/dashboard.php'; break;
-          case 'partner': window.location.href = '/projet2a22/View/FrontOffice/partner/dashboard.php'; break;
-          case 'admin':   window.location.href = '/projet2a22/View/BackOffice/admin/dashboard.php'; break;
-          default:        window.location.href = '/projet2a22/View/FrontOffice/index.php'; break;
+          case 'student': window.location.href = App.apiUrl('View/FrontOffice/student/dashboard.php'); break;
+          case 'partner': window.location.href = App.apiUrl('View/FrontOffice/partner/dashboard.php'); break;
+          case 'admin':   window.location.href = App.apiUrl('View/BackOffice/admin/dashboard.php'); break;
+          default:        window.location.href = App.apiUrl('View/FrontOffice/index.php'); break;
         }
       } else {
         Auth.showAlert('error', result.message || 'Erreur de connexion sociale.');
@@ -175,3 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.history.replaceState({}, '', window.location.pathname);
   }
 });
+
+
+

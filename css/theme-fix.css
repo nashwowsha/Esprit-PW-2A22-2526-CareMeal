@@ -1,0 +1,934 @@
+/* ============================================
+   CAREMEAL — THEME FIX
+   theme-fix.css — Override dark remnants,
+   align all dashboards to the light theme
+   ============================================ */
+
+/* ══════════════════════════════════════════
+   DESIGN TOKENS (light theme)
+══════════════════════════════════════════ */
+:root {
+  --tf-bg:          #F0F2F5;
+  --tf-card:        #FFFFFF;
+  --tf-border:      rgba(0,0,0,0.08);
+  --tf-text:        #1A202C;
+  --tf-muted:       #64748B;
+  --tf-primary:     #FE5516;
+  --tf-primary-bg:  rgba(254,85,22,0.08);
+  --tf-success:     #10B981;
+  --tf-success-bg:  rgba(16,185,129,0.10);
+  --tf-warning:     #F59E0B;
+  --tf-warning-bg:  rgba(245,158,11,0.10);
+  --tf-danger:      #EF4444;
+  --tf-danger-bg:   rgba(239,68,68,0.10);
+  --tf-info:        #3B82F6;
+  --tf-info-bg:     rgba(59,130,246,0.10);
+  --tf-shadow:      0 2px 12px rgba(0,0,0,0.07);
+  --tf-shadow-md:   0 6px 24px rgba(0,0,0,0.10);
+}
+
+/* ══════════════════════════════════════════
+   1. GLOBAL — kill dark backgrounds
+══════════════════════════════════════════ */
+
+/* Anciens fonds sombres en inline — ne pas toucher aux <button> (actions cartes, filtres) */
+.dashboard-layout *:not(button)[style*="#1e293b"],
+.dashboard-layout *:not(button)[style*="#0f172a"],
+.dashboard-layout *:not(button)[style*="#334155"],
+.dashboard-layout *:not(button)[style*="#1a1a2e"] {
+  background: var(--tf-card) !important;
+  color: var(--tf-text) !important;
+  border-color: var(--tf-border) !important;
+}
+
+/* ══════════════════════════════════════════
+   2. STAT CARDS — uniform light style
+══════════════════════════════════════════ */
+
+.stat-card,
+.stat-box {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  box-shadow: var(--tf-shadow) !important;
+  color: var(--tf-text) !important;
+}
+
+.stat-card .stat-value,
+.stat-box h3 {
+  color: var(--tf-text) !important;
+}
+
+.stat-card .stat-label,
+.stat-box p {
+  color: var(--tf-muted) !important;
+}
+
+.stat-box.green h3 { color: var(--tf-success) !important; }
+.stat-box.orange h3 { color: var(--tf-primary) !important; }
+
+/* ══════════════════════════════════════════
+   3. CARDS — uniform light style
+══════════════════════════════════════════ */
+
+.card,
+.form-container,
+.event-card {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  box-shadow: var(--tf-shadow) !important;
+  color: var(--tf-text) !important;
+}
+
+/* Grilles admin événements : largeur raisonnable, pas toute la ligne */
+#pending-container,
+#all-events-table {
+  justify-items: start !important;
+  align-items: start !important;
+}
+
+#pending-container .event-card,
+#all-events-table .event-card {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: min(100%, 440px) !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Zone image : hauteur explicite + calque gradient ne capte pas les clics (admin/events sans style inline View) */
+.event-card .card-img-wrapper {
+  min-height: 180px !important;
+  height: 180px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+}
+
+.event-card .card-img-wrapper > div:first-child {
+  pointer-events: none !important;
+}
+
+.event-card .card-body {
+  position: relative !important;
+  z-index: 2 !important;
+  isolation: isolate !important;
+}
+
+.event-card .card-body button,
+.event-card .card-body .btn {
+  position: relative !important;
+  z-index: 3 !important;
+  pointer-events: auto !important;
+}
+
+/* Titres de section page événements admin (surcharge variables claires illisibles) */
+#events-main-view #all-section > h3,
+#events-main-view #pending-section > h3,
+#calendar-list-view h2[style*="uppercase"] {
+  color: var(--tf-text) !important;
+}
+
+.card-title,
+.event-title {
+  color: var(--tf-text) !important;
+}
+
+.event-description,
+.event-detail {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   4. TABLES — light theme
+══════════════════════════════════════════ */
+
+.data-table,
+table {
+  background: var(--tf-card) !important;
+  color: var(--tf-text) !important;
+}
+
+.data-table thead,
+table thead {
+  background: rgba(0,0,0,0.03) !important;
+}
+
+.data-table th,
+table th {
+  color: var(--tf-muted) !important;
+  border-bottom: 1px solid var(--tf-border) !important;
+  background: transparent !important;
+}
+
+.data-table td,
+table td {
+  color: var(--tf-text) !important;
+  border-bottom: 1px solid var(--tf-border) !important;
+  background: transparent !important;
+}
+
+.data-table tbody tr:hover,
+table tbody tr:hover {
+  background: rgba(254,85,22,0.03) !important;
+}
+
+/* Fix dark table headers in events pages */
+table tr[style*="background:rgba(0,0,0"],
+table tr[style*="background: rgba(0,0,0"] {
+  background: rgba(0,0,0,0.03) !important;
+}
+
+/* ══════════════════════════════════════════
+   5. INPUTS & FORMS — light theme
+══════════════════════════════════════════ */
+
+.form-group input,
+.form-group textarea,
+.form-group select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="time"],
+input[type="number"],
+textarea,
+select {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: var(--tf-text) !important;
+  border-radius: 8px !important;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  background: #FFFFFF !important;
+  border-color: var(--tf-primary) !important;
+  box-shadow: 0 0 0 3px rgba(254,85,22,0.10) !important;
+  outline: none !important;
+}
+
+.form-group label,
+label {
+  color: var(--tf-text) !important;
+}
+
+/* ══════════════════════════════════════════
+   6. BUTTONS — consistent orange theme
+══════════════════════════════════════════ */
+
+/* Primary / submit buttons */
+.btn-submit,
+button[type="submit"],
+.btn-primary {
+  background: var(--tf-primary) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+.btn-submit:hover,
+button[type="submit"]:hover,
+.btn-primary:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Cancel / secondary buttons */
+.btn-secondary,
+button[style*="background:#555"],
+button[style*="background: #555"] {
+  background: #F1F5F9 !important;
+  color: var(--tf-text) !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+/* View toggle buttons */
+.view-toggle-btn {
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+  padding: 8px 18px !important;
+  transition: all 0.2s ease !important;
+}
+
+.view-toggle-btn.active-view {
+  background: var(--tf-primary-bg) !important;
+  color: var(--tf-primary) !important;
+  border: 1px solid var(--tf-primary) !important;
+}
+
+.view-toggle-btn.inactive-view {
+  background: transparent !important;
+  color: var(--tf-muted) !important;
+  border: 1px solid var(--tf-border) !important;
+}
+
+/* Filter buttons */
+.filters button,
+#filterBtns button {
+  border-radius: 20px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+/* ══════════════════════════════════════════
+   7. BADGES — consistent colors
+══════════════════════════════════════════ */
+
+.badge-attente,
+.badge-warning {
+  background: var(--tf-warning-bg) !important;
+  color: var(--tf-warning) !important;
+  border: 1px solid rgba(245,158,11,0.2) !important;
+}
+
+.badge-valide,
+.badge-success,
+.badge-active {
+  background: var(--tf-success-bg) !important;
+  color: var(--tf-success) !important;
+  border: 1px solid rgba(16,185,129,0.2) !important;
+}
+
+.badge-refuse,
+.badge-danger,
+.badge-banned {
+  background: var(--tf-danger-bg) !important;
+  color: var(--tf-danger) !important;
+  border: 1px solid rgba(239,68,68,0.2) !important;
+}
+
+.badge-presentiel {
+  background: var(--tf-info-bg) !important;
+  color: var(--tf-info) !important;
+  border: 1px solid rgba(59,130,246,0.2) !important;
+}
+
+.badge-online {
+  background: rgba(168,85,247,0.10) !important;
+  color: #A855F7 !important;
+  border: 1px solid rgba(168,85,247,0.2) !important;
+}
+
+/* ══════════════════════════════════════════
+   8. SEARCH INPUTS — light style
+══════════════════════════════════════════ */
+
+#searchInput,
+#partnerSearchInput,
+#part-search,
+.search-bar input,
+input[placeholder*="Recherch"] {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: var(--tf-text) !important;
+  border-radius: 24px !important;
+}
+
+#searchInput:focus,
+#partnerSearchInput:focus,
+#part-search:focus {
+  border-color: var(--tf-primary) !important;
+  box-shadow: 0 0 0 3px rgba(254,85,22,0.10) !important;
+}
+
+/* ══════════════════════════════════════════
+   9. SELECT / SORT — light style
+══════════════════════════════════════════ */
+
+.sort-select,
+select#sortSelect,
+select#partnerSortSelect {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: var(--tf-text) !important;
+  border-radius: 8px !important;
+  padding: 10px 16px !important;
+}
+
+/* ══════════════════════════════════════════
+   10. EVENTS PAGES — fix dark card images
+══════════════════════════════════════════ */
+
+/* Event card image overlay — lighten for light theme */
+.card-img-wrapper {
+  background-color: #E2E8F0 !important;
+}
+
+.card-img-wrapper > div[style*="rgba(0,0,0"] {
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.15) 0%,
+    transparent 40%,
+    rgba(255,255,255,0.85) 100%
+  ) !important;
+}
+
+/* Event card body text */
+.card-body {
+  background: var(--tf-card) !important;
+}
+
+.event-title {
+  color: var(--tf-text) !important;
+  font-size: 1.1rem !important;
+}
+
+/* Action buttons on event cards */
+.btn-icon {
+  background: rgba(255,255,255,0.95) !important;
+  color: var(--tf-muted) !important;
+  border: 1px solid var(--tf-border) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-icon:hover {
+  background: var(--tf-primary) !important;
+  color: #fff !important;
+  border-color: var(--tf-primary) !important;
+}
+
+/* ══════════════════════════════════════════
+   11. STATS PANEL (events pages)
+══════════════════════════════════════════ */
+
+.stats-panel .stat-card,
+.stats-grid .stat-box {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  box-shadow: var(--tf-shadow) !important;
+}
+
+.stats-panel .stat-value {
+  color: var(--tf-text) !important;
+}
+
+.stats-panel .stat-label {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   12. PARTICIPANTS TABLE (admin events)
+══════════════════════════════════════════ */
+
+/* Dark table container in admin events */
+div[style*="background:#1e293b"],
+div[style*="background: #1e293b"] {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  border-radius: 12px !important;
+}
+
+/* Dark table rows */
+tr[style*="background:rgba(0,0,0,0.3)"],
+tr[style*="background: rgba(0,0,0,0.3)"] {
+  background: rgba(0,0,0,0.03) !important;
+}
+
+/* White text in dark tables */
+th[style*="color:#64748b"],
+th[style*="color: #64748b"] {
+  color: var(--tf-muted) !important;
+}
+
+/* Participant search input */
+#part-search {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: var(--tf-text) !important;
+  border-radius: 20px !important;
+}
+
+/* ══════════════════════════════════════════
+   13. TRANSLATION BUTTONS (partner events)
+══════════════════════════════════════════ */
+
+button[id^="btn-ar-"],
+button[id^="btn-en-"],
+button[id^="btn-reset-"] {
+  background: #F1F5F9 !important;
+  color: var(--tf-muted) !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 20px !important;
+  transition: all 0.2s ease !important;
+}
+
+button[id^="btn-ar-"]:hover,
+button[id^="btn-en-"]:hover {
+  background: var(--tf-primary-bg) !important;
+  color: var(--tf-primary) !important;
+  border-color: var(--tf-primary) !important;
+}
+
+/* ══════════════════════════════════════════
+   14. PROGRESS BARS
+══════════════════════════════════════════ */
+
+.progress-container {
+  background: #E2E8F0 !important;
+  border-radius: 4px !important;
+}
+
+.progress-bar-success { background: var(--tf-success) !important; }
+.progress-bar-warning { background: var(--tf-warning) !important; }
+.progress-bar-danger  { background: var(--tf-danger) !important; }
+
+/* ══════════════════════════════════════════
+   15. MODAL — light theme
+══════════════════════════════════════════ */
+
+.modal {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  color: var(--tf-text) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--tf-border) !important;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--tf-border) !important;
+}
+
+#rejectModal .modal,
+#rejectModal textarea {
+  background: var(--tf-card) !important;
+  color: var(--tf-text) !important;
+  border-color: var(--tf-border) !important;
+}
+
+#rejectModal textarea {
+  background: #F8FAFC !important;
+}
+
+/* ══════════════════════════════════════════
+   16. SIDEBAR — ensure light theme
+══════════════════════════════════════════ */
+
+.sidebar {
+  background: #FFFFFF !important;
+  border-right: 1px solid var(--tf-border) !important;
+}
+
+.sidebar-section-title {
+  color: var(--tf-muted) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+}
+
+.sidebar-link {
+  color: var(--tf-muted) !important;
+}
+
+.sidebar-link:hover {
+  background: rgba(0,0,0,0.04) !important;
+  color: var(--tf-text) !important;
+}
+
+.sidebar-link.active {
+  background: var(--tf-primary-bg) !important;
+  color: var(--tf-primary) !important;
+}
+
+.sidebar-brand {
+  color: var(--tf-text) !important;
+}
+
+.sidebar-brand span {
+  color: var(--tf-primary) !important;
+}
+
+.sidebar-user-name {
+  color: var(--tf-text) !important;
+}
+
+.sidebar-user-role {
+  color: var(--tf-muted) !important;
+}
+
+.sidebar-logout {
+  color: var(--tf-muted) !important;
+}
+
+.sidebar-logout:hover {
+  color: var(--tf-danger) !important;
+}
+
+/* ══════════════════════════════════════════
+   17. TOP HEADER — light theme
+══════════════════════════════════════════ */
+
+.top-header {
+  background: rgba(240,242,245,0.92) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid var(--tf-border) !important;
+}
+
+.page-title h2 {
+  color: var(--tf-text) !important;
+}
+
+.page-title p {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   18. WELCOME BANNER
+══════════════════════════════════════════ */
+
+.welcome-banner {
+  background: linear-gradient(135deg, #FFF7F4 0%, #FFFFFF 100%) !important;
+  border: 1px solid rgba(254,85,22,0.12) !important;
+}
+
+.welcome-text h2 {
+  color: var(--tf-text) !important;
+}
+
+.welcome-text h2 span {
+  color: var(--tf-primary) !important;
+}
+
+.welcome-text p {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   19. IMPACT CARDS
+══════════════════════════════════════════ */
+
+.impact-card {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  box-shadow: var(--tf-shadow) !important;
+}
+
+.impact-card .impact-value {
+  color: var(--tf-text) !important;
+  font-weight: 700 !important;
+}
+
+.impact-card .impact-label {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   20. TIMELINE (logs)
+══════════════════════════════════════════ */
+
+.timeline::before {
+  background: var(--tf-border) !important;
+}
+
+.timeline-item::before {
+  background: var(--tf-card) !important;
+  border-color: var(--tf-primary) !important;
+}
+
+.timeline-content {
+  color: var(--tf-text) !important;
+}
+
+.timeline-time {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   21. PAGINATION
+══════════════════════════════════════════ */
+
+.pagination {
+  border-top: 1px solid var(--tf-border) !important;
+}
+
+.pagination-btn {
+  color: var(--tf-muted) !important;
+}
+
+.pagination-btn:hover {
+  background: rgba(0,0,0,0.04) !important;
+  color: var(--tf-text) !important;
+}
+
+.pagination-btn.active {
+  background: var(--tf-primary) !important;
+  color: #fff !important;
+}
+
+/* ══════════════════════════════════════════
+   22. TABS
+══════════════════════════════════════════ */
+
+.tab {
+  color: var(--tf-muted) !important;
+}
+
+.tab:hover {
+  color: var(--tf-text) !important;
+}
+
+.tab.active {
+  color: var(--tf-primary) !important;
+  border-bottom-color: var(--tf-primary) !important;
+}
+
+/* ══════════════════════════════════════════
+   23. SETTINGS ITEMS
+══════════════════════════════════════════ */
+
+.settings-group {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+}
+
+.settings-item {
+  border-bottom: 1px solid var(--tf-border) !important;
+}
+
+.settings-item h4 {
+  color: var(--tf-text) !important;
+}
+
+.settings-item p {
+  color: var(--tf-muted) !important;
+}
+
+.settings-icon {
+  background: rgba(0,0,0,0.04) !important;
+  color: var(--tf-muted) !important;
+}
+
+.settings-item.danger .settings-icon {
+  background: var(--tf-danger-bg) !important;
+  color: var(--tf-danger) !important;
+}
+
+/* ══════════════════════════════════════════
+   24. PROFILE HEADER
+══════════════════════════════════════════ */
+
+.profile-header {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+}
+
+.profile-info h2 {
+  color: var(--tf-text) !important;
+}
+
+.profile-email {
+  color: var(--tf-muted) !important;
+}
+
+.profile-meta-item {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   25. TOAST NOTIFICATIONS
+══════════════════════════════════════════ */
+
+.toast {
+  background: var(--tf-card) !important;
+  border: 1px solid var(--tf-border) !important;
+  color: var(--tf-text) !important;
+  box-shadow: var(--tf-shadow-md) !important;
+}
+
+.toast-title {
+  color: var(--tf-text) !important;
+}
+
+.toast-message {
+  color: var(--tf-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   26. DASHBOARDS — texte lisible (contre styles inline clairs / autofill)
+══════════════════════════════════════════ */
+
+.dashboard-layout .main-content input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+.dashboard-layout .main-content textarea,
+.dashboard-layout .main-content select,
+.dashboard-layout .main-content .form-control,
+.dashboard-layout .main-content .form-input,
+.dashboard-layout .main-content .form-textarea {
+  color: var(--tf-text) !important;
+  -webkit-text-fill-color: var(--tf-text) !important;
+}
+
+.dashboard-layout .main-content input::placeholder,
+.dashboard-layout .main-content textarea::placeholder {
+  color: var(--tf-muted) !important;
+  opacity: 1 !important;
+}
+
+/* ============================================
+   27. LIGHT READABILITY PATCH (admin/partner/student)
+   Force dark readable text on white backgrounds
+   ============================================ */
+
+.dashboard-layout .main-content .input,
+.dashboard-layout .main-content .select,
+.dashboard-layout .main-content .textarea,
+.dashboard-layout .main-content .pref-input,
+.dashboard-layout .main-content .pref-select,
+.dashboard-layout .main-content .pref-textarea,
+.dashboard-layout .main-content .pref-form-input {
+  background: #FFFFFF !important;
+  color: var(--tf-text) !important;
+  -webkit-text-fill-color: var(--tf-text) !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+.dashboard-layout .main-content select option {
+  color: var(--tf-text) !important;
+  background: #FFFFFF !important;
+}
+
+.dashboard-layout .main-content label,
+.dashboard-layout .main-content .meal-name,
+.dashboard-layout .main-content .restaurant-name,
+.dashboard-layout .main-content .section-note,
+.dashboard-layout .main-content .meta,
+.dashboard-layout .main-content .hint,
+.dashboard-layout .main-content .hint-text,
+.dashboard-layout .main-content .hint-inline,
+.dashboard-layout .main-content .coords-meta,
+.dashboard-layout .main-content .location-coords,
+.dashboard-layout .main-content .pref-meta,
+.dashboard-layout .main-content .pref-muted,
+.dashboard-layout .main-content .json-preview {
+  color: var(--tf-text) !important;
+}
+
+.dashboard-layout .main-content .table,
+.dashboard-layout .main-content .meal-table,
+.dashboard-layout .main-content .data-table {
+  background: #FFFFFF !important;
+  color: var(--tf-text) !important;
+}
+
+.dashboard-layout .main-content .table th,
+.dashboard-layout .main-content .table td,
+.dashboard-layout .main-content .meal-table th,
+.dashboard-layout .main-content .meal-table td,
+.dashboard-layout .main-content .data-table th,
+.dashboard-layout .main-content .data-table td {
+  color: var(--tf-text) !important;
+  border-bottom-color: #E2E8F0 !important;
+}
+
+.dashboard-layout .main-content .table thead th,
+.dashboard-layout .main-content .meal-table thead th,
+.dashboard-layout .main-content .data-table thead th {
+  background: #F8FAFC !important;
+  color: #475569 !important;
+}
+
+.dashboard-layout .main-content .table tbody tr:hover,
+.dashboard-layout .main-content .meal-table tbody tr:hover,
+.dashboard-layout .main-content .data-table tbody tr:hover {
+  background: #F8FAFC !important;
+}
+
+.dashboard-layout .main-content .tag,
+.dashboard-layout .main-content .icon-choice,
+.dashboard-layout .main-content .status-pill,
+.dashboard-layout .main-content .empty-box,
+.dashboard-layout .main-content .meals-box,
+.dashboard-layout .main-content .meal-row {
+  color: var(--tf-text) !important;
+  border-color: #E2E8F0 !important;
+  background: #F8FAFC !important;
+}
+
+.dashboard-layout .main-content .qty-btn {
+  color: var(--tf-text) !important;
+  border-color: #CBD5E1 !important;
+  background: #FFFFFF !important;
+}
+
+/* Admin collecte status pills / labels */
+.dashboard-layout .main-content .live-pill.active {
+  color: #065F46 !important;
+  background: #D1FAE5 !important;
+  border-color: #6EE7B7 !important;
+}
+
+.dashboard-layout .main-content .live-pill.stale {
+  color: #92400E !important;
+  background: #FFEDD5 !important;
+  border-color: #FDBA74 !important;
+}
+
+.dashboard-layout .main-content .value,
+.dashboard-layout .main-content .status-pill,
+.dashboard-layout .main-content .step {
+  color: var(--tf-text) !important;
+}
+
+.dashboard-layout .main-content .step {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Student matching assistant */
+.dashboard-layout .main-content .ai-assistant-card {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: var(--tf-shadow) !important;
+}
+
+.dashboard-layout .main-content .ai-assistant-title,
+.dashboard-layout .main-content .ai-assistant-meta,
+.dashboard-layout .main-content .ai-assistant-list {
+  color: var(--tf-text) !important;
+}
+
+/* Student matching restaurant IA panel */
+.dashboard-layout .main-content .meal-ai-panel {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: var(--tf-shadow) !important;
+}
+
+.dashboard-layout .main-content .meal-ai-title,
+.dashboard-layout .main-content .meal-ai-text,
+.dashboard-layout .main-content .meal-ai-list,
+.dashboard-layout .main-content .meal-ai-block-title,
+.dashboard-layout .main-content .meal-ai-line {
+  color: var(--tf-text) !important;
+}
+
+.dashboard-layout .main-content .meal-ai-block {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+.dashboard-layout .main-content .meal-ai-chip {
+  color: #334155 !important;
+  background: #EEF2FF !important;
+  border-color: #CBD5E1 !important;
+}
+
+.dashboard-layout .main-content .meal-ai-warning {
+  color: #991B1B !important;
+  background: #FEF2F2 !important;
+  border-color: #FECACA !important;
+}
+
+.dashboard-layout .main-content .source-badge {
+  color: #1E293B !important;
+}

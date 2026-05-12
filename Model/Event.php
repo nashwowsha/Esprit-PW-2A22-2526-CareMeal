@@ -1,106 +1,72 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
 
 class Event {
-    private $conn;
-    private $table_name = "EVENEMENT";
+    private $id_evenement;
+    private $titre;
+    private $description;
+    private $date_evenement;
+    private $heure_debut;
+    private $heure_fin;
+    private $type_evenement;
+    private $lieu;
+    private $lien_online;
+    private $capacite_max;
+    private $statut;
+    private $createur_type;
+    private $createur_id;
+    private $statut_validation;
+    private $motif_refus;
 
-    public function __construct() {
-        $database = new Database();
-        $this->conn = $database->getConnection();
+    public function __construct($titre = null, $description = null, $date_evenement = null, $heure_debut = null, $heure_fin = null, $type_evenement = null, $lieu = null, $lien_online = null, $capacite_max = null, $statut = null, $createur_type = null, $createur_id = null, $statut_validation = null, $id_evenement = null, $motif_refus = null) {
+        $this->titre = $titre;
+        $this->description = $description;
+        $this->date_evenement = $date_evenement;
+        $this->heure_debut = $heure_debut;
+        $this->heure_fin = $heure_fin;
+        $this->type_evenement = $type_evenement;
+        $this->lieu = $lieu;
+        $this->lien_online = $lien_online;
+        $this->capacite_max = $capacite_max;
+        $this->statut = $statut;
+        $this->createur_type = $createur_type;
+        $this->createur_id = $createur_id;
+        $this->statut_validation = $statut_validation;
+        $this->id_evenement = $id_evenement;
+        $this->motif_refus = $motif_refus;
     }
 
-    public function create($data) {
-        $query = "INSERT INTO " . $this->table_name . " 
-        (titre, description, date_evenement, heure_debut, heure_fin, type_evenement, lieu, lien_online, capacite_max, statut, createur_type, createur_id, statut_validation) 
-        VALUES 
-        (:titre, :description, :date_evenement, :heure_debut, :heure_fin, :type_evenement, :lieu, :lien_online, :capacite_max, 'Planifié', :createur_type, :createur_id, 'En attente')";
+    // Getters
+    public function getIdEvenement() { return $this->id_evenement; }
+    public function getTitre() { return $this->titre; }
+    public function getDescription() { return $this->description; }
+    public function getDateEvenement() { return $this->date_evenement; }
+    public function getHeureDebut() { return $this->heure_debut; }
+    public function getHeureFin() { return $this->heure_fin; }
+    public function getTypeEvenement() { return $this->type_evenement; }
+    public function getLieu() { return $this->lieu; }
+    public function getLienOnline() { return $this->lien_online; }
+    public function getCapaciteMax() { return $this->capacite_max; }
+    public function getStatut() { return $this->statut; }
+    public function getCreateurType() { return $this->createur_type; }
+    public function getCreateurId() { return $this->createur_id; }
+    public function getStatutValidation() { return $this->statut_validation; }
+    public function getMotifRefus() { return $this->motif_refus; }
 
-        $stmt = $this->conn->prepare($query);
-
-        $stmt->bindParam(":titre", $data['titre']);
-        $stmt->bindParam(":description", $data['description']);
-        $stmt->bindParam(":date_evenement", $data['date_evenement']);
-        $stmt->bindParam(":heure_debut", $data['heure_debut']);
-        $stmt->bindParam(":heure_fin", $data['heure_fin']);
-        $stmt->bindParam(":type_evenement", $data['type_evenement']);
-        $stmt->bindParam(":lieu", $data['lieu']);
-        $stmt->bindParam(":lien_online", $data['lien_online']);
-        $stmt->bindParam(":capacite_max", $data['capacite_max'], PDO::PARAM_INT);
-        $stmt->bindParam(":createur_type", $data['createur_type']);
-        $stmt->bindParam(":createur_id", $data['createur_id'], PDO::PARAM_INT);
-
-        return $stmt->execute();
-    }
-    
-    public function getPartnerEvents($partner_id) {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE createur_type = 'Partenaire' AND createur_id = :partner_id ORDER BY date_evenement DESC";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":partner_id", $partner_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function deleteEvent($event_id, $partner_id) {
-        $query = "DELETE FROM " . $this->table_name . " WHERE id_evenement = :event_id AND createur_type = 'Partenaire' AND createur_id = :partner_id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":event_id", $event_id, PDO::PARAM_INT);
-        $stmt->bindParam(":partner_id", $partner_id, PDO::PARAM_INT);
-        return $stmt->execute();
-    }
-
-    public function getEventById($event_id, $partner_id) {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE id_evenement = :event_id AND createur_type = 'Partenaire' AND createur_id = :partner_id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":event_id", $event_id, PDO::PARAM_INT);
-        $stmt->bindParam(":partner_id", $partner_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    public function updateEvent($event_id, $partner_id, $data) {
-        $query = "UPDATE " . $this->table_name . " 
-                  SET titre = :titre, description = :description, date_evenement = :date_evenement, 
-                      heure_debut = :heure_debut, heure_fin = :heure_fin, type_evenement = :type_evenement, 
-                      lieu = :lieu, lien_online = :lien_online, capacite_max = :capacite_max, 
-                      statut_validation = 'En attente'
-                  WHERE id_evenement = :event_id AND createur_type = 'Partenaire' AND createur_id = :partner_id";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":titre", $data['titre']);
-        $stmt->bindParam(":description", $data['description']);
-        $stmt->bindParam(":date_evenement", $data['date_evenement']);
-        $stmt->bindParam(":heure_debut", $data['heure_debut']);
-        $stmt->bindParam(":heure_fin", $data['heure_fin']);
-        $stmt->bindParam(":type_evenement", $data['type_evenement']);
-        $stmt->bindParam(":lieu", $data['lieu']);
-        $stmt->bindParam(":lien_online", $data['lien_online']);
-        $stmt->bindParam(":capacite_max", $data['capacite_max'], PDO::PARAM_INT);
-        $stmt->bindParam(":event_id", $event_id, PDO::PARAM_INT);
-        $stmt->bindParam(":partner_id", $partner_id, PDO::PARAM_INT);
-        
-        return $stmt->execute();
-    }
-
-    // ADMIN: Récupérer tous les événements avec infos partenaire
-    public function getAllEventsWithPartner() {
-        $sql = "SELECT e.*, u.email as partner_email, p.nom_entreprise as partner_name
-                FROM EVENEMENT e
-                LEFT JOIN users u ON e.createur_id = u.id
-                LEFT JOIN profiles p ON u.id = p.user_id
-                ORDER BY e.date_evenement DESC, e.heure_debut DESC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    // ADMIN: Valider/Rejeter un événement
-    public function setValidationStatus($id_evenement, $statut) {
-        $sql = "UPDATE EVENEMENT SET statut_validation = :statut WHERE id_evenement = :id";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindParam(":statut", $statut);
-        $stmt->bindParam(":id", $id_evenement, PDO::PARAM_INT);
-        return $stmt->execute();
-    }
+    // Setters
+    public function setIdEvenement($id_evenement) { $this->id_evenement = $id_evenement; }
+    public function setTitre($titre) { $this->titre = $titre; }
+    public function setDescription($description) { $this->description = $description; }
+    public function setDateEvenement($date_evenement) { $this->date_evenement = $date_evenement; }
+    public function setHeureDebut($heure_debut) { $this->heure_debut = $heure_debut; }
+    public function setHeureFin($heure_fin) { $this->heure_fin = $heure_fin; }
+    public function setTypeEvenement($type_evenement) { $this->type_evenement = $type_evenement; }
+    public function setLieu($lieu) { $this->lieu = $lieu; }
+    public function setLienOnline($lien_online) { $this->lien_online = $lien_online; }
+    public function setCapaciteMax($capacite_max) { $this->capacite_max = $capacite_max; }
+    public function setStatut($statut) { $this->statut = $statut; }
+    public function setCreateurType($createur_type) { $this->createur_type = $createur_type; }
+    public function setCreateurId($createur_id) { $this->createur_id = $createur_id; }
+    public function setStatutValidation($statut_validation) { $this->statut_validation = $statut_validation; }
+    public function setMotifRefus($motif_refus) { $this->motif_refus = $motif_refus; }
 }
 ?>
